@@ -7,17 +7,20 @@ compute a policy with guaranteed probability that the property is satisfied.
 
 
 1. Convert syntactically co-safe LTL property to DFA
+  * (code manually until cristi is ready)
 
 2. Formal abstraction of POMDP to approximate belief space model
 *output:*
   * MDP (Markov decision process)
   * \delta = probabilistic deviation
   * Lset = set valued labeling map
+  * R^{-1}(x) = set valued function containing all abstract states related to concrete state
 
-3. compute delta-robust game over cross product
+3. Compute delta-robust game over cross product
 *output:*
-  * Value function for abstract prismmodelchecker
+  * Value function for abstract model
+  * Policy for abstract model
 
-
-
-4. implementation
+4. Implementation
+  * refine policy  based on Value function, relation, and abstract Policy
+  * simulate refined policy with concrete POMDP
