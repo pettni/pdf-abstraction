@@ -1,18 +1,53 @@
-""" Routines for handling  Markov Decision processes
+# Copyright (c) 2013-2017 by California Institute of Technology
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the California Institute of Technology nor
+#    the names of its contributors may be used to endorse or promote
+#    products derived from this software without specific prior
+#    written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL CALTECH
+# OR THE CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+# USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+# OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+"""Markov processes"""
 
-author S. Haesaert
-"""
 from mdptoolbox.mdp import *
 import numpy as np
 import polytope as pc
 import itertools
 
 class Markov(MDP):
+    """Simple Markov Decision process
+
+      Markov decision process for reaching target set.
+
+    """
 
     def __init__(self,transitions, srep, urep,sedge):
+
+
         reward = np.ones((1,np.shape(transitions)[1]))
         discount = None
-        max_iter = None
         epsilon = None
         max_iter = None
 
@@ -61,29 +96,14 @@ class Markov(MDP):
                     "right shape (Bellman operator)."
             except AttributeError:
                 raise TypeError("V must be a numpy array or matrix.")
-        # Looping through each action the the Q-value matrix is calculated.
-        # P and V can be any object that supports indexing, so it is important
-        # that you know they define a valid MDP before calling the
-        # _bellmanOperator method. Otherwise the results will be meaningless.
+
         Q = np.empty((self.A, self.S))
         for aa in range(self.A):
-            print('target', np.shape(np.ones(np.shape(self.target))-self.target))
-            print('V', np.shape(V))
-            print('shape target times V',np.shape(self.target + (np.ones(np.shape(self.target))-self.target) * V ))
-            Qval = np.dot(self.P[aa],self.target + (np.ones(np.shape(self.target)) - self.target)* V)
-            print('target',np.shape(Qval))
+            qval = np.dot(self.P[aa],self.target + (np.ones(np.shape(self.target)) - self.target)* V)
+            Q[aa] = qval.reshape(-1)
 
-            print('shape P', np.shape(self.P[aa]))
-            Q[aa] = Qval.reshape(-1)
-
-            #print(Q[aa].reshape(xi.shape, order='F'))
-
-        # Get the policy and value, for now it is being returned but...
-        # Which way is better?
-        # 1. Return, (policy, value)
         self.V = Q.max(axis=0).reshape((self.S,1))
         pol = Q.argmax(axis=0)
-
 
         ugrid = np.meshgrid(*self.urep)
         self.policy_u = np.empty((self.S,len(self.urep)))
@@ -91,10 +111,6 @@ class Markov(MDP):
         for u_index,u_grid_index in enumerate(ugrid):
             u_row = u_grid_index.flatten()
             for i,u in enumerate(pol):
-                #print(i,u)
                 self.policy_u[i][u_index] =u_row[u]
 
         return (Q.argmax(axis=0), Q.max(axis=0))
-        # 2. update self.policy and self.V directly
-        # self.V = Q.max(axis=1)
-        # self.policy = Q.argmax(axis=1)
