@@ -3,3 +3,4 @@
 polytope
 matplotlib
 numpy
+scipy

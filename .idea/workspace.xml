@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="31e704a2-ef6c-40a2-8981-ee3dd6419582" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Models/Linear.py" afterPath="$PROJECT_DIR$/Models/Linear.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Demo_file/LTI_Gauss_abstract.py" afterPath="$PROJECT_DIR$/Demo_file/LTI_Gauss_abstract.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Run-file.py" afterPath="$PROJECT_DIR$/Run-file.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/requirements.txt" afterPath="$PROJECT_DIR$/requirements.txt" />
     </list>
     <ignored path="$PROJECT_DIR$/.idea/" />
@@ -33,11 +34,11 @@
               </provider>
             </entry>
           </file>
-          <file leaf-file-name="Linear.py" pinned="false" current-in-tab="true">
+          <file leaf-file-name="Linear.py" pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/Models/Linear.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="306">
-                  <caret line="17" column="26" lean-forward="false" selection-start-line="17" selection-start-column="26" selection-end-line="17" selection-end-column="26" />
+                <state relative-caret-position="218">
+                  <caret line="153" column="0" lean-forward="true" selection-start-line="153" selection-start-column="0" selection-end-line="153" selection-end-column="0" />
                   <folding>
                     <element signature="e#82#100#0" expanded="true" />
                   </folding>
@@ -87,13 +88,13 @@
               </provider>
             </entry>
           </file>
-          <file leaf-file-name="Run-file.py" pinned="false" current-in-tab="false">
+          <file leaf-file-name="Run-file.py" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/Run-file.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="103">
-                  <caret line="22" column="0" lean-forward="true" selection-start-line="22" selection-start-column="0" selection-end-line="22" selection-end-column="0" />
+                <state relative-caret-position="504">
+                  <caret line="28" column="15" lean-forward="true" selection-start-line="28" selection-start-column="15" selection-end-line="28" selection-end-column="15" />
                   <folding>
-                    <element signature="e#0#29#0" expanded="true" />
+                    <element signature="e#194#223#0" expanded="true" />
                   </folding>
                 </state>
               </provider>
@@ -102,10 +103,10 @@
           <file leaf-file-name="LTI_Gauss_abstract.py" pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/Demo_file/LTI_Gauss_abstract.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="237">
-                  <caret line="42" column="50" lean-forward="true" selection-start-line="42" selection-start-column="50" selection-end-line="42" selection-end-column="50" />
+                <state relative-caret-position="0">
+                  <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="53" selection-end-column="0" />
                   <folding>
-                    <element signature="e#79#108#0" expanded="true" />
+                    <element signature="e#86#115#0" expanded="true" />
                   </folding>
                 </state>
               </provider>
@@ -178,11 +179,11 @@
         <option value="$PROJECT_DIR$/Testruns.ipynb" />
         <option value="$PROJECT_DIR$/RobustComp_Matlab/gridding.m" />
         <option value="$PROJECT_DIR$/gdtl_dfa_example.py" />
-        <option value="$PROJECT_DIR$/Run-file.py" />
-        <option value="$PROJECT_DIR$/Demo_file/LTI_Gauss_abstract.py" />
         <option value="$PROJECT_DIR$/Models/MDP.py" />
         <option value="$PROJECT_DIR$/Models/Linear.py" />
         <option value="$PROJECT_DIR$/requirements.txt" />
+        <option value="$PROJECT_DIR$/Demo_file/LTI_Gauss_abstract.py" />
+        <option value="$PROJECT_DIR$/Run-file.py" />
       </list>
     </option>
   </component>
@@ -410,26 +411,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Run-file.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="103">
-          <caret line="22" column="0" lean-forward="true" selection-start-line="22" selection-start-column="0" selection-end-line="22" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#29#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Demo_file/LTI_Gauss_abstract.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="237">
-          <caret line="42" column="50" lean-forward="true" selection-start-line="42" selection-start-column="50" selection-end-line="42" selection-end-column="50" />
-          <folding>
-            <element signature="e#79#108#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file:///anaconda/envs/Py_gdtl/lib/python2.7/site-packages/tulip/transys/transys.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="49">
@@ -474,10 +455,30 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Models/Linear.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="306">
-          <caret line="17" column="26" lean-forward="false" selection-start-line="17" selection-start-column="26" selection-end-line="17" selection-end-column="26" />
+        <state relative-caret-position="218">
+          <caret line="153" column="0" lean-forward="true" selection-start-line="153" selection-start-column="0" selection-end-line="153" selection-end-column="0" />
           <folding>
             <element signature="e#82#100#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Demo_file/LTI_Gauss_abstract.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="53" selection-end-column="0" />
+          <folding>
+            <element signature="e#86#115#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Run-file.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="504">
+          <caret line="28" column="15" lean-forward="true" selection-start-line="28" selection-start-column="15" selection-end-line="28" selection-end-column="15" />
+          <folding>
+            <element signature="e#194#223#0" expanded="true" />
           </folding>
         </state>
       </provider>

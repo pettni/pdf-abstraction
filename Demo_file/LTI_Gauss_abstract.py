@@ -1,7 +1,5 @@
 """
-LTI Gaussian processes
-abstraction
-
+LTI Gaussian processes abstraction (basic)
 
 Author Sofie
 """
