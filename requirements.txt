@@ -1,3 +1,5 @@
 # use with `pip install -r requirements.txt`
 
-
+polytope
+matplotlib
+numpy

@@ -10,20 +10,11 @@ import itertools
 class Markov(MDP):
 
     def __init__(self,transitions, srep, urep,sedge):
-        reward = np.ones((1,np.shape(transitions)[1])) # np.array( [[0.4487, 0.216, 0.2164, 0.1186, 0.000296],
-              # [0.216, 0.1778, 0.3719, 0.2334, 0.0008789],
-              # [0.09639, 0.1657, 0.6569, 0.08082, 0.0001928],
-              # [0.005234, 0.0103, 0.008007, 0.9708, 0.005667],
-              # [00, 0, 0, 0, 0.7788]])# 1#: array
-            #Reward vectors.
-        discount = None#: float
-            #The discount rate on future rewards.
-        max_iter = None#: int
-            #The maximum number of iterations.
-        epsilon = None#: tuple
-            #The optimal policy.
-        max_iter = None #: float
-            #The time used to converge to the optimal policy.
+        reward = np.ones((1,np.shape(transitions)[1]))
+        discount = None
+        max_iter = None
+        epsilon = None
+        max_iter = None
 
         MDP.__init__(self, transitions, reward, discount, epsilon, max_iter,
                  skip_check=True)
