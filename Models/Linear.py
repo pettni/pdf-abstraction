@@ -22,8 +22,8 @@ class LTI:
 
         self.a = a
         self.b = b
-        self.c = c
-        self.d = d
+        self.c = c # currently unused
+        self.d = d # currently unused
         self.dim = len(a)
         self.m = b.shape[1]
         self.X = x
@@ -86,7 +86,6 @@ class LTI:
 
         U = self.U
         X = self.setX()
-        ## split gridding diameter into the dimensions
 
         n = self.dim
         rad = LA.norm(d, 2)
@@ -121,7 +120,6 @@ class LTI:
 
         # grid input
         urep = tuple()
-
         lu, uu = pc.bounding_box(self.U)  # lower and upperbounds over all dimensions
         for i, low in enumerate(lu):
             urep += (np.linspace(lu[i], uu[i], un, endpoint=True),)
@@ -130,11 +128,8 @@ class LTI:
         un = np.size(ugrid[0])  # number of finite states
 
 
-        print(urep)
 
-
-
-        transition=np.zeros((un, xn, xn))
+        transition = np.zeros((un, xn, xn))
         print(transition.shape)
         transition.fill(-10)
         for u_index, u in enumerate(itertools.product(*urep)):
@@ -144,54 +139,23 @@ class LTI:
 
                 # compute probability in each dimension
                 Pi = tuple()
-
                 for i in range(n):
                     Pi += (np.diff(norm.cdf(sedge[i], mean[i], vars[i]**.5)),) # probabilities for different dimensions
 
+                # multiply over dimensions
                 P += (np.array([[reduce(operator.mul, p, 1) for p in itertools.product(*Pi)]]),)
 
-                # print(sum( [reduce(operator.mul, p, 1) for p in itertools.product(*Pi)])) #check sums to one
-                # sum(P)
-            prob= np.concatenate(P, axis = 0)
+            prob = np.concatenate(P, axis = 0)
             transition[u_index] = prob
-            #print(np.concatenate(P, axis = 0))
-            #print(np.sum(transition[u_index],axis=1))
 
-
-        # compute u=0 probability distributions
-
-
-
-
-
-
-        # for each dimension compute grid points
-        # s = cell(n,1);  # enumerate
-        # z_rep = cell(n,1); # grid values
-        #
-        #
-        # for i= 1:n
-        # nz(i)=ceil((boxmax_min(1,i)-boxmax_min(2,i))/(2*d));
-        # z{i} = linspace(boxmax_min(2,i),boxmax_min(1,i),nz(i)+1); % boundaries of the partition sets for first state
-        # z_rep{i} = z{1}(1:end-1) + diff(z{i})/2; % representative points for x1
-        # end
-        # % Add boundaries on the input ???
-        # U_L=min(U.V);
-        # U_H=max(U.V);
-        # u = linspace(U_L,U_H,nu+1); % boundaries of the partition sets for input
-        # u_diam = (U_H-U_L)/nu; % diameter for input
-        # u_rep = u(1:nu) + diff(u)/2; % representative points for input
-        # nu=length(u_rep);
 
 
 
 
 
         print('WARNING: UNVERIFIED implementation')
-        transitions =transition
-            #Transition probability matrices.
 
-        mdp_grid = Markov(transitions, srep, urep,sedge)
+        mdp_grid = Markov(transition, srep, urep, sedge)
 
         if verbose == True and n == 2:
             plt.scatter(grid[0].flatten(), grid[1].flatten(), label='finite states', color='k', s=10, marker="o")
