@@ -34,8 +34,17 @@ sys.setU(pc.box2poly(np.kron(np.ones((sys.m, 1)), np.array([[-3,3]]))))
 # continuous set of inputs
 
 
+
+
 # *Grid space
 d = np.array([[.5,.5]]) #  with distance measure
+
+# quantify epsilon error,
+# (tilde x-x)+= (A+BK) (tilde x-x) +r
+
+
+
+
 mdp_grid = sys.abstract(d,un=5,verbose= False)  #  do the gridding
 
 
