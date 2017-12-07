@@ -12,6 +12,7 @@ Author Sofie
 
 # Import packages:
 from Models.Linear import LTI
+from ApprxSimulation.LTI_simrel import eps_err
 import numpy as np
 import polytope as pc
 import matplotlib.pyplot as plt
@@ -32,9 +33,9 @@ sys.setX(poly) # X space
 
 sys.setU(pc.box2poly(np.kron(np.ones((sys.m, 1)), np.array([[-3,3]]))))
 # continuous set of inputs
+Dist = pc.box2poly(np.kron(np.ones((sys.dim, 1)), np.array([[-.1,.1]])))
 
-
-
+eps_err(sys, Dist,lamb=.9)
 
 # *Grid space
 d = np.array([[.5,.5]]) #  with distance measure

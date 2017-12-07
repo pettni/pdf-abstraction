@@ -125,16 +125,21 @@ Using the S-procedure  we get
  		0 &(1-\lambda )\epsilon^2& \mathbf r^T  	\\
  	  (A+BK)M^{-1}& \mathbf r& M^{-1} 
  	\end{bmatrix} \succeq 0\\
+ 		\begin{bmatrix}
+ 		\lambda M^{-1}&0 				& M^{-1}	(A+BK)^T 		\\
+ 		0 &(1-\lambda )\epsilon^2&  r_i^T  	\\
+ 	  (A+BK)M^{-1}&  r_i & M^{-1} 
+ 	\end{bmatrix} \succeq 0,\  \forall r_i \\ 
 \end{align}
-Remark that this implies that $1-\lambda \geq0$ hence $1\geq\lambda\geq0 $.
+Remark that this implies that $1-\lambda \geq0$ hence $1\geq\lambda\geq0 $.  And remark that 
 
 The objective to find a minimal $\epsilon$ can be expressed as follows
 \begin{align}
 \mathbf{Objective:    }& \min_{M_{inv}, L} \epsilon^2\\
 &	\begin{bmatrix}
  		\lambda M_{inv}&0 				& 	M_{inv}A^T+L^TB^T 		\\
- 		0 &(1-\lambda )\epsilon^2& \mathbf r^T  	\\
- 	  AM_{inv}+BL& \mathbf r& M_{inv} \\
+ 		0 &(1-\lambda )\epsilon^2&   r_i^T  	\\
+ 	  AM_{inv}+BL& r_i& M_{inv} \\
  	\end{bmatrix}\succeq0\\
 &  \begin{bmatrix}
   	M_{inv} & M_{inv}C^T\\
