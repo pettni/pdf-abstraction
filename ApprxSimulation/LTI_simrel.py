@@ -35,9 +35,11 @@ import polytope as pc
 import cvxpy as cvx
 import numpy as np
 import cvxopt
+from numpy.linalg import inv
+import matplotlib.pyplot as plt
 
 
-def eps_err(lti,Dist,lamb=.9):
+def eps_err(lti,Dist,lamb=.9, verbose =True):
     """
     Quantify accuracy of simulation with respect to disturbance given as a polytope
     :param lti: contains dynamics matrix lti.a, lti.b
@@ -51,8 +53,7 @@ def eps_err(lti,Dist,lamb=.9):
     C = lti.c
 
     Vertices = pc.extreme(Dist)
-    print(Vertices)
-    # define variables
+     # define variables
     Minv = cvx.Semidef(n)
     L = cvx.Variable(m,n)
     eps2 = cvx.Semidef(1)
@@ -61,16 +62,16 @@ def eps_err(lti,Dist,lamb=.9):
                       [np.zeros((1,n)), (1-lam) * eps2, np.zeros((1,n))],
                       [A * Minv + B * L , np.zeros((n,1)), Minv]])
 
-    constraintstup = tuple()
+    cmat = cvx.bmat([[Minv, Minv * C.T],[C* Minv, np.eye(C.shape[0])]])
+    constraintstup = (cmat >> 0,)
+
     ri =  np.zeros((n,1))
     for i in range(Vertices.shape[0]):
         ri = Vertices[i].reshape((n,1))
-
-        print(ri)
         rmat = cvx.bmat([[np.zeros((n, n)), np.zeros((n, 1)), np.zeros((n, n))],
                          [np.zeros((1, n)), np.zeros((1, 1)), ri.T],
                          [np.zeros((n, n)), ri, np.zeros((n, n))] ]   )
-        constraintstup += (basic + rmat,)
+        constraintstup += (basic + rmat >> 0,)
     constraints = list(constraintstup)
 
 
@@ -78,10 +79,50 @@ def eps_err(lti,Dist,lamb=.9):
     obj = cvx.Minimize(eps2)
     prob = cvx.Problem(obj, constraints)
 
+    lam_vals = np.logspace(-.01,-2) # values to try
+    eps_values = []         # values for which there is a solution
+    lam_values = []         # values for which there is a solution
+    eps_min = []            # track minimum value
+    M_min = []
+    K_min = []
+    for val in lam_vals:
+        lam.value = val
+        try:
+            prob.solve()
+        except cvx.error.SolverError :
+            print('cvx.error.SolverError')
+        # Use expr.value to get the numerical value of
+        # an expression in the problem.
+        if prob.status == cvx.OPTIMAL:
 
-    prob.solve()  # Returns the optimal value.
+            eps_values.append(eps2.value ** .5)
+            lam_values.append(lam.value)
+            if eps2.value ** .5 < eps_min:
+                eps_min = eps2.value ** .5
+                M_min = inv(Minv.value)
+                K_min = L.value*Minv.value
+
     print "status:", prob.status
-    print "optimal value", prob.value
-    print "optimal var", Minv.value, L.value
+    print "optimal value", eps_min
+    print "optimal var", M_min, K_min
+
+    print "optimal var", np.array([ [evaluateR(M_min,Vertices[i].reshape((n,1)))]  for i in range(Vertices.shape[0]) ])
+    if verbose:
+        # Plot entries of x vs. gamma.
+        plt.subplot(212)
+        for i in range(m):
+            plt.plot(lam_values, [xi for xi in eps_values])
+
+
+        plt.xlabel(r'\lambda', fontsize=16)
+        plt.ylabel(r'\epsilon_{i}', fontsize=16)
+        plt.xscale('log')
+        plt.title(r' Entries of \epsilon vs. \lambda', fontsize=16)
+
+        plt.tight_layout()
+        plt.show()
 
     return  prob.value
+
+def evaluateR(M,r):
+    return r.T*M*r
