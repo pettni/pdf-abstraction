@@ -1,10 +1,29 @@
 import numpy as np
 import scipy.sparse as sp
+from itertools import product
+
 
 class MDP(object):
 	"""Markov Decision Process"""
-	def __init__(self, T, input=lambda m: m, output=lambda n: n, 
+	def __init__(self, T, input=lambda m: m, output=lambda n: set([n]), 
 							 input_name='a', output_name='x'):
+		'''
+		Create an MDP
+
+		Input arguments:
+			T:	List of M stochastic transition matrices of size N x N such that T[m][n,n'] = P(n' | n, m).
+					M is the number of actions and N the number of states.
+			input: 	input labeling function: range(M) -> U
+			output: output labeling function: range(N) -> 2^Y
+			input_name:	identifier for input state
+			output_name: identifier for output state
+
+		Alphabets:
+			states: range(N)
+			inputs: range(M)
+			output alphabet: Y
+			input labels: U
+		'''
 		self.M = len(T)			# number of actions
 		self.N = T[0].shape[1]  	# number of states
 
@@ -37,6 +56,10 @@ class MDP(object):
 			if not np.all(np.abs(t.dot(np.ones([self.N,1])) - np.ones([self.N,1])) < 1e-7 ):
 				raise Exception('matrix not stochastic')
 
+		for n in range(self.N):
+			if not type(self.output(n) is set):
+				raise Exception('MDP outputs must be of type set')
+
 	def __str__(self):
 		ret = 'MDP: %d states "%s" and %d inputs "%s"' % (self.N, self.output_name, self.M, self.input_name)
 		return ret
@@ -58,10 +81,8 @@ class MDP(object):
 
 		# todo: solve backwards reachability to constrain search
 
-		# todo: do updates locally for pre of non-zero elements only
+		is_accept = np.array([accept( list(self.output(n))[0] ) for n in range(self.N)])
 
-		# todo: add non-determinism..
-		is_accept = np.array([accept(self.output(n)) for n in range(self.N)])
 		values = np.array(is_accept, dtype='d')
 
 		while True:
@@ -75,12 +96,29 @@ class MDP(object):
 
 
 class ProductMDP(MDP):
-	"""Product Markov Decision Process"""
-	def __init__(self, mdp1, mdp2, out_conn = lambda m: m):
+	"""Non-deterministic Product Markov Decision Process"""
+	def __init__(self, mdp1, mdp2, out_conn = lambda y: y):
+		'''
+		Connect mdp1 and mdp2 in series via out_conn: mdp1.Y -> mdp2.U.
+		The resulting mdp has inputs mdp1.U and output alphabet mdp2.Y
+		'''
+
+		self.deterministic = True
+
+		# this maps mdp1.X -> 2^mdp2.U
+		self.connection = lambda mdp1_n: set(map(out_conn, mdp1.output(mdp1_n)))
 
 		# Check that connection is valid
-		if not set([out_conn(mdp1.output(n1)) for n1 in range(mdp1.N)]) <= set(mdp2.inputs.values()):
-			raise Exception('invalid connection')
+		for n1 in range(mdp1.N):
+			inputs_n1 = self.connection(n1)
+			if not inputs_n1 <= set(mdp2.inputs.values()):
+				raise Exception('invalid connection')
+			if len(inputs_n1) > 1:
+				self.deterministic = False
+
+		if not self.deterministic:
+			print('warning: creating nondeterministic product')
+
 		mdp1.check()
 		mdp2.check()
 
@@ -90,16 +128,14 @@ class ProductMDP(MDP):
 		self.M = mdp1.M
 		self.N = mdp1.N * mdp2.N
 
-		self.connection = lambda n_p : out_conn(mdp1.output(n_p))
+		# Map states of mdp1 to actions of mdp2
 
 		self.input_name = mdp1.input_name
 		self.inputs = mdp1.inputs
 
 		self.output_name = '(%s, %s)' % (mdp1.output_name, mdp2.output_name) 
 
-		self.check()
-
-	# State ordering for MDP1 = (p1, ..., pN1) MDP2 = (q1, ..., qN2):
+	# State ordering for mdp11 = (p1, ..., pN1) mdp12 = (q1, ..., qN2):
 	#  (p1 q1) (p1 q2) ... (p1 qN2) (p2 q1) ... (pN1 qN2)
 	def local_states(self, n):
 		'''return indices in product'''
@@ -107,83 +143,51 @@ class ProductMDP(MDP):
 
 	def output(self, n):
 		n1, n2 = self.local_states(n)
-		return (self.mdp1.output(n1), self.mdp2.output(n2))
+		return set(product(self.mdp1.output(n1), self.mdp2.output(n2)))
 
 	def T(self, m):
-		ret =  sp.bmat([[self.mdp1.t(m, n, n_p)*self.mdp2.T(self.connection(n_p)) 
+		if not self.deterministic:
+			raise Exception('can not compute T matrix of nondeterministic product')
+		print (self.connection(0))
+		ret =  sp.bmat([[self.mdp1.t(m, n, n_p)*self.mdp2.T( list(self.connection(n_p))[0] ) 
 									   for n_p in range(self.mdp1.N)]
 			      			  for n in range(self.mdp1.N)])
 		ret.eliminate_zeros()
 		return ret
 
 	def t(self, m, n, n_p):
+		if self.deterministic:
+			raise Exception('can not compute transition probabilities in product')
+
 		n1, n2 = self.local_states(n)
 		n1p, n2p = self.local_states(n_p)
 
 		return self.mdp1.t(m, n1, n1p) * self.mdp2.t(self.conn(n1p), n2, n2p)
 
-class MDP_DFSA(object):
-	"""Non-deterministic Product Markov Decision Process"""
-	def __init__(self, mdp, fsa, conn = lambda m: m):
-
-		# Check that connection is valid
-		for n1 in range(mdp.N):
-			if not set(conn(o) for o in mdp.output(n1)) <= set(fsa.inputs.values()):
-				raise Exception('invalid connection')
-		mdp.check()
-		fsa.check()
-
-		# todo: assert that fsa is really an fsa
-
-		self.mdp = mdp
-		self.fsa = fsa
-
-		self.M = mdp.M
-		self.N = mdp.N * fsa.N
-
-		self.conn = conn
-
-		self.input_name = mdp.input_name
-		self.inputs = mdp.inputs
-
-		self.output_name = '(%s, %s)' % (mdp.output_name, fsa.output_name) 
-
-	# State ordering for MDP1 = (p1, ..., pN1) MDP2 = (q1, ..., qN2):
-	#  (p1 q1) (p1 q2) ... (p1 qN2) (p2 q1) ... (pN1 qN2)
-	def local_states(self, n):
-		'''return indices in product'''
-		return n // self.mdp.N, n % self.mdp.N
-
-	def output(self, n):
-		n1, n2 = self.local_states(n)
-		return (self.mdp.output(n1), self.fsa.output(n2))
-
 	def solve_reach(self, accept):
 		'''solve reachability problem'''
 
-		is_accept = np.array([accept((n, mu)) for n in range(self.mdp.N) for mu in range(self.fsa.N)])
-		V = np.array(is_accept, dtype='d')
+		is_accept = sp.csr_matrix([[accept((n, mu)) for n in range(self.mdp1.N)] for mu in range(self.mdp2.N)], dtype='d')
+		# mu first dim, n second
+		V = sp.csr_matrix(is_accept)
 
-		def vslice(n_p):
-			return V[n_p*self.fsa.N:(n_p+1)*self.fsa.N]
-
-		# Too ugly...
 		while True:
-			new_V = np.zeros(self.N)
-			for n in range(self.mdp.N):
-				for mu in range(self.fsa.N):
-					maxval = 0
-					for m in range(self.M):
-						valm = sum(min(self.mdp.t(m, n, n_p) * self.fsa.T(self.conn(out)).getrow(mu).dot(vslice(n_p))  
-									         for out in self.mdp.output(n_p))
-							         for n_p in range(self.mdp.N))
-						maxval = max(maxval, valm)
-					new_V[n * self.fsa.N + mu] = maxval
+
+			# Min over nondeterminism: W(mu,s') = min_{q \in y(s')} \sum_\mu' t(q,\mu,\mu') V(\mu', s')
+			Wq_list = [self.mdp2.T(q).dot(V) for q in range(self.mdp2.M)]
+			W = sp.csr_matrix([[min(Wq_list[q][mu, n] for q in self.connection(n)) for n in range(self.mdp1.N)]
+												 for mu in range(self.mdp2.N)])
+
+			# Max over actions: V_new = max_{m} \sum_s' t(m, s, s') W(mu, s')
+			V_new = W.dot(self.mdp1.T(0).transpose())
+			for m in range(1, self.M):
+				V_new = V_new.maximum(W.dot(self.mdp1.T(m)).transpose() )
 			
-			new_V = np.fmax(is_accept, new_V)
+			# Max over accepting state
+			V_new = V_new.maximum(is_accept)
 
-			if np.max(np.abs(new_V - V)) < 1e-5:
+			if np.amax(np.abs(V_new - V)) < 1e-6:
 				break
-			V = new_V
+			V = V_new
 
-		return V
+		return V.todense().getA().ravel(order='F')
