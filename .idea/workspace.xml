@@ -2,18 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="31e704a2-ef6c-40a2-8981-ee3dd6419582" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/ApprxSimulation/Visualize.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Doc/.texpadtmp/doc.synctex.gz" afterPath="$PROJECT_DIR$/Doc/.texpadtmp/doc.synctex.gz" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Doc/doc.pdf" afterPath="$PROJECT_DIR$/Doc/doc.pdf" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/ApprxSimulation/LTI_simrel.py" afterPath="$PROJECT_DIR$/ApprxSimulation/LTI_simrel.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Doc/.texpadtmp/doc.aux" afterPath="$PROJECT_DIR$/Doc/.texpadtmp/doc.aux" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Doc/.texpadtmp/doc.out" afterPath="$PROJECT_DIR$/Doc/.texpadtmp/doc.out" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Doc/doc.tex" afterPath="$PROJECT_DIR$/Doc/doc.tex" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Models/Linear.py" afterPath="$PROJECT_DIR$/Models/Linear.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Models/MDP.py" afterPath="$PROJECT_DIR$/Models/MDP.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Run-file.py" afterPath="$PROJECT_DIR$/Run-file.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/requirements.txt" afterPath="$PROJECT_DIR$/requirements.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Demo_file/LTI_Gauss_abstract.py" afterPath="$PROJECT_DIR$/Demo_file/LTI_Gauss_abstract.py" />
     </list>
     <ignored path="$PROJECT_DIR$/.idea/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -24,17 +13,17 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="CoverageDataManager">
-    <SUITE FILE_PATH="coverage/pdf_abstraction$Run_file.coverage" NAME="Run-file Coverage Results" MODIFIED="1512700468259" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/pdf_abstraction$Run_file.coverage" NAME="Run-file Coverage Results" MODIFIED="1512704465222" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/pdf_abstraction$gdtl_dfa_example.coverage" NAME="gdtl_dfa_example Coverage Results" MODIFIED="1512521681097" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/pdf_abstraction$LTI_Gauss_abstract.coverage" NAME="LTI_Gauss_abstract Coverage Results" MODIFIED="1512690217792" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Demo_file" />
+    <SUITE FILE_PATH="coverage/pdf_abstraction$LTI_Gauss_abstract.coverage" NAME="LTI_Gauss_abstract Coverage Results" MODIFIED="1512704498628" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Demo_file" />
   </component>
   <component name="FileEditorManager">
     <leaf>
-      <file leaf-file-name="Linear.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="Linear.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Models/Linear.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="270">
-              <caret line="186" column="12" lean-forward="false" selection-start-line="186" selection-start-column="12" selection-end-line="186" selection-end-column="12" />
+            <state relative-caret-position="288">
+              <caret line="187" column="0" lean-forward="true" selection-start-line="187" selection-start-column="0" selection-end-line="187" selection-end-column="0" />
               <folding>
                 <element signature="e#82#100#0" expanded="true" />
               </folding>
@@ -136,11 +125,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="LTI_Gauss_abstract.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="LTI_Gauss_abstract.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Demo_file/LTI_Gauss_abstract.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="270">
-              <caret line="15" column="37" lean-forward="false" selection-start-line="15" selection-start-column="36" selection-end-line="15" selection-end-column="37" />
+            <state relative-caret-position="375">
+              <caret line="34" column="61" lean-forward="false" selection-start-line="34" selection-start-column="61" selection-end-line="34" selection-end-column="61" />
               <folding>
                 <element signature="e#86#115#0" expanded="true" />
               </folding>
@@ -188,7 +177,6 @@
         <option value="$PROJECT_DIR$/Testruns.ipynb" />
         <option value="$PROJECT_DIR$/RobustComp_Matlab/gridding.m" />
         <option value="$PROJECT_DIR$/gdtl_dfa_example.py" />
-        <option value="$PROJECT_DIR$/Demo_file/LTI_Gauss_abstract.py" />
         <option value="$PROJECT_DIR$/ApprxSimulation/Visualize.py" />
         <option value="/anaconda/envs/Pyprob/lib/python2.7/site-packages/mdptoolbox/mdp.py" />
         <option value="$PROJECT_DIR$/Models/MDP.py" />
@@ -196,6 +184,7 @@
         <option value="$PROJECT_DIR$/ApprxSimulation/LTI_simrel.py" />
         <option value="$PROJECT_DIR$/Run-file.py" />
         <option value="$PROJECT_DIR$/Models/Linear.py" />
+        <option value="$PROJECT_DIR$/Demo_file/LTI_Gauss_abstract.py" />
       </list>
     </option>
   </component>
@@ -278,7 +267,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.Run-file">
+  <component name="RunManager" selected="Python.LTI_Gauss_abstract">
     <configuration name="LTI_Gauss_abstract" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -321,8 +310,8 @@
     </list>
     <recent_temporary>
       <list size="2">
-        <item index="0" class="java.lang.String" itemvalue="Python.Run-file" />
-        <item index="1" class="java.lang.String" itemvalue="Python.LTI_Gauss_abstract" />
+        <item index="0" class="java.lang.String" itemvalue="Python.LTI_Gauss_abstract" />
+        <item index="1" class="java.lang.String" itemvalue="Python.Run-file" />
       </list>
     </recent_temporary>
   </component>
@@ -349,7 +338,7 @@
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Debug Logs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32921812" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="true" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32692307" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="true" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32692307" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
       <window_info id="Execute Anonymous" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
@@ -572,16 +561,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Demo_file/LTI_Gauss_abstract.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="270">
-          <caret line="15" column="37" lean-forward="false" selection-start-line="15" selection-start-column="36" selection-end-line="15" selection-end-column="37" />
-          <folding>
-            <element signature="e#86#115#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/ApprxSimulation/Visualize.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="649">
@@ -612,10 +591,20 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Models/Linear.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="270">
-          <caret line="186" column="12" lean-forward="false" selection-start-line="186" selection-start-column="12" selection-end-line="186" selection-end-column="12" />
+        <state relative-caret-position="288">
+          <caret line="187" column="0" lean-forward="true" selection-start-line="187" selection-start-column="0" selection-end-line="187" selection-end-column="0" />
           <folding>
             <element signature="e#82#100#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Demo_file/LTI_Gauss_abstract.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="375">
+          <caret line="34" column="61" lean-forward="false" selection-start-line="34" selection-start-column="61" selection-end-line="34" selection-end-column="61" />
+          <folding>
+            <element signature="e#86#115#0" expanded="true" />
           </folding>
         </state>
       </provider>

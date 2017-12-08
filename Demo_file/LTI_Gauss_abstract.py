@@ -32,7 +32,7 @@ sys.setU(pc.box2poly(np.kron(np.ones((sys.m, 1)), np.array([[-3,3]]))))
 
 # *Grid space
 d = np.array([[.5,.5]]) #  with distance measure
-mdp_grid = sys.abstract(d,un=5,verbose= False)  #  do the gridding
+mdp_grid = sys.abstract(d,un=5,verbose= False, Accuracy=False)  #  do the gridding
 
 
 # Define target set in state space
