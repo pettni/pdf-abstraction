@@ -4,3 +4,4 @@ polytope
 matplotlib
 numpy
 scipy
+pymdptoolbox=-4.0
