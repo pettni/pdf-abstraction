@@ -21,8 +21,6 @@ class LTI:
     """Define a discrete-time linear time invariant system"""
 
     def __init__(self, a, b, c, d, x=None, bw=None, u=None):
-        print('WARNING: DUMMY implementation')
-
         self.a = a
         self.b = b
         self.c = c # currently unused
@@ -38,7 +36,7 @@ class LTI:
             self.U = u
             return self.U
         if u is None:
-            print('Warning no state space given')
+            print('Warning no inputspace given')
             if self.U is None:
                 print('Define standard box polytope 0-1')
                 self.U = pc.box2poly(np.kron(np.ones((self.m, 1)), [-1, 1]))

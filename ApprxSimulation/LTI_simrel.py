@@ -283,25 +283,22 @@ def tune_dratio(lti):
                     eps_min = eps2.value ** .5
         eps_values.append(eps_min)
         cost = d_val[0] ** -1 * d_val[1] ** -1 * eps_min ** 2
-        print(cost,optval)
         if cost[0] <= optval:
             optval = cost
             d_opt= d_val
 
-    print "status:", prob.status
-
     # Plot entries of x vs. gamma.
     plt.subplot(212)
-    plt.plot([dval[1] for dval in d_vals], [xi for xi in eps_values])
+    plt.plot([dval[1] for dval in d_vals], [xi for xi in eps_values],label = 'Epsilon')
     plt.tight_layout()
 
-    plt.plot([dval[1] for dval in d_vals],[dval[0]**-1 * dval[1]**-1 *eps_values[i]**2 for dval in d_vals])
+    plt.plot([dval[1] for dval in d_vals],[dval[0]**-1 * dval[1]**-1 *eps_values[i]**2 for dval in d_vals], label = 'Cost gridding a square')
 
 
-    plt.xlabel(r'd', fontsize=16)
-    plt.ylabel(r'\epsilon', fontsize=16)
-    plt.title(r' Entries of \epsilon vs. gridsize', fontsize=16)
-    plt.yscale('log')
+    plt.xlabel(r'd[1]', fontsize=16)
+    plt.ylabel(r'epsilon', fontsize=16)
+    plt.title(r' Tune grid ratio ', fontsize=16)
+    #plt.yscale('log')
 
     plt.show()
 
