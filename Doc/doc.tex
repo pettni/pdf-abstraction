@@ -17,9 +17,13 @@
 \usepackage{graphicx}  
 \begin{document}
 
-\chapter*{Documentation: Policy synthesis via formal abstraction}
+\title{Documentation: \\
+Policy synthesis via formal abstraction}
+\maketitle
+\tableofcontents
 
-\section*{Do abstraction of LTI system}
+\chapter{Do abstraction of LTI system}
+\section{Computation of simulation relation}
 Define LTI system as 
  \begin{align} \label{eq:LTI} \begin{aligned}
 x_{k+1}&=A x_{k} + B u_k+ w_k\\
@@ -43,7 +47,7 @@ with \begin{itemize}
 
 Consider a set defined as 
 \begin{align}
-\mathcal R:= \{(\tilde x,x)\mid (x- \tilde x)^TM (x- \tilde x)\leq \epsilon\}	
+\mathcal R:= \{(\tilde x,x)\mid (x- \tilde x)^TM (x- \tilde x)\leq \epsilon^2\}	
 \end{align} 
 
 \noindent\textbf{Objective:} Design $M$, $K$ and $\epsilon$ such that 
@@ -52,9 +56,9 @@ if $(\tilde x,x)\in\mathcal R$ then also
 More over for all $(\tilde x,x)\in \mathcal R$ it should hold that $d(\tilde y,y)\leq \epsilon$. The latter can be expressed as $C^TC\preceq M$.
 The former can be written with matrix  inequalities as
 \begin{align*}
-	(x_+- \tilde x_+)^TM (x_+- \tilde x_+)\leq \epsilon
+	(x_+- \tilde x_+)^TM (x_+- \tilde x_+)\leq \epsilon^2
 \\
-	((A+BK)(x- \tilde x)+\mathbf r )^TM ((A+BK)(x- \tilde x)+\mathbf r )\leq \epsilon	
+	((A+BK)(x- \tilde x)+\mathbf r )^TM ((A+BK)(x- \tilde x)+\mathbf r )\leq \epsilon^2	
 \end{align*}
 
 Hence we get something of this form
@@ -147,14 +151,32 @@ The objective to find a minimal $\epsilon$ can be expressed as follows
   \end{bmatrix} \succeq0
 \end{align}
 with $LM=K$ and $M^{-1}=M_{inv}$.
- \clearpage
- \subsection*{Verify that Polytope $\mathcal V(r_i)$ is in relation. }
+This has been implemented as function $eps\_err()$ in python.
+
+  \subsection{Verify that Polytope $\mathcal V(r_i)$ is in relation. }
  
 $\mathcal V(r_i)$ is in relation $
-\mathcal R:= \{(\tilde x,x)\mid (x- \tilde x)^TM (x- \tilde x)\leq \epsilon\}	
-$ if  for all $r_i$ it holds that\[r_i^TMr_i\leq \epsilon \]
+\mathcal R:= \{(\tilde x,x)\mid (x- \tilde x)^TM (x- \tilde x)\leq \epsilon^2\}	
+$ if  for all $r_i$ it holds that\[r_i^TMr_i\leq \epsilon^2 \].
 
+\subsection{Plot simulation relation}
+Input  
+\[\mathcal R:= \{x\mid x^TM_{\epsilon} x \leq 1\}\]
  
+
+\textbf{Algorithm:}
+\begin{enumerate}
+	\item Compute $M_\epsilon^{1/2}=U\Sigma^{1/2}$ with singular value decomposition $M_\epsilon=U\Sigma V^T$ 
+	\item Switch variable
+	\[\mathcal R:= \{(\tilde x,x)\mid z^T  z \leq 1 \mbox { with } z =M_{\epsilon}^{1/2}x \}\]
+	\item compute outline given angle $\alpha$
+	\[z(\alpha) = \begin{bmatrix}
+		\cos(\alpha)\\ \sin(\alpha)
+	\end{bmatrix} 
+	\] remark $z^Tz=1$.
+	then $x(\alpha)=\Sigma^{-1/2} U^Tz(\alpha) $.
+
+\end{enumerate}
  
  
 \end{document}

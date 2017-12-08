@@ -7,9 +7,12 @@ import itertools
 import polytope as pc
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
+from ApprxSimulation.LTI_simrel import eps_err
+
 from scipy.stats import norm
 from functools import reduce # Valid in Python 2.6+, required in Python 3
 import operator
+from ApprxSimulation.Visualize import plot_rel, patch_ellips
 
 from Models.MDP import Markov
 
@@ -70,7 +73,7 @@ class LTI:
                 print('keep matrix Bw')
                 return self.bw
 
-    def abstract(self,d, un=3, verbose = True):
+    def abstract(self,d, un=3, verbose = True, Accuracy =True):
         ## Unpack LTI
         d=d.flatten()
         A = self.a
@@ -95,7 +98,10 @@ class LTI:
         lx =lx.flatten() - remainx/2
         ux =ux.flatten() + d
 
+        if Accuracy:
+            Dist = pc.box2poly(np.diag(d).dot(np.kron(np.ones((self.dim, 1)), np.array([[-1, 1]]))))
 
+            M_min, K_min, eps_min = eps_err(self, Dist)
 
         if verbose == True and n == 2:
             # plot figure of x
@@ -157,12 +163,33 @@ class LTI:
 
         mdp_grid = Markov(transition, srep, urep, sedge)
 
+
+
         if verbose == True and n == 2:
-            plt.scatter(grid[0].flatten(), grid[1].flatten(), label='finite states', color='k', s=10, marker="o")
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            ax.scatter(grid[0].flatten(), grid[1].flatten(), label='Finite states', color='k', s=10, marker="o")
 
             plt.xlabel('x')
             plt.ylabel('y')
+            if Accuracy:
+                patch = patch_ellips((eps_min ** -2) * M_min, pos=None, number=20)
+                ax.add_patch(patch)
+
+
+            # if B is lower dimension than A, give some info on the stationary points.
+                if self.m<self.dim:
+                    A1=np.eye(2)-self.a
+                    AB=np.hstack((A1,self.b))
+                    ratio =LA.inv(AB[:,1:]).dot(AB[:,0])
+                    stablepoints = ratio[0] *srep[0]
+                    ax.scatter(srep[0].flatten(), stablepoints.flatten(), label='Equilibrium states', color='r', s=20, marker="+")
             plt.legend()
+
+
+                    # plt.tight_layout()
+
+
             plt.show()
 
         return mdp_grid

@@ -46,13 +46,16 @@ class Markov(MDP):
     def __init__(self,transitions, srep, urep,sedge):
 
 
-        reward = np.ones((1,np.shape(transitions)[1]))
+
+        S =transitions.shape[1]
+        A = transitions.shape[0]
+        reward = np.ones( (S,A))
+        print(reward.shape, transitions.shape)
         discount = None
         epsilon = None
         max_iter = None
 
-        MDP.__init__(self, transitions, reward, discount, epsilon, max_iter,
-                 skip_check=True)
+        MDP.__init__(self, transitions, reward, discount, epsilon, max_iter,skip_check=True)
         self.target = np.zeros((self.S,1))
         self.srep = srep
         self.sedge = sedge
