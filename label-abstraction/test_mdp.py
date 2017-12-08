@@ -6,15 +6,15 @@ def test_connection():
 
 	T0 = np.array([[0, 1], [1, 0]])
 	T1 = np.array([[1, 0], [0, 1]])
-	mdp1 = MDP([T0, T1], input=lambda m: m, output=lambda n: set([n]), input_name='u', output_name='z')
+	mdp1 = MDP([T0, T1], input_fcn=lambda m: m, output_fcn=lambda n: set([n]), input_name='u', output_name='z')
 
 
 	T0 = np.array([[1, 0], [1, 0]])
 	T1 = np.array([[0, 1], [0, 1]])
 
-	mdp2 = MDP([T0, T1], input=lambda m: m, output=lambda n: set([n]), input_name='z', output_name='y')
+	mdp2 = MDP([T0, T1], input_fcn=lambda m: m, output_fcn=lambda n: set([n]), input_name='z', output_name='y')
 
-	pmdp = ProductMDP(mdp1, mdp2, out_conn=lambda z: z)
+	pmdp = ProductMDP(mdp1, mdp2)
 
 	np.testing.assert_almost_equal(pmdp.T(0).todense(), 
 								   np.array([[0,0,0,1], [0,0,0,1], [1,0,0,0], [1,0,0,0]]))
@@ -46,7 +46,7 @@ def test_mdp_dfsa():
 			return set([0])
 
 	T0 = np.array([[0.5, 0.25, 0.25], [0, 1, 0], [0, 0, 1]])
-	mdp = MDP([T0], output=output)
+	mdp = MDP([T0], output_fcn=output)
 
 	T1 = np.array([[1, 0], [0, 1]])
 	T2 = np.array([[0, 1], [0, 1]])
@@ -69,7 +69,7 @@ def test_mdp_dfsa_nondet():
 			return set([0])
 
 	T0 = np.array([[0.5, 0.25, 0.25], [0, 1, 0], [0, 0, 1]])
-	mdp = MDP([T0], output=output)
+	mdp = MDP([T0], output_fcn=output)
 
 	T1 = np.array([[1, 0], [0, 1]])
 	T2 = np.array([[0, 1], [0, 1]])
