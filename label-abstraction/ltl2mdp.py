@@ -266,7 +266,10 @@ class Fsa(object):
 		return self.alphabet.difference(self.symbols_w_prop(prop))
 
 	def bitmap_of_props(self, props):
-		prop_bitmap = reduce(lambda x, y: x | y, map(lambda p: self.props.get(p, 0), props), 0)
+		prop_bitmap = 0
+		for x in map(lambda p: self.props.get(p, 0), props):
+			prop_bitmap |= x
+		# prop_bitmap = reduce(lambda x, y: x | y, map(lambda p: self.props.get(p, 0), props), 0)
 		return prop_bitmap
 
 	def next_states_of_fsa(self, q, props):
@@ -300,4 +303,7 @@ def formula_to_mdp(formula):
 		for u in attr['input']:
 			T[u][int(s1), int(s2)] = 1
 
-	return MDP(T, input_name='phi', output_name='mu')
+	mdp = MDP(T, input_name='ap', input_fcn=fsa.bitmap_of_props,
+			   output_name='mu')
+
+	return mdp, set(map(int, fsa.final))

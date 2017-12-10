@@ -1,6 +1,7 @@
 import numpy as np
 
 from mdp import *
+from ltl2mdp import *
 
 def test_connection():
 
@@ -22,10 +23,10 @@ def test_connection():
 	np.testing.assert_almost_equal(pmdp.T(1).todense(), 
 								   np.array([[1,0,0,0], [1,0,0,0], [0,0,0,1], [0,0,0,1]]))
 
-	vals1 = pmdp.solve_reach(accept=lambda s: s[0]==0 and s[1]==1)
+	vals1, _ = pmdp.solve_reach(accept=lambda s: s[0]==0 and s[1]==1)
 	np.testing.assert_almost_equal(vals1, [0, 1, 0, 0])
 
-	vals2 = pmdp.solve_reach(accept=lambda s: s[0]==0 and s[1]==0)
+	vals2, _ = pmdp.solve_reach(accept=lambda s: s[0]==0 and s[1]==0)
 	np.testing.assert_almost_equal(vals2, [1, 1, 1, 1])
 
 
@@ -33,9 +34,9 @@ def test_reach():
 	T0 = np.array([[0.5, 0.25, 0.25], [0, 1, 0], [0, 0, 1]])
 	mdp = MDP([T0])
 	
-	vals = mdp.solve_reach(accept=lambda y: y==2)
+	V, _ = mdp.solve_reach(accept=lambda y: y==2)
 
-	np.testing.assert_almost_equal(vals, [0.5, 0, 1], decimal=4)
+	np.testing.assert_almost_equal(V, [0.5, 0, 1], decimal=4)
 
 def test_mdp_dfsa():
 
@@ -54,7 +55,8 @@ def test_mdp_dfsa():
 
 	prod = ProductMDP(mdp, fsa)
 
-	np.testing.assert_almost_equal(prod.solve_reach(accept=lambda y: y[1] == 1 ),
+	V, _ = prod.solve_reach(accept=lambda y: y[1] == 1 )
+	np.testing.assert_almost_equal(V,
 								   [0.5, 1, 0, 1, 1, 1],
 								   decimal=4)
 
@@ -77,6 +79,33 @@ def test_mdp_dfsa_nondet():
 
 	prod = ProductMDP(mdp, fsa)
 
-	np.testing.assert_almost_equal(prod.solve_reach(accept=lambda y: y[1] == 1 ),
+	V, _ = prod.solve_reach(accept=lambda y: y[1] == 1 )
+	np.testing.assert_almost_equal(V,
 								   [0.5, 1, 0, 1, 1, 1],
+								   decimal=4)
+
+def test_ltl_synth():
+
+	T1 = np.array([[0.25, 0.25, 0.25, 0.25], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+	T2 = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0], [0.9, 0, 0, 0.1]])
+
+	def output(n):
+		# map Y1 -> 2^(2^AP)
+		if n == 1:
+			return set( ( ('s1',), ) )   # { {s1} }
+		elif n == 3:
+			return set( ( ('s2',), ) )   # { {s2} }
+		else:
+			return set( ( (), ), )		 # { { } }
+
+	system = MDP([T1, T2], output_fcn = output, output_name ='ap')
+
+	formula = '( ( F s1 ) & ( F s2 ) )'
+	dfsa, final = formula_to_mdp(formula)
+
+	prod = ProductMDP(system, dfsa)
+
+	V, _ = prod.solve_reach(accept=lambda s: s[1] in final)
+
+	np.testing.assert_almost_equal(V[::4], [0.5, 0, 0, 0.5],
 								   decimal=4)

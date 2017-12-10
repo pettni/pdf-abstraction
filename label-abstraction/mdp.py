@@ -60,6 +60,9 @@ class MDP(object):
 		ret = 'MDP: %d states "%s" and %d inputs "%s"' % (self.N, self.output_name, self.M, self.input_name)
 		return ret
 
+	def __len__(self):
+		return self.N
+
 	def T(self, m):
 		'''transition matrix for action m'''
 		return self.Tmat[m]
@@ -84,15 +87,21 @@ class MDP(object):
 		is_accept = np.array([accept( list(self.output(n))[0] ) for n in range(self.N)])
 
 		V = np.array(is_accept, dtype='d')
+		pol = np.zeros(V.shape)
 
 		while True:
-			new_V = np.amax([self.T(a).dot(V) for a in range(self.M)], axis=0)
-			new_V = np.fmax(new_V, is_accept)
-			if np.max(np.abs(new_V - V)) < prec:
+			V_new_m = [self.T(m).dot(V) for m in range(self.M)]
+			V_new = np.zeros(V.shape)
+			for m in range(self.M):
+				pol[np.nonzero(V_new < V_new_m[m])] = m
+				V_new = np.maximum(V_new, V_new_m[m])
+	
+			V_new = np.maximum(V_new, is_accept)
+			if np.max(np.abs(V_new - V)) < prec:
 				break
-			V = new_V
+			V = V_new
 
-		return V
+		return V, pol
 
 
 class ProductMDP(MDP):
@@ -146,7 +155,6 @@ class ProductMDP(MDP):
 	def T(self, m):
 		if not self.deterministic:
 			raise Exception('can not compute T matrix of nondeterministic product')
-		print (self.connection(0))
 		ret =  sp.bmat([[self.mdp1.t(m, n, n_p)*self.mdp2.T( list(self.connection(n_p))[0] ) 
 									   for n_p in range(self.mdp1.N)]
 			      			  for n in range(self.mdp1.N)])
@@ -169,26 +177,29 @@ class ProductMDP(MDP):
 		# V(s1',s2',s3') -> V(s1',s2',s3) -> V(s1', s2, s3) -> V(s1, s2, s3)
 		# where e.g.  V(s1',s2',s3) = \sum_{s3' \in y2(s2')} t3(m3, s3, s3') V(s1', s2', s3')
 
-		is_accept = sp.csr_matrix([[accept((n, mu)) for n in range(self.mdp1.N)] for mu in range(self.mdp2.N)], dtype='d')
+		is_accept = np.array([[accept((n, mu)) for n in range(self.mdp1.N)] for mu in range(self.mdp2.N)], dtype='d')
 		# mu first dim, n second
-		V = sp.csr_matrix(is_accept)
+		V = np.array(is_accept)
+
+		Pol = np.zeros(is_accept.shape)
 
 		while True:
 			# Min over nondeterminism: W(mu,s') = min_{q \in y(s')} \sum_\mu' t(q,\mu,\mu') V(\mu', s')
 			Wq_list = [self.mdp2.T(q).dot(V) for q in range(self.mdp2.M)]
-			W = sp.csr_matrix([[min(Wq_list[q][mu, n] for q in self.connection(n)) for n in range(self.mdp1.N)]
+			W = np.array([[min(Wq_list[q][mu, n] for q in self.connection(n)) for n in range(self.mdp1.N)]
 												 for mu in range(self.mdp2.N)])
-
 			# Max over actions: V_new(mu, s) = max_{m} \sum_s' t(m, s, s') W(mu, s')
-			V_new = W.dot(self.mdp1.T(0).transpose())
-			for m in range(1, self.M):
-				V_new = V_new.maximum(W.dot(self.mdp1.T(m)).transpose() )
-			
+			V_new_m = [self.mdp1.T(m).dot(W.transpose()).transpose() for m in range(self.M)]
+			V_new = np.zeros(V.shape)
+			for m in range(self.M):
+				Pol[np.nonzero(V_new < V_new_m[m])] = m
+				V_new = np.maximum(V_new, V_new_m[m])
+
 			# Max over accepting state
-			V_new = V_new.maximum(is_accept)
+			V_new = np.maximum(V_new, is_accept)
 
 			if np.amax(np.abs(V_new - V)) < prec:
 				break
 			V = V_new
 
-		return V.todense().getA().ravel(order='F')
+		return V.ravel(order='F'), Pol.ravel(order='F')
