@@ -1,4 +1,8 @@
 \contentsline {chapter}{\numberline {1}Do abstraction of LTI system}{2}{chapter.1}
 \contentsline {section}{\numberline {1.1}Computation of simulation relation}{2}{section.1.1}
-\contentsline {subsection}{\numberline {1.1.1}Verify that Polytope $\mathcal V(r_i)$ is in relation. }{5}{subsection.1.1.1}
-\contentsline {subsection}{\numberline {1.1.2}Plot simulation relation}{5}{subsection.1.1.2}
+\contentsline {subsection}{\numberline {1.1.1}Optimize $\mathcal R$ for given grid $d_1,d_2,\ldots , d_3$}{3}{subsection.1.1.1}
+\contentsline {subsection}{\numberline {1.1.2}Optimise gridding for 2d models}{5}{subsection.1.1.2}
+\contentsline {section}{\numberline {1.2} LTI with different noise sources}{5}{section.1.2}
+\contentsline {section}{\numberline {1.3}Kalman filtered innovation models}{6}{section.1.3}
+\contentsline {section}{\numberline {1.4}Model-reduction + ...}{12}{section.1.4}
+\contentsline {chapter}{\numberline {2}Non-Gaussian systems}{13}{chapter.2}

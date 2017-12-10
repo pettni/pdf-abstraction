@@ -104,9 +104,8 @@ def eps_err(lti,Dist,lamb=.9, verbose =True):
 
     print "status:", prob.status
     print "optimal value", eps_min
-    print "optimal var", M_min, K_min
-
-    print "optimal var", np.array([ [evaluateR(M_min,Vertices[i].reshape((n,1)))]  for i in range(Vertices.shape[0]) ])
+    print "optimal var", M_min
+    print "Optimal K", K_min
     if verbose:
         # Plot entries of x vs. gamma.
         plt.subplot(212)
