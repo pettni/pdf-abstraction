@@ -8,15 +8,29 @@ import pkg_resources as pr
 import sys
 
 # Initialize binaries
-if sys.platform[0:5] == 'linux':
-	ltl2ba_binary = 'binaries/linux/ltl2ba'
-	scheck_binary = 'binaries/linux/scheck2'
-elif sys.platform == 'darwin':
-	ltl2ba_binary = './binaries/mac/ltl2ba'
-	scheck_binary = './binaries/mac/scheck2'
+if __name__ == '__main__':
+
+	if sys.platform[0:5] == 'linux':
+		ltl2ba_binary = 'binaries/linux/ltl2ba'
+		scheck_binary = 'binaries/linux/scheck2'
+	elif sys.platform == 'darwin':
+		ltl2ba_binary = './binaries/mac/ltl2ba'
+		scheck_binary = './binaries/mac/scheck2'
+	else:
+		print ('%s platform not supported yet!' % sys.platform)
+		exit(1)
+
 else:
-	print ('%s platform not supported yet!' % sys.platform)
-	exit(1)
+	if sys.platform[0:5] == 'linux':
+		ltl2ba_binary = 'label_abstraction/binaries/linux/ltl2ba'
+		scheck_binary = 'label_abstraction/binaries/linux/scheck2'
+	elif sys.platform == 'darwin':
+		ltl2ba_binary = './label_abstraction/binaries/mac/ltl2ba'
+		scheck_binary = './label_abstraction/binaries/mac/scheck2'
+	else:
+		print ('%s platform not supported yet!' % sys.platform)
+		exit(1)
+
 
 class Fsa(object):
 	"""

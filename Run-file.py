@@ -56,6 +56,23 @@ def main():
 
     plot_regions(regions, np.array([-15, 15]), np.array([-15, 15]))
 
+    T1 = np.array([[0.25, 0.25, 0.25, 0.25], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+    T2 = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0], [0.9, 0, 0, 0.1]])
+
+    def output(n):
+        # map Y1 -> 2^(2^AP)
+        if n == 1:
+            return set((('s1',),))  # { {s1} }
+        elif n == 3:
+            return set((('s2',),))  # { {s2} }
+        else:
+            return set(((),), )  # { { } }
+
+    system = MDP([T1, T2], output_fcn=output, output_name='ap')
+
+    formula = '( ( F s1 ) & ( F s2 ) )'
+
+    pol = solve_ltl_cosafe(system, formula)
 
     # define noise (Diagonal ONLY!)
     sys.setBw(np.array([[.9,0],[0.0,.9]]))

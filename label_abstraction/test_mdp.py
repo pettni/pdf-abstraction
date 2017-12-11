@@ -1,6 +1,5 @@
-import numpy as np
-
 from label_abstraction.mdp import *
+import numpy as np
 
 def test_connection():
 
