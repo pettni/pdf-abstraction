@@ -2,7 +2,7 @@ import numpy as np
 import scipy.sparse as sp
 from itertools import product
 
-from ltl2mdp import *
+from label_abstraction.ltl2mdp import *
 
 class MDP(object):
   """Markov Decision Process"""
