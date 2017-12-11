@@ -229,13 +229,20 @@ def formula_to_mdp(formula):
   fsa.add_trap_state()
 
 
-  states = set(map(int, fsa.g.nodes()))
-  print(states)
+
+# make two way mappings for states
+  dict_2state =  dict([(s, sstate) for s, sstate in enumerate(fsa.g.nodes())])
+  dict_fromstate = dict([(sstate, s) for s, sstate in enumerate(fsa.g.nodes())])
+  states = set(map(lambda state: dict_fromstate[state], fsa.g.nodes()))
+
+
+  print("print states", states)
+  print(dict_2state)
+
+
+
   inputs = set.union(*[attr['input'] for _,_,attr in fsa.g.edges(data=True)])
 
-
-
-  print(fsa.props)
 
   N = len(fsa.g)
   M = len(inputs)
@@ -247,13 +254,13 @@ def formula_to_mdp(formula):
 
   for (s1, s2, attr) in fsa.g.edges(data=True):
     for u in attr['input']:
-      T[u][int(s1), int(s2)] = 1
+      T[u][dict_fromstate[s1], dict_fromstate[s2]] = 1
 
   mdp = MDP(T, input_name='ap', input_fcn=fsa.bitmap_of_props,
          output_name='mu')
 
-  init_states = set(map(int, [state for (state, key) in fsa.init.items() if key == 1]))
-  final_states = set(map(int, fsa.final)) 
+  init_states = set(map(lambda state: dict_fromstate[state], [state for (state, key) in fsa.init.items() if key == 1]))
+  final_states = set(map(lambda state: dict_fromstate[state], fsa.final))
 
   return mdp, init_states, final_states
 

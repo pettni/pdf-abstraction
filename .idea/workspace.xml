@@ -2,10 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="31e704a2-ef6c-40a2-8981-ee3dd6419582" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Models/Linear.py" afterPath="$PROJECT_DIR$/Models/Linear.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Models/MDP.py" afterPath="$PROJECT_DIR$/Models/MDP.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Run-file.py" afterPath="$PROJECT_DIR$/Run-file.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/label_abstraction/ltl2mdp.py" afterPath="$PROJECT_DIR$/label_abstraction/ltl2mdp.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/label_abstraction/mdp.py" afterPath="$PROJECT_DIR$/label_abstraction/mdp.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/label_abstraction/test_mdp.py" afterPath="$PROJECT_DIR$/label_abstraction/test_mdp.py" />
     </list>
@@ -18,20 +16,20 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="CoverageDataManager">
-    <SUITE FILE_PATH="coverage/pdf_abstraction$test_mdp.coverage" NAME="test_mdp Coverage Results" MODIFIED="1512980697833" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/label_abstraction" />
-    <SUITE FILE_PATH="coverage/pdf_abstraction$Run_file.coverage" NAME="Run-file Coverage Results" MODIFIED="1513020857328" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/pdf_abstraction$test_mdp.coverage" NAME="test_mdp Coverage Results" MODIFIED="1513021686357" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/label_abstraction" />
+    <SUITE FILE_PATH="coverage/pdf_abstraction$Run_file.coverage" NAME="Run-file Coverage Results" MODIFIED="1513021894138" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/pdf_abstraction$LTI_gauss_abstract_eps.coverage" NAME="LTI_gauss_abstract_eps Coverage Results" MODIFIED="1512861591001" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Demo_file" />
     <SUITE FILE_PATH="coverage/pdf_abstraction$gdtl_dfa_example.coverage" NAME="gdtl_dfa_example Coverage Results" MODIFIED="1512521681097" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/pdf_abstraction$LTI_Gauss_abstract.coverage" NAME="LTI_Gauss_abstract Coverage Results" MODIFIED="1512708955824" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Demo_file" />
-    <SUITE FILE_PATH="coverage/pdf_abstraction$Nosetests_in_test_mdp_py.coverage" NAME="Nosetests in test_mdp.py Coverage Results" MODIFIED="1512983385994" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/label_abstraction" />
+    <SUITE FILE_PATH="coverage/pdf_abstraction$Nosetests_in_test_mdp_py.coverage" NAME="Nosetests in test_mdp.py Coverage Results" MODIFIED="1513021595685" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/label_abstraction" />
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
       <file leaf-file-name="Linear.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Models/Linear.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1818">
-              <caret line="326" column="20" lean-forward="true" selection-start-line="326" selection-start-column="20" selection-end-line="326" selection-end-column="20" />
+            <state relative-caret-position="213">
+              <caret line="22" column="33" lean-forward="false" selection-start-line="22" selection-start-column="32" selection-end-line="22" selection-end-column="33" />
               <folding>
                 <element signature="e#82#100#0" expanded="true" />
               </folding>
@@ -42,8 +40,8 @@
       <file leaf-file-name="MDP.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Models/MDP.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-176">
-              <caret line="70" column="11" lean-forward="true" selection-start-line="70" selection-start-column="11" selection-end-line="70" selection-end-column="11" />
+            <state relative-caret-position="159">
+              <caret line="67" column="39" lean-forward="true" selection-start-line="67" selection-start-column="0" selection-end-line="68" selection-end-column="0" />
               <folding>
                 <element signature="e#1621#1649#0" expanded="true" />
               </folding>
@@ -64,8 +62,8 @@
       <file leaf-file-name="Run-file.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Run-file.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="91">
-              <caret line="85" column="38" lean-forward="false" selection-start-line="85" selection-start-column="24" selection-end-line="85" selection-end-column="38" />
+            <state relative-caret-position="208">
+              <caret line="89" column="0" lean-forward="true" selection-start-line="89" selection-start-column="0" selection-end-line="89" selection-end-column="0" />
               <folding>
                 <element signature="e#263#313#0" expanded="true" />
               </folding>
@@ -73,7 +71,7 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="ltl2mdp.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="ltl2mdp.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/label_abstraction/ltl2mdp.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="-798">
@@ -88,8 +86,8 @@
       <file leaf-file-name="test_mdp.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/label_abstraction/test_mdp.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="108">
-              <caret line="88" column="0" lean-forward="false" selection-start-line="88" selection-start-column="0" selection-end-line="95" selection-end-column="50" />
+            <state relative-caret-position="240">
+              <caret line="131" column="0" lean-forward="false" selection-start-line="131" selection-start-column="0" selection-end-line="131" selection-end-column="0" />
               <folding>
                 <element signature="e#0#35#0" expanded="true" />
               </folding>
@@ -97,11 +95,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="mdp.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="mdp.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/label_abstraction/mdp.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="238">
-              <caret line="237" column="18" lean-forward="false" selection-start-line="237" selection-start-column="18" selection-end-line="237" selection-end-column="18" />
+            <state relative-caret-position="304">
+              <caret line="266" column="0" lean-forward="true" selection-start-line="266" selection-start-column="0" selection-end-line="266" selection-end-column="0" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -153,7 +151,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>_underapproximate_attractor</find>
       <find>solve_feasible</find>
       <find>concrete</find>
       <find>Warnin</find>
@@ -179,9 +176,10 @@
       <find>gdtl2ltl</find>
       <find>scheck_binary</find>
       <find>connection</find>
+      <find>F</find>
+      <find>dict</find>
       <find>int</find>
       <find>import</find>
-      <find>F</find>
       <find>print</find>
     </findStrings>
     <replaceStrings>
@@ -210,9 +208,9 @@
         <option value="$PROJECT_DIR$/Models/Linear.py" />
         <option value="$PROJECT_DIR$/Models/MDP.py" />
         <option value="$PROJECT_DIR$/label_abstraction/ltl2mdp.py" />
+        <option value="$PROJECT_DIR$/label_abstraction/mdp.py" />
         <option value="$PROJECT_DIR$/label_abstraction/test_mdp.py" />
         <option value="$PROJECT_DIR$/Run-file.py" />
-        <option value="$PROJECT_DIR$/label_abstraction/mdp.py" />
       </list>
     </option>
   </component>
@@ -405,8 +403,8 @@
     <recent_temporary>
       <list size="5">
         <item index="0" class="java.lang.String" itemvalue="Python.Run-file" />
-        <item index="1" class="java.lang.String" itemvalue="Python tests.Nosetests in test_mdp.py" />
-        <item index="2" class="java.lang.String" itemvalue="Python.test_mdp" />
+        <item index="1" class="java.lang.String" itemvalue="Python.test_mdp" />
+        <item index="2" class="java.lang.String" itemvalue="Python tests.Nosetests in test_mdp.py" />
         <item index="3" class="java.lang.String" itemvalue="Python.LTI_gauss_abstract_eps" />
         <item index="4" class="java.lang.String" itemvalue="Python.LTI_Gauss_abstract" />
       </list>
@@ -429,9 +427,6 @@
     <servers />
   </component>
   <component name="TestHistory">
-    <history-entry file="Nosetests_in_test_mdp_py - 2017.12.10 at 19h 17m 17s.xml">
-      <configuration name="Nosetests in test_mdp.py" configurationId="tests" />
-    </history-entry>
     <history-entry file="Nosetests_in_test_mdp_py - 2017.12.10 at 19h 20m 04s.xml">
       <configuration name="Nosetests in test_mdp.py" configurationId="tests" />
     </history-entry>
@@ -459,6 +454,9 @@
     <history-entry file="Nosetests_in_test_mdp_py - 2017.12.11 at 01h 09m 47s.xml">
       <configuration name="Nosetests in test_mdp.py" configurationId="tests" />
     </history-entry>
+    <history-entry file="Nosetests_in_test_mdp_py - 2017.12.11 at 11h 46m 36s.xml">
+      <configuration name="Nosetests in test_mdp.py" configurationId="tests" />
+    </history-entry>
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="23" width="1440" height="815" extended-state="6" />
@@ -467,7 +465,7 @@
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Debug Logs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32921812" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.36944443" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.36944443" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.20868348" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Execute Anonymous" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
@@ -809,31 +807,11 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Models/Linear.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1818">
-          <caret line="326" column="20" lean-forward="true" selection-start-line="326" selection-start-column="20" selection-end-line="326" selection-end-column="20" />
-          <folding>
-            <element signature="e#82#100#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file:///anaconda/envs/Py_gdtl/lib/python2.7/site-packages/mdptoolbox/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="216">
           <caret line="64" column="23" lean-forward="false" selection-start-line="64" selection-start-column="23" selection-end-line="64" selection-end-column="23" />
           <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Models/MDP.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-176">
-          <caret line="70" column="11" lean-forward="true" selection-start-line="70" selection-start-column="11" selection-end-line="70" selection-end-column="11" />
-          <folding>
-            <element signature="e#1621#1649#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -845,12 +823,52 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/Models/Linear.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="213">
+          <caret line="22" column="33" lean-forward="false" selection-start-line="22" selection-start-column="32" selection-end-line="22" selection-end-column="33" />
+          <folding>
+            <element signature="e#82#100#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Models/MDP.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="159">
+          <caret line="67" column="39" lean-forward="true" selection-start-line="67" selection-start-column="0" selection-end-line="68" selection-end-column="0" />
+          <folding>
+            <element signature="e#1621#1649#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/label_abstraction/mdp.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="304">
+          <caret line="266" column="0" lean-forward="true" selection-start-line="266" selection-start-column="0" selection-end-line="266" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/label_abstraction/test_mdp.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="108">
-          <caret line="88" column="0" lean-forward="false" selection-start-line="88" selection-start-column="0" selection-end-line="95" selection-end-column="50" />
+        <state relative-caret-position="240">
+          <caret line="131" column="0" lean-forward="false" selection-start-line="131" selection-start-column="0" selection-end-line="131" selection-end-column="0" />
           <folding>
             <element signature="e#0#35#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Run-file.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="208">
+          <caret line="89" column="0" lean-forward="true" selection-start-line="89" selection-start-column="0" selection-end-line="89" selection-end-column="0" />
+          <folding>
+            <element signature="e#263#313#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -861,26 +879,6 @@
           <caret line="185" column="17" lean-forward="false" selection-start-line="185" selection-start-column="12" selection-end-line="185" selection-end-column="17" />
           <folding>
             <element signature="e#0#21#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Run-file.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="91">
-          <caret line="85" column="38" lean-forward="false" selection-start-line="85" selection-start-column="24" selection-end-line="85" selection-end-column="38" />
-          <folding>
-            <element signature="e#263#313#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/label_abstraction/mdp.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="238">
-          <caret line="237" column="18" lean-forward="false" selection-start-line="237" selection-start-column="18" selection-end-line="237" selection-end-column="18" />
-          <folding>
-            <element signature="e#0#18#0" expanded="true" />
           </folding>
         </state>
       </provider>

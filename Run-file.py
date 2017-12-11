@@ -12,7 +12,7 @@ Do :
 Author Sofie Haesaert
 """
 from ApprxSimulation.Visualize import plot_regions
-from label_abstraction.test_mdp import test_mdp_dfsa, formula_to_mdp
+from label_abstraction.test_mdp import test_mdp_dfsa, formula_to_mdp, test_ltl_synth2
 
 print('Import packages')
 # Import packages:
@@ -81,10 +81,9 @@ def main():
 
     #print('output',system.output(4))
 
-    formula = '( ( F target ) & ( F avoid ))'
+    formula = '( ( avoid U target ) & ( F avoid ))'
 
     dfsa, init, final = formula_to_mdp(formula)
-
 
     # figure out a map from numeric inputs to name based inputs
 

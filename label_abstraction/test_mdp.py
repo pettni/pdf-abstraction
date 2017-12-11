@@ -128,3 +128,4 @@ def test_ltl_synth2():
 
 	pol = solve_ltl_cosafe(system, formula)
 
+
