@@ -1,7 +1,6 @@
 import numpy as np
 
 from mdp import *
-from ltl2mdp import *
 
 def test_connection():
 
@@ -101,7 +100,7 @@ def test_ltl_synth():
 	system = MDP([T1, T2], output_fcn = output, output_name ='ap')
 
 	formula = '( ( F s1 ) & ( F s2 ) )'
-	dfsa, final = formula_to_mdp(formula)
+	dfsa, init, final = formula_to_mdp(formula)
 
 	prod = ProductMDP(system, dfsa)
 
@@ -109,3 +108,23 @@ def test_ltl_synth():
 
 	np.testing.assert_almost_equal(V[::4], [0.5, 0, 0, 0.5],
 								   decimal=4)
+
+def test_ltl_synth2():
+
+	T1 = np.array([[0.25, 0.25, 0.25, 0.25], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+	T2 = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0], [0.9, 0, 0, 0.1]])
+
+	def output(n):
+		# map Y1 -> 2^(2^AP)
+		if n == 1:
+			return set( ( ('s1',), ) )   # { {s1} }
+		elif n == 3:
+			return set( ( ('s2',), ) )   # { {s2} }
+		else:
+			return set( ( (), ), )		 # { { } }
+
+	system = MDP([T1, T2], output_fcn = output, output_name ='ap')
+
+	formula = '( ( F s1 ) & ( F s2 ) )'
+
+	pol = solve_ltl_cosafe(system, formula)
