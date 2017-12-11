@@ -7,7 +7,6 @@ import itertools
 import polytope as pc
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
-from ApprxSimulation.LTI_simrel import eps_err
 
 from scipy.stats import norm
 from functools import reduce # Valid in Python 2.6+, required in Python 3
@@ -86,6 +85,8 @@ class LTI:
                 return self.bw
 
     def abstract(self,d, un=3, verbose = True, Accuracy =True):
+        from ApprxSimulation.LTI_simrel import eps_err
+
         ## Unpack LTI
         d=d.flatten()
         A = self.a

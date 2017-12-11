@@ -6,6 +6,8 @@ import numpy as np
 
 from mdp import MDP
 
+
+
 class Fsa(object):
 	"""
 	Base class for deterministic finite state automata.
@@ -145,7 +147,8 @@ class Fsa(object):
 
 		# Write formula to temporary file to be read by scheck
 		tf = tempfile.NamedTemporaryFile()
-		tf.write(bytes(scheck_formula, 'utf-8'))
+		bwrite = bytes(scheck_formula).encode("utf-8")
+		tf.write(bwrite)
 		tf.flush()
 
 		# Execute scheck and get output
@@ -278,10 +281,10 @@ class Fsa(object):
 
 		# Return an array of next states
 		return filter(lambda x: True if x is not None else False,
-							# next state if bitmap is in inputs else None
-							map(lambda e: e[1] if prop_bitmap in e[2]['input'] else None,
-							# Get all edges from q
-							self.g.out_edges_iter(q,True)))
+					  # next state if bitmap is in inputs else None
+					  map(lambda e: e[1] if prop_bitmap in e[2]['input'] else None,
+						  # Get all edges from q
+						  self.g.out_edges_iter(q,True)))
 
 def formula_to_mdp(formula):
 	fsa = Fsa()
@@ -304,6 +307,6 @@ def formula_to_mdp(formula):
 			T[u][int(s1), int(s2)] = 1
 
 	mdp = MDP(T, input_name='ap', input_fcn=fsa.bitmap_of_props,
-			   output_name='mu')
+			  output_name='mu')
 
 	return mdp, set(map(int, fsa.final))
