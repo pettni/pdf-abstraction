@@ -157,7 +157,10 @@ class Fsa(object):
 
 		# Write formula to temporary file to be read by scheck
 		tf = tempfile.NamedTemporaryFile()
-		tf.write(bytes(scheck_formula, 'utf-8'))
+		if sys.version_info >= (3, 0):
+			tf.write(bytes(scheck_formula, 'utf-8'))
+		else:
+			tf.write(bytes(scheck_formula).encode("utf-8")) 
 		tf.flush()
 
 		# Execute scheck and get output
