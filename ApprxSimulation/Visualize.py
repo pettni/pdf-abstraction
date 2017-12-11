@@ -35,7 +35,7 @@ import matplotlib
 import numpy as np
 import math
 import matplotlib.pyplot as plt
-
+import polytope as pc
 
 
 def patch_ellips(Meps, pos = None, number =20):
@@ -77,4 +77,31 @@ def plot_rel(Meps, pos = None, number =20):
     ax.add_patch(patch)
     #
     #plt.tight_layout()
+    plt.show()
+
+
+def plot_regions(regions, xlim, ylim):
+    """
+
+    :param regions:  dictionary with name: polytope
+    :return: figure
+    """
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    for name in regions.keys():
+        print(name)
+        patch = matplotlib.patches.Polygon(pc.extreme(regions[name]))
+        lx, ux = pc.bounding_box(regions[name])  # lower and upperbounds over all dimensions
+
+        #patch = patch_ellips(Meps, pos=None, number=number)
+        ax.add_patch(patch)
+        plt.text(ux[0], ux[1],  name)
+    #return
+
+    #ax.add_patch(patch)
+    plt.xlim(xlim)
+    plt.ylim(ylim)
+    # plt.tight_layout()
     plt.show()

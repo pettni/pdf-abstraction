@@ -1,6 +1,6 @@
 import numpy as np
 
-from mdp import *
+from label_abstraction.mdp import *
 
 def test_connection():
 
@@ -127,3 +127,4 @@ def test_ltl_synth2():
 	formula = '( ( F s1 ) & ( F s2 ) )'
 
 	pol = solve_ltl_cosafe(system, formula)
+
