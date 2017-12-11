@@ -81,11 +81,17 @@ def main():
 
     #print('output',system.output(4))
 
-    formula = '( ( avoid U target ) & ( F avoid ))'
+    formula = '( ( ! avoid U target ) )'
 
-    dfsa, init, final = formula_to_mdp(formula)
+    # figure out a map dict_input2prop from numeric inputs to name based inputs
+    dfsa, init, final, dict_input2prop = formula_to_mdp(formula)
 
-    # figure out a map from numeric inputs to name based inputs
+    act_inputs = mdp_grid.map_dfa_inputs(dict_input2prop, regions)
+
+    print act_inputs
+    # compute matrix which gives for each states 0,1 values for allowed inputs
+
+
 
 
     # system = MDP([T1, T2], output_fcn=output, output_name='ap')

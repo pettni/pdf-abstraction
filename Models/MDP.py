@@ -89,6 +89,40 @@ class Markov(MDP):
         else:
             self.target = Target
 
+    def map_dfa_inputs(self,dictio,regions):
+        """
+
+        :param dict: dictionary with keys input numbers and values sets of ap, A =number of inputs
+        :param regions: dictionary with keys = ap, and values polytopes
+        :return: matrix with size A x states
+        """
+        act_inputs = np.zeros((len(dictio.keys()),self.P[0].shape[0]-1))
+        in_regions = dict()
+        nin_regions = dict()
+
+        for input_i in regions.keys():
+            in_regions[input_i] = np.array([[1.] if pc.is_inside(regions[input_i], np.array(s)) else [0.] for s in itertools.product(*self.srep)])
+
+        for input_i in regions.keys():
+            nin_regions[input_i] = np.ones(in_regions[input_i].shape)-np.array([[1.] if pc.is_inside(regions[input_i], np.array(s)) else [0.] for s in itertools.product(*self.srep)])
+
+        for aps in dictio.keys() :
+
+            if dictio[aps] :
+                set_ap = set(dictio[aps])
+            else :
+                set_ap = set()
+
+            act_inputs[aps] = np.prod(np.block([[in_regions[input_i] if input_i in set_ap else nin_regions[input_i] for input_i in regions.keys()]]),axis=1)
+            # ap of interest are now given as
+        #fill in with zeros for the dummy state
+        act_inputs = np.block([[act_inputs,np.zeros((len(dictio.keys()),1))]])
+        return act_inputs
+
+
+
+
+
 
     def reach_bell(self, V = None):
         print('it')

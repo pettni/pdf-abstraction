@@ -98,7 +98,7 @@ def test_ltl_synth():
 	system = MDP([T1, T2], output_fcn = output, output_name ='ap')
 
 	formula = '( ( F s1 ) & ( F s2 ) )'
-	dfsa, init, final = formula_to_mdp(formula)
+	dfsa, init, final,dict_input2prop = formula_to_mdp(formula)
 
 	prod = ProductMDP(system, dfsa)
 

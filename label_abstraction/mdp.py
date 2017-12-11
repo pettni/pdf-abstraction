@@ -262,7 +262,22 @@ def formula_to_mdp(formula):
   init_states = set(map(lambda state: dict_fromstate[state], [state for (state, key) in fsa.init.items() if key == 1]))
   final_states = set(map(lambda state: dict_fromstate[state], fsa.final))
 
-  return mdp, init_states, final_states
+
+  # create map number => sets of atom propositions
+  print(fsa.props.keys())
+  # make tuple with on off
+  props= tuple()
+  for ap in fsa.props.keys():
+      props+=([True, False],)
+  dict_input2prop = dict()
+  for status in product(*props):
+      ap_set=tuple()
+      for i,name in enumerate(fsa.props.keys()):
+          if status[i]:
+            ap_set += (name,)
+      dict_input2prop[fsa.bitmap_of_props(ap_set)] = ap_set
+
+  return mdp, init_states, final_states, dict_input2prop
 
 
 class LTL_Policy(object):
