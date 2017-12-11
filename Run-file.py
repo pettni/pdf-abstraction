@@ -18,6 +18,7 @@ print('Import packages')
 # Import packages:
 from Models.Linear import LTI, POMDP
 from label_abstraction.mdp import *
+import matplotlib.pyplot as plt
 
 from lomap import Fsa
 from gdtl import gdtl2ltl, PredicateContext
@@ -29,15 +30,17 @@ def main():
 
     print('Initialise values')
     # Define the linear time invariant system
-    A = np.array([[0,-0.8572],[0.1,0.5]])
-    B = np.eye(2)  #array([[1], [0.1]])
-    W = np.eye(2)  # noise on transitions
+    #A = np.array([[0,-0.8572],[0.1,0.5]])
+    dim = 2
+    A = np.eye(dim)
+    B = np.eye(dim)  #array([[1], [0.1]])
+    W = np.eye(dim)  # noise on transitions
 
     # Accuracy
     C = np.array([[1, 0]])  # defines metric for error (||y_finite-y||< epsilon with y= cx   )
     sys = LTI(A, B, C, None)  # LTI system with   D = None
 
-    sys.setBw(np.array([[.9, 0], [0.0, .9]]))
+    sys.setBw(np.eye(dim))
 
     # Define spaces
     sys.setU(pc.box2poly(np.kron(np.ones((sys.m, 1)), np.array([[-3, 3]])))) # continuous set of inputs
@@ -47,35 +50,77 @@ def main():
 
     regions = dict()
 
+
+    # *Grid space
+    d = np.array([[3, 4]])  # with distance measure
+    mdp_grid = sys.abstract_io(d, un=5, verbose=False, Accuracy=False)  # do the gridding
+
     ### add labeling
     # add target
-    regions['target'] = pc.box2poly(np.kron(np.ones((sys.dim, 1)), np.array([[5, 10]])))
+    regions['target'] = pc.box2poly(np.kron(np.ones((2, 1)), np.array([[5, 10]])))
 
     # add avoid
     regions['avoid'] = pc.box2poly(np.array([[-5, -3],[-10, 5]]))
 
-    plot_regions(regions, np.array([-15, 15]), np.array([-15, 15]))
-
-    T1 = np.array([[0.25, 0.25, 0.25, 0.25], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-    T2 = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0], [0.9, 0, 0, 0.1]])
+    #plot_regions(regions, np.array([-15, 15]), np.array([-15, 15]))
 
     def output(n):
         # map Y1 -> 2^(2^AP)
-        if n == 1:
-            return set((('s1',),))  # { {s1} }
-        elif n == 3:
-            return set((('s2',),))  # { {s2} }
-        else:
-            return set(((),), )  # { { } }
+        out =tuple()
 
-    system = MDP([T1, T2], output_fcn=output, output_name='ap')
+        # check target
+        for name in regions.keys() :
+            if  pc.is_inside(regions[name], mdp_grid.state_fnc(n)):
+                out += ( name,)
 
-    formula = '( ( F s1 ) & ( F s2 ) )'
+        return out
+    print('output',output(4))
 
-    pol = solve_ltl_cosafe(system, formula)
 
-    # define noise (Diagonal ONLY!)
-    sys.setBw(np.array([[.9,0],[0.0,.9]]))
+    system = MDP([mdp_grid.P[a] for a in range(len(mdp_grid.P))],  output_name='ap')
+
+    #print('output',system.output(4))
+
+    formula = '( ( F target ) & ( F avoid ))'
+
+    dfsa, init, final = formula_to_mdp(formula)
+
+
+    # figure out a map from numeric inputs to name based inputs
+
+
+    # system = MDP([T1, T2], output_fcn=output, output_name='ap')
+
+
+    print('input',dfsa.input(set(('target',))))
+
+    # prod = ProductMDP(system, dfsa)
+    # V, _ = prod.solve_reach(accept=lambda s: s[1] in final)
+
+
+    # for i in range(0, 7):
+    #     mdp_grid.reach_bell()  # Bellman recursions
+    #
+    # xi, yi = np.meshgrid(*mdp_grid.srep)
+    #
+    # plt.pcolor(mdp_grid.sedge[0], mdp_grid.sedge[1], mdp_grid.V.reshape(xi.shape, order='F'))
+    # plt.colorbar()
+    # plt.xlim(np.array([-12, 12]))
+    # plt.ylim(np.array([-12, 12]))
+    # plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     # Sensor noise => pomdp
@@ -136,6 +181,5 @@ def gdtl2fsa(formula):
 if __name__ == '__main__':
     #loglevel = logging.INFO
     #logging.basicConfig(level=loglevel)
-    getformula()
     main()
 

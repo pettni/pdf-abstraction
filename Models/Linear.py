@@ -147,7 +147,7 @@ class LTI:
 
 
 
-        transition = np.zeros((un, xn, xn))
+        transition = np.zeros((un, xn+1, xn+1))
         print(transition.shape)
         transition.fill(-10)
         for u_index, u in enumerate(itertools.product(*urep)):
@@ -164,7 +164,12 @@ class LTI:
                 P += (np.array([[reduce(operator.mul, p, 1) for p in itertools.product(*Pi)]]),)
 
             prob = np.concatenate(P, axis = 0)
-            transition[u_index] = prob
+            p_local = np.block([[prob, 1-prob.dot(np.ones((prob.shape[1], 1)))], [np.zeros((1, prob.shape[1])), np.ones((1,1))]])
+            print(p_local)
+
+            transition[u_index] = p_local
+
+        # add dummy state that represents exiting the set of allowed states
 
 
 
@@ -204,6 +209,158 @@ class LTI:
             plt.show()
 
         return mdp_grid
+
+
+
+    def abstract_io(self,d, un=3, verbose = True, Accuracy =True):
+        from ApprxSimulation.LTI_simrel import eps_err
+        from label_abstraction.mdp import MDP
+
+        ## Unpack LTI
+        d = d.flatten()
+        A = self.a
+        B = self.b
+        C = self.c
+        Bw = self.setBw()
+        U = self.setU()
+
+        # check that Bw is a diagonal
+        # = np.sum(np.absolute(np.dot(Bw,Bw.transpose()))) - np.trace(np.absolute(np.dot(Bw,Bw.transpose())))
+        assert np.sum(np.absolute(np.dot(Bw,Bw.transpose()))) - np.trace(np.absolute(np.dot(Bw,Bw.transpose()))) == 0
+        vars = np.diag(np.dot(Bw,Bw.transpose()))
+
+        X = self.setX()
+        n = self.dim
+
+        rad = LA.norm(d, 2)
+        lx, ux = pc.bounding_box(self.X)  # lower and upperbounds over all dimensions
+        remainx = np.remainder((ux-lx).flatten(),d.flatten())
+        remainx = np.array([d.flatten()[i]-r if r!=0 else 0 for i,r in enumerate(remainx) ]).flatten()
+        lx =lx.flatten() - remainx/2
+        ux =ux.flatten() + d
+
+        if Accuracy:
+            Dist = pc.box2poly(np.diag(d).dot(np.kron(np.ones((self.dim, 1)), np.array([[-1, 1]]))))
+
+            M_min, K_min, eps_min = eps_err(self, Dist)
+
+        if verbose == True and n == 2:
+            # plot figure of x
+            figure = plt.figure()
+            figure.add_subplot('111')
+            axes = figure.axes[0]
+            axes.axis('equal')  # sets aspect ration to 1
+
+            # compute limits X
+            plt.xlim(np.array([lx[0], ux[0]]))
+            plt.ylim(np.array([lx[1], ux[1]]))
+
+        # GRID state
+        srep = tuple()
+        sedge=tuple()
+        for i, dval in enumerate(d):
+            srep += (np.arange(lx[i], ux[i], dval)+dval/2,)
+            sedge += (np.arange(lx[i], ux[i]+dval, dval),)
+
+        grid = np.meshgrid(*srep)
+        xn = np.size(grid[0]) # number of finite states
+
+        # grid input
+        urep = tuple()
+        lu, uu = pc.bounding_box(self.U)  # lower and upperbounds over all dimensions
+        for i, low in enumerate(lu):
+            urep += (np.linspace(lu[i], uu[i], un, endpoint=True),)
+
+        ugrid = np.meshgrid(*urep)
+        un = np.size(ugrid[0])  # number of finite states
+
+
+
+        transition = np.zeros((un, xn+1, xn+1))
+        transition.fill(-10)
+        # def tostate(self, s):
+        #     state = tuple()
+        #     for s, i in enumerate(srep):
+        #         for xx in range(len(srep[i]))
+        #
+        #         state += (srep[i][index] ,)
+        #
+        #     print(np.prod(lengths[::-2]))
+        #     print(s % (np.prod(lengths[::-2])) % (np.prod(lengths[::-3])))
+        #     print(srep[2][s % (np.prod(lengths[0:2])) % (np.prod(lengths[1:2]))])
+        #     print(srep[1][(s / lengths[2]) % (np.prod(lengths[::-3]))])
+        #     print(srep[0][(s / lengths[1] / lengths[2])])
+
+
+        # make dictionary
+
+
+        for u_index, u in enumerate(itertools.product(*urep)):
+            P = tuple()
+            for s,sstate in enumerate(itertools.product(*srep)):
+                #print(s,(sstate))
+                #
+                # # print(np.prod(lengths[::-2]))
+                # print(prod_len, lengths)
+                # print(srep[0][(s/(lengths[1]*lengths[2]))]) #1
+                # print(srep[1][(s/lengths[2])%lengths[1]])   #2
+                # print(srep[2][(s %(lengths[1]*lengths[2])) %lengths[2]])
+
+
+
+                mean = np.dot(A,np.array(sstate))+np.dot(B,np.array(u))  # Ax
+
+                # compute probability in each dimension
+                Pi = tuple()
+                for i in range(n):
+                    Pi += (np.diff(norm.cdf(sedge[i], mean[i], vars[i]**.5)),) # probabilities for different dimensions
+
+                # multiply over dimensions
+                P += (np.array([[reduce(operator.mul, p, 1) for p in itertools.product(*Pi)]]),)
+
+            prob = np.concatenate(P, axis = 0)
+            p_local = np.block([[prob, 1-prob.dot(np.ones((prob.shape[1], 1)))], [np.zeros((1, prob.shape[1])), np.ones((1,1))]])
+
+            transition[u_index] = p_local
+
+        # add dummy state that represents exiting the set of allowed states
+        mdp_grid = Markov(transition, srep, urep, sedge)
+
+        #mdp_grid = MDP([transition[a] for a in range(transition.shape[0])],  output_fcn=state_fnc,  input_fcn=input_fnc)
+        #system = MDP([mdp_grid.P[a] for a in range(len(mdp_grid.P))], output_fcn=output, output_name='ap')
+
+        if verbose == True and n == 2:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            ax.scatter(grid[0].flatten(), grid[1].flatten(), label='Finite states', color='k', s=10, marker="o")
+
+            plt.xlabel('x')
+            plt.ylabel('y')
+            if Accuracy:
+                patch = patch_ellips((eps_min ** -2) * M_min, pos=None, number=20)
+                ax.add_patch(patch)
+
+
+            # if B is lower dimension than A, give some info on the stationary points.
+                if self.m<self.dim:
+                    A1=np.eye(2)-self.a
+                    AB=np.hstack((A1,self.b))
+                    ratio =LA.inv(AB[:,1:]).dot(AB[:,0])
+                    stablepoints = ratio[0] *srep[0]
+                    ax.scatter(srep[0].flatten(), stablepoints.flatten(), label='Equilibrium states', color='r', s=20, marker="+")
+            plt.legend()
+
+
+                    # plt.tight_layout()
+
+
+            plt.show()
+
+        return mdp_grid
+
+
+
+
 
 class POMDP(LTI):
     "All data for sensor based modeling is enclosed in this class"

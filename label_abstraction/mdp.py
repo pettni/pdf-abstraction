@@ -32,9 +32,11 @@ class MDP(object):
     self.input_fcn = input_fcn
     self.input_name = input_name
 
+
     # Outputs are state labels
     self.output_fcn = output_fcn
     self.output_name = output_name
+
 
     # Transition matrices for each axis
     self.Tmat = [None,] * self.M
@@ -226,8 +228,14 @@ def formula_to_mdp(formula):
   fsa.from_formula(formula)
   fsa.add_trap_state()
 
+
   states = set(map(int, fsa.g.nodes()))
+  print(states)
   inputs = set.union(*[attr['input'] for _,_,attr in fsa.g.edges(data=True)])
+
+
+
+  print(fsa.props)
 
   N = len(fsa.g)
   M = len(inputs)

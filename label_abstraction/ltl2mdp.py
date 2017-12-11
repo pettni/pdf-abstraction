@@ -136,8 +136,10 @@ class Fsa(object):
 
 		# Get the set of propositions
 		props = re.sub('[IGFX!\(\)&|U]', ' ', formula)
+
 		# TODO: implement true/false support
 		props = set(re.sub('\s+', ' ', props).strip().split())
+
 
 		# Form the bitmap dictionary of each proposition
 		# Note: range goes upto rhs-1
@@ -162,6 +164,8 @@ class Fsa(object):
 
 		# Convert infix to prefix
 		scheck_formula = Fsa.infix_formula_to_prefix(formula)
+
+		print(scheck_formula)
 		# Scheck expect implies operator (I) to be lower-case
 		scheck_formula = ''.join([i if i != 'I' else 'i' for i in scheck_formula])
 

@@ -63,6 +63,22 @@ class Markov(MDP):
         self.V = np.zeros((self.S,1))
         self.policy_u = np.empty((self.S, len(self.urep)))
 
+
+
+        self.output_cst = dict([(s, sstate) for s, sstate in enumerate(itertools.product(*srep))])
+        self.input_cst = dict([(uvalue, u) for u, uvalue in enumerate(itertools.product(*urep))])
+
+    def state_fnc(self, s):
+        return self.output_cst[s]
+
+    def input_fnc(self,uvalue):
+        uval_discrete = tuple()
+        print(self.input_cst)
+        for ui,uval in enumerate(uvalue.flatten()):
+            uval_discrete += (min(self.urep[ui].flatten(), key=lambda x: abs(x - uval)),)
+        return self.input_cst[uval_discrete]
+
+
     def settarget(self, Target=None):
         if Target is None:
              return self.target

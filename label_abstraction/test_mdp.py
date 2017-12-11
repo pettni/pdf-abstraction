@@ -123,6 +123,7 @@ def test_ltl_synth2():
 
 	system = MDP([T1, T2], output_fcn = output, output_name ='ap')
 
+	print(system.output(1))
 	formula = '( ( F s1 ) & ( F s2 ) )'
 
 	pol = solve_ltl_cosafe(system, formula)
