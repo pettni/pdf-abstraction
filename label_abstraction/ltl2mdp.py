@@ -1,12 +1,22 @@
 import networkx as nx
 import re
-import subprocess as sp
+import subprocess as subp
 import tempfile
 import numpy as np
 
-from mdp import MDP
+import pkg_resources as pr
+import sys
 
-
+# Initialize binaries
+if sys.platform[0:5] == 'linux':
+	ltl2ba_binary = 'binaries/linux/ltl2ba'
+	scheck_binary = 'binaries/linux/scheck2'
+elif sys.platform == 'darwin':
+	ltl2ba_binary = './binaries/mac/ltl2ba'
+	scheck_binary = './binaries/mac/scheck2'
+else:
+	print ('%s platform not supported yet!' % sys.platform)
+	exit(1)
 
 class Fsa(object):
 	"""
@@ -147,13 +157,12 @@ class Fsa(object):
 
 		# Write formula to temporary file to be read by scheck
 		tf = tempfile.NamedTemporaryFile()
-		bwrite = bytes(scheck_formula).encode("utf-8")
-		tf.write(bwrite)
+		tf.write(bytes(scheck_formula, 'utf-8'))
 		tf.flush()
 
 		# Execute scheck and get output
 		try:
-			lines = sp.check_output(['./scheck2', '-s', '-d', tf.name]).splitlines()
+			lines = subp.check_output([scheck_binary, '-s', '-d', tf.name]).splitlines()
 		except Exception as ex:
 			raise Exception(__name__, "Problem running %s: '%s'" % (scheck_binary, ex))
 
@@ -281,32 +290,7 @@ class Fsa(object):
 
 		# Return an array of next states
 		return filter(lambda x: True if x is not None else False,
-					  # next state if bitmap is in inputs else None
-					  map(lambda e: e[1] if prop_bitmap in e[2]['input'] else None,
-						  # Get all edges from q
-						  self.g.out_edges_iter(q,True)))
-
-def formula_to_mdp(formula):
-	fsa = Fsa()
-	fsa.from_formula(formula)
-	fsa.add_trap_state()
-
-	states = set(map(int, fsa.g.nodes()))
-	inputs = set.union(*[attr['input'] for _,_,attr in fsa.g.edges(data=True)])
-
-	N = len(fsa.g)
-	M = len(inputs)
-
-	assert(states == set(range(N)))
-	assert(inputs == set(range(M)))
-
-	T = [np.zeros((N, N)) for m in range(M)]
-
-	for (s1, s2, attr) in fsa.g.edges(data=True):
-		for u in attr['input']:
-			T[u][int(s1), int(s2)] = 1
-
-	mdp = MDP(T, input_name='ap', input_fcn=fsa.bitmap_of_props,
-			  output_name='mu')
-
-	return mdp, set(map(int, fsa.final))
+							# next state if bitmap is in inputs else None
+							map(lambda e: e[1] if prop_bitmap in e[2]['input'] else None,
+							# Get all edges from q
+							self.g.out_edges_iter(q,True)))
