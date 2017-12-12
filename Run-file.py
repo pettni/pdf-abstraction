@@ -40,10 +40,10 @@ def main():
     C = np.array([[1, 0]])  # defines metric for error (||y_finite-y||< epsilon with y= cx   )
     sys = LTI(A, B, C, None)  # LTI system with   D = None
 
-    sys.setBw(np.eye(dim))
+    sys.setBw(1*np.eye(dim))
 
     # Define spaces
-    sys.setU(pc.box2poly(np.kron(np.ones((sys.m, 1)), np.array([[-3, 3]])))) # continuous set of inputs
+    sys.setU(pc.box2poly(np.kron(np.ones((sys.m, 1)), np.array([[-1, 1]])))) # continuous set of inputs
 
     poly = pc.box2poly(np.kron(np.ones((sys.dim, 1)), np.array([[-15, 15]])))
     sys.setX(poly)  # X space
@@ -52,7 +52,7 @@ def main():
 
 
     # *Grid space
-    d = np.array([[3, 4]])  # with distance measure
+    d = np.array([[1, 1]])  # with distance measure
     mdp_grid = sys.abstract_io(d, un=5, verbose=False, Accuracy=False)  # do the gridding
 
     ### add labeling
@@ -74,7 +74,6 @@ def main():
                 out += ( name,)
 
         return out
-    print('output',output(4))
 
 
     system = MDP([mdp_grid.P[a] for a in range(len(mdp_grid.P))],  output_name='ap')
@@ -85,19 +84,29 @@ def main():
 
     # figure out a map dict_input2prop from numeric inputs to name based inputs
     dfsa, init, final, dict_input2prop = formula_to_mdp(formula)
-
+    dfsa.init=list(init)
     act_inputs = mdp_grid.map_dfa_inputs(dict_input2prop, regions)
 
-    print act_inputs
-    # compute matrix which gives for each states 0,1 values for allowed inputs
+    mdp_grid.setdfa(dfsa,final)
+    V, W = mdp_grid.reach_dfa(recursions = 40)
+     # compute matrix which gives for each states 0,1 values for allowed inputs
 
+    print('Value', W) # this is not!! how to initialise this thing!
+    #W = V[list(init),:-1]
+
+    xi, yi = np.meshgrid(*mdp_grid.srep)
+
+    plt.pcolor(mdp_grid.sedge[0], mdp_grid.sedge[1],  W[:-1].reshape(xi.shape, order='F'))
+    plt.colorbar()
+    plt.xlim(np.array([-15, 15]))
+    plt.ylim(np.array([-15, 15]))
+    plt.show()
 
 
 
     # system = MDP([T1, T2], output_fcn=output, output_name='ap')
 
 
-    print('input',dfsa.input(set(('target',))))
 
     # prod = ProductMDP(system, dfsa)
     # V, _ = prod.solve_reach(accept=lambda s: s[1] in final)

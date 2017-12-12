@@ -37,7 +37,7 @@ class MDP(object):
     self.output_fcn = output_fcn
     self.output_name = output_name
 
-
+    self.init = None
     # Transition matrices for each axis
     self.Tmat = [None,] * self.M
 

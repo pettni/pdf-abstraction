@@ -30,6 +30,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 """Markov processes"""
+from scipy.sparse import vstack,hstack
 
 from mdptoolbox.mdp import *
 import numpy as np
@@ -62,7 +63,9 @@ class Markov(MDP):
         self.urep = urep
         self.V = np.zeros((self.S,1))
         self.policy_u = np.empty((self.S, len(self.urep)))
-
+        self.act_inputs = None
+        self.dfa = None
+        self.final = None
 
 
         self.output_cst = dict([(s, sstate) for s, sstate in enumerate(itertools.product(*srep))])
@@ -117,10 +120,106 @@ class Markov(MDP):
             # ap of interest are now given as
         #fill in with zeros for the dummy state
         act_inputs = np.block([[act_inputs,np.zeros((len(dictio.keys()),1))]])
+        self.act_inputs = act_inputs
         return act_inputs
 
+    def setdfa(self,dfa,final):
+        self.dfa = dfa
+        self.final =final
+
+    def reach_dfa(self,V = None, recursions =1):
+
+        assert self.act_inputs is not None
+        assert self.dfa is not None
+        assert self.final is not None
+        if V is None:
+            # this V should be a reference to the data rather than a copy
+            V = np.zeros((self.dfa.N, self.S))
+
+        assert V.shape in ((self.dfa.N, self.S),)
+
+        # let q\in Q be states of DFA
+        # let S \in SS be states of MDP
+
+        # create indicator functions for final, Q\(final)
+
+        accept = lambda q: map(lambda qi: int(qi in self.final), q)
+
+        naccept= lambda q: map(lambda qi: 1-int(qi in self.final), q)
+        Accept= np.kron(np.array(accept(range(self.dfa.N))).reshape((self.dfa.N,1)), np.ones((1,self.S)))
+        nAccept = np.diag(np.array(naccept(range(self.dfa.N))))
+
+        Tnew = hstack(self.dfa.Tmat).toarray()
+        #print(Tnew.toarray())
+
+        trans_qqa = np.zeros((self.dfa.N,self.dfa.N,len(self.dfa.Tmat))) # q,q',act
+        trans_qs = np.zeros((self.dfa.N,self.dfa.N,self.S)) # q, q',S'
+
+        for q in range(self.dfa.N):
+            trans_qqa[q] = Tnew[q,:].reshape((self.dfa.N,-1), order= "F")
+            array = np.zeros((self.dfa.N,self.S))
+            bool_array =(trans_qqa[q].dot(self.act_inputs) < 1)
+            array[bool_array] = 1000.
+            trans_qs[q] = array #np.array((array < 1), dtype=np._float)*1000.0 # penalise impossible transitions
+
+        trans_qs[:,:,-1]=np.zeros((self.dfa.N,self.dfa.N)) # set dummy state equal to zero
+         # [T[0] T[1] T[2] ... ]
+        # given q, S
+        # next SxAct -> prob(S')
+        # W = 1accept(qnext) + 1_{not accept }(qnext)  V
+        for rec in range(recursions):
+            for q in range(self.dfa.N):
+                W = np.amin(Accept+ nAccept.dot(V)+trans_qs[q],axis =0 ) # 1 x S'
+                print(W.shape)
+                V[q] = np.amax(np.block([[W.dot(self.P[a].T)] for a in range(self.A)]),axis =0)  #max_{s_action}[ s_action X S]
 
 
+        W = np.amin(Accept+ nAccept.dot(V)+trans_qs[self.dfa.init[0]],axis =0 )
+        return V, W
+
+
+
+
+
+
+        #print(W)
+
+
+        # qxS'-> set  q'
+
+
+        # given q, and values over q',S'
+        # pick worst q' based on S'
+
+        # add infty to impossible transitions  q, S' q'
+
+        # min_{q' in dfa_trans(qxS')}W(q',S') for all S'
+
+
+
+
+
+
+        #
+        #
+        #
+        # Q = np.empty((self.A, self.S))
+        # for aa in range(self.A):
+        #     qval = np.dot(self.P[aa],self.target + (np.ones(np.shape(self.target)) - self.target)* V)
+        #     Q[aa] = qval.reshape(-1)
+        #
+        # self.V = Q.max(axis=0).reshape((self.S,1))
+        # pol = Q.argmax(axis=0)
+        #
+        # ugrid = np.meshgrid(*self.urep)
+        # self.policy_u = np.empty((self.S,len(self.urep)))
+        #
+        # for u_index,u_grid_index in enumerate(ugrid):
+        #     u_row = u_grid_index.flatten()
+        #     for i,u in enumerate(pol):
+        #         self.policy_u[i][u_index] =u_row[u]
+        #
+        # return (Q.argmax(axis=0), Q.max(axis=0))
 
 
 
@@ -167,3 +266,21 @@ class Markov(MDP):
                 self.policy_u[i][u_index] =u_row[u]
 
         return (Q.argmax(axis=0), Q.max(axis=0))
+
+    def policy_dfa(V):
+        pass
+    # create steady state policy.
+
+
+    class Rpol(): # refined policy
+
+        def __init__(self, V, dfa):
+            self.state = range(dfa.N)  ## composed of discrete state only
+            self.trans = dfa.Tmat  # a qq' discrete transitions
+
+            self.rel = None  # relation mapping (S-> tilde S)
+            self.aps = None # , aps
+
+
+
+
