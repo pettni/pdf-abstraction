@@ -12,9 +12,10 @@ Do :
 Author Sofie Haesaert
 """
 from ApprxSimulation.Visualize import plot_regions
+from Models.MDP import Rpol
 from label_abstraction.test_mdp import test_mdp_dfsa, formula_to_mdp, test_ltl_synth2
 
-print('Import packages')
+('Import packages')
 # Import packages:
 from Models.Linear import LTI, POMDP
 from label_abstraction.mdp import *
@@ -28,11 +29,11 @@ import polytope as pc
 
 def main():
 
-    print('Initialise values')
+    ('Initialise values')
     # Define the linear time invariant system
     #A = np.array([[0,-0.8572],[0.1,0.5]])
     dim = 2
-    A = np.eye(dim)
+    A =np.array([[.9,-0.32],[0.1,0.9]])
     B = np.eye(dim)  #array([[1], [0.1]])
     W = np.eye(dim)  # noise on transitions
 
@@ -43,7 +44,7 @@ def main():
     sys.setBw(1*np.eye(dim))
 
     # Define spaces
-    sys.setU(pc.box2poly(np.kron(np.ones((sys.m, 1)), np.array([[-1, 1]])))) # continuous set of inputs
+    sys.setU(pc.box2poly(np.kron(np.ones((sys.m, 1)), np.array([[-3, 3]])))) # continuous set of inputs
 
     poly = pc.box2poly(np.kron(np.ones((sys.dim, 1)), np.array([[-15, 15]])))
     sys.setX(poly)  # X space
@@ -52,15 +53,15 @@ def main():
 
 
     # *Grid space
-    d = np.array([[1, 1]])  # with distance measure
-    mdp_grid = sys.abstract_io(d, un=5, verbose=False, Accuracy=False)  # do the gridding
+    d = np.array([[.7, .7]])  # with distance measure
+    mdp_grid = sys.abstract_io(d, un=7, verbose=False, Accuracy=False)  # do the gridding
 
     ### add labeling
     # add target
     regions['target'] = pc.box2poly(np.kron(np.ones((2, 1)), np.array([[5, 10]])))
 
     # add avoid
-    regions['avoid'] = pc.box2poly(np.array([[-5, -3],[-10, 5]]))
+    regions['avoid'] = pc.box2poly(np.array([[-5, 3],[-10, 5]]))
 
     #plot_regions(regions, np.array([-15, 15]), np.array([-15, 15]))
 
@@ -78,7 +79,7 @@ def main():
 
     system = MDP([mdp_grid.P[a] for a in range(len(mdp_grid.P))],  output_name='ap')
 
-    #print('output',system.output(4))
+    #('output',system.output(4))
 
     formula = '( ( ! avoid U target ) )'
 
@@ -88,10 +89,10 @@ def main():
     act_inputs = mdp_grid.map_dfa_inputs(dict_input2prop, regions)
 
     mdp_grid.setdfa(dfsa,final)
-    V, W = mdp_grid.reach_dfa(recursions = 40)
+    V, policy, W = mdp_grid.reach_dfa(recursions = 7)
      # compute matrix which gives for each states 0,1 values for allowed inputs
 
-    print('Value', W) # this is not!! how to initialise this thing!
+    # ('Value', W) # this is not!! how to initialise this thing!
     #W = V[list(init),:-1]
 
     xi, yi = np.meshgrid(*mdp_grid.srep)
@@ -100,68 +101,69 @@ def main():
     plt.colorbar()
     plt.xlim(np.array([-15, 15]))
     plt.ylim(np.array([-15, 15]))
+    #plt.show()
+
+    mdp_grid.eps  = 1.2
+    pol = Rpol(mdp_grid, dfsa, V, policy)
+    mdp_grid.nextsets(np.ones((2,1)))
+    print(pol.nexts(1,np.ones((2,1))))
+    # system = MDP([T1, T2], output_fcn=output, output_name='ap')
+
+    print(pol(np.ones((2,4))))
+
+    print(np.block([[xi.flatten()],[yi.flatten()]]))
+
+    print(np.linspace(mdp_grid.srep[0][0],mdp_grid.srep[0][-1],15))
+    xi, yi = np.meshgrid(np.linspace(mdp_grid.srep[0][0],mdp_grid.srep[0][-1],10),np.linspace(mdp_grid.srep[1][0],mdp_grid.srep[1][-1],10))
+    print(xi,yi)
+    # compute inputs
+    u =pol(np.block([[xi.flatten()],[yi.flatten()]]))
+    delx =-np.block([[xi.flatten()],[yi.flatten()]])+A.dot(np.block([[xi.flatten()],[yi.flatten()]])) + pol(np.block([[xi.flatten()],[yi.flatten()]]))
+
+    plt.quiver(xi.flatten(), yi.flatten(),u[0],u[1])
+    plt.quiver(xi.flatten(), yi.flatten(),delx[0],delx[1], color = 'r')
+
     plt.show()
 
 
 
-    # system = MDP([T1, T2], output_fcn=output, output_name='ap')
 
 
 
-    # prod = ProductMDP(system, dfsa)
-    # V, _ = prod.solve_reach(accept=lambda s: s[1] in final)
 
 
-    # for i in range(0, 7):
-    #     mdp_grid.reach_bell()  # Bellman recursions
+
+
+
     #
-    # xi, yi = np.meshgrid(*mdp_grid.srep)
     #
-    # plt.pcolor(mdp_grid.sedge[0], mdp_grid.sedge[1], mdp_grid.V.reshape(xi.shape, order='F'))
-    # plt.colorbar()
-    # plt.xlim(np.array([-12, 12]))
-    # plt.ylim(np.array([-12, 12]))
-    # plt.show()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # Sensor noise => pomdp
-    H = np.ones((1,2)) # what can be measured
-    V = np.eye(1)
-        #  x^+= A x + Bu + w
-        #  y = C x
-        #  z = Cz x+v
-
-    P= np.eye(2)
-    mean = np.zeros((2,1))
-
-    pomdp = POMDP(sys, H, V, P, mean)
-    Pp = P
-    for i in range(15):
-        x, Pu = pomdp.update(mean, Pp)
-        x, Pp = pomdp.predict(np.array([[1],[1]]),x=mean, P=Pu)
-        # updates of x,P
-
-    L, Pst = pomdp.kalman()
-
-    belief_mdp = pomdp.beliefmodel()
-
-
-
-    for i in range(15):
-        (x,P) = belief_mdp.simulate(np.array([[1],[1]]))
+    #
+    #
+    # # Sensor noise => pomdp
+    # H = np.ones((1,2)) # what can be measured
+    # V = np.eye(1)
+    #     #  x^+= A x + Bu + w
+    #     #  y = C x
+    #     #  z = Cz x+v
+    #
+    # P= np.eye(2)
+    # mean = np.zeros((2,1))
+    #
+    # pomdp = POMDP(sys, H, V, P, mean)
+    # Pp = P
+    # for i in range(15):
+    #     x, Pu = pomdp.update(mean, Pp)
+    #     x, Pp = pomdp.predict(np.array([[1],[1]]),x=mean, P=Pu)
+    #     # updates of x,P
+    #
+    # L, Pst = pomdp.kalman()
+    #
+    # belief_mdp = pomdp.beliefmodel()
+    #
+    #
+    #
+    # for i in range(15):
+    #     (x,P) = belief_mdp.simulate(np.array([[1],[1]]))
 
 
 def getformula():
@@ -174,7 +176,7 @@ def getformula():
 
     fsa, tl, aps = gdtl2fsa(formula)
 
-    print(tl)
+    (tl)
     fsa.visualize()
     return fsa, tl, aps, context
 
@@ -188,7 +190,7 @@ def gdtl2fsa(formula):
     # optional add trap state
     fsa.add_trap_state()
 
-    print(fsa)
+    (fsa)
     return fsa, tl, ap
 
 

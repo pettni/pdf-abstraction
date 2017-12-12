@@ -68,18 +68,45 @@ class Markov(MDP):
         self.final = None
 
 
+        # accuracy
+        self.M = None
+        self.eps = None
+        self.s_finite = None
+
         self.output_cst = dict([(s, sstate) for s, sstate in enumerate(itertools.product(*srep))])
-        self.input_cst = dict([(uvalue, u) for u, uvalue in enumerate(itertools.product(*urep))])
+        self.input_cst = dict([(u, uvalue) for u, uvalue in enumerate(itertools.product(*urep))])
+
 
     def state_fnc(self, s):
         return self.output_cst[s]
 
-    def input_fnc(self,uvalue):
-        uval_discrete = tuple()
-        print(self.input_cst)
-        for ui,uval in enumerate(uvalue.flatten()):
-            uval_discrete += (min(self.urep[ui].flatten(), key=lambda x: abs(x - uval)),)
-        return self.input_cst[uval_discrete]
+    # def input_fnc(self,uvalue):
+    #     uval_discrete = tuple()
+    #     print(self.input_cst)
+    #     for ui,uval in enumerate(uvalue.flatten()):
+    #         uval_discrete += (min(self.urep[ui].flatten(), key=lambda x: abs(x - uval)),)
+    #     return self.input_cst[uval_discrete]
+
+    def nextsets(self, s_next):
+        if self.s_finite is None:
+            self.s_finite = np.array(list(itertools.product(*self.srep)))  # compute the grid points
+
+        if self.M is None:
+            print("WARNING no M matrix given")
+            self.M =np.eye(len(self.srep))
+
+        if self.eps is None:
+            print("WARNING no epsilon give")
+            self.eps = 1
+
+        # quantify the weighted difference between s_next, and values of s
+        sdiff = self.s_finite-np.ones((self.s_finite.shape[0],1)).dot(s_next.reshape((1,-1)))
+        error=np.diag(sdiff.dot(self.M).dot(sdiff.T))
+        s_range = np.arange(self.S-1) # minus to remove dummy variable
+        return s_range[error<=self.eps**2], self.s_finite[error<=self.eps**2]
+        #print(self.s_finite)
+
+
 
 
     def settarget(self, Target=None):
@@ -167,15 +194,18 @@ class Markov(MDP):
         # given q, S
         # next SxAct -> prob(S')
         # W = 1accept(qnext) + 1_{not accept }(qnext)  V
+        pol = np.zeros((self.dfa.N, self.S))
         for rec in range(recursions):
             for q in range(self.dfa.N):
                 W = np.amin(Accept+ nAccept.dot(V)+trans_qs[q],axis =0 ) # 1 x S'
-                print(W.shape)
-                V[q] = np.amax(np.block([[W.dot(self.P[a].T)] for a in range(self.A)]),axis =0)  #max_{s_action}[ s_action X S]
+                W_a = np.block([[W.dot(self.P[a].T)] for a in range(self.A)])
+                if rec == recursions-1 : # at last step also comput the policy
+                    pol[q] = W_a.argmax(axis = 0)
+                V[q] = W_a.max(axis = 0)  #max_{s_action}[ s_action X S]
 
 
         W = np.amin(Accept+ nAccept.dot(V)+trans_qs[self.dfa.init[0]],axis =0 )
-        return V, W
+        return V,pol, W
 
 
 
@@ -272,14 +302,92 @@ class Markov(MDP):
     # create steady state policy.
 
 
-    class Rpol(): # refined policy
 
-        def __init__(self, V, dfa):
-            self.state = range(dfa.N)  ## composed of discrete state only
-            self.trans = dfa.Tmat  # a qq' discrete transitions
 
-            self.rel = None  # relation mapping (S-> tilde S)
-            self.aps = None # , aps
+class Rpol(): # refined policy
+
+    def __init__(self, MDP, dfa, V, policy):
+        self.dfa = dfa
+        self.state = self.dfa.init[0]  ## composed of discrete state only
+        self.trans = dfa.Tmat  # a qq' discrete transitions
+
+        self.V = V
+
+        self.MDP= MDP # abstract states in MDP
+        self.aps = None  # aps mapping (S,aps)
+        self.pol = policy
+        self.s_finite= None
+
+        # interface
+        self.K = np.zeros((len(MDP.urep),len(MDP.srep)))
+
+    def __call__(self, s_next):
+        """
+        :param s_next:  s_{k+1}
+        :return: input
+        """
+
+        if s_next.shape[1]>1:
+            u = np.zeros((len(self.MDP.urep),s_next.shape[1] ))
+            for i in range(s_next.shape[1]):
+                u[:,i] = self.__call__( s_next[:,i].reshape((-1,1))).flatten()
+            return u
+
+        # get next discrete state
+        self.state = self.nextq( self.state, s_next)
+
+        # get next abstract MDP state
+        s_abstract, s_abstract_v = self.nexts(self.state, s_next)
+
+        # compute abstract input
+        u_ab = np.array(self.MDP.input_cst[self.pol[self.state,s_abstract]]).reshape(-1,1)
+
+        # refine
+
+        u = self.interface(u_ab, s_abstract, s_next)
+
+        return u # input
+
+    def interface(self,uab,sab,s):
+
+        u = self.K.dot(sab-s) + uab
+        return u
+    def nextq(self, q, s):
+        """
+        :param q: current q
+        :param s: next s
+        :return: next q
+        """
+        print("DUMMY nextq() function")
+        self.state = q
+        return self.state
+
+    def nexts(self, q_next, s_next):
+        """
+
+        :param q_next: next state in DFA
+        :param s_next: next concrete state
+        :return: next abstrac state
+        """
+
+        indexes, values = self.MDP.nextsets(s_next)
+
+        # pick argument of max value
+        s_abstract = indexes[self.V[q_next][indexes].argmax()]
+        s_abstract_v = values[self.V[q_next][indexes].argmax()]
+
+
+        return s_abstract, s_abstract_v
+
+
+
+    def  nextu(self):
+
+        print("DUMMY nexts() function")
+        return 0
+
+
+
 
 
 
