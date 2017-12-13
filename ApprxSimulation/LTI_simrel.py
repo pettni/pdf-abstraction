@@ -90,7 +90,7 @@ def eps_err(lti,Dist,lamb=.9, verbose =True):
         try:
             prob.solve()
         except cvx.error.SolverError :
-            print('cvx.error.SolverError')
+            pass #print('cvx.error.SolverError')
         # Use expr.value to get the numerical value of
         # an expression in the problem.
         if prob.status == cvx.OPTIMAL:
@@ -120,7 +120,7 @@ def eps_err(lti,Dist,lamb=.9, verbose =True):
         plt.tight_layout()
         plt.show()
 
-    return  M_min, K_min, eps_min
+    return M_min, K_min, eps_min
 
 
 
@@ -185,7 +185,8 @@ def tune_d(lti):
             try:
                 prob.solve()
             except cvx.error.SolverError :
-                print('cvx.error.SolverError')
+                pass
+                #print('cvx.error.SolverError')
             # Use expr.value to get the numerical value of
             # an expression in the problem.
             if prob.status == cvx.OPTIMAL:
@@ -274,7 +275,7 @@ def tune_dratio(lti):
             try:
                 prob.solve()
             except cvx.error.SolverError :
-                print('cvx.error.SolverError')
+                pass #print('cvx.error.SolverError')
             # Use expr.value to get the numerical value of
             # an expression in the problem.
             if prob.status == cvx.OPTIMAL:

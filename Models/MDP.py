@@ -69,6 +69,7 @@ class Markov(MDP):
         self.final = None
         self.T2x = T2x
 
+        self.trans_qs = None
         # accuracy
         self.M = M
         self.eps = eps
@@ -117,7 +118,7 @@ class Markov(MDP):
         else:
             self.target = Target
 
-    def map_dfa_inputs(self,dictio,regions):
+    def map_dfa_inputs(self, dictio, regions):
         """
 
         :param dict: dictionary with keys input numbers and values sets of ap, A =number of inputs
@@ -196,7 +197,7 @@ class Markov(MDP):
         self.dfa = dfa
         self.final =final
 
-    def reach_dfa(self,V = None, recursions =1):
+    def reach_dfa(self,V = None, recursions =1, delta = 0):
 
         assert self.act_inputs is not None
         assert self.dfa is not None
@@ -220,36 +221,40 @@ class Markov(MDP):
 
         Tnew = hstack(self.dfa.Tmat).toarray()
         #print(Tnew.toarray())
+        if self.trans_qs is None:
+            trans_qqa = np.zeros((self.dfa.N,self.dfa.N,len(self.dfa.Tmat))) # q,q',act
+            trans_qs = np.zeros((self.dfa.N,self.dfa.N,self.S)) # q, q',S'
 
-        trans_qqa = np.zeros((self.dfa.N,self.dfa.N,len(self.dfa.Tmat))) # q,q',act
-        trans_qs = np.zeros((self.dfa.N,self.dfa.N,self.S)) # q, q',S'
+            for q in range(self.dfa.N):
+                trans_qqa[q] = Tnew[q,:].reshape((self.dfa.N, -1), order= "F")
+                array = np.zeros((self.dfa.N,self.S))
+                bool_array =(trans_qqa[q].dot(self.act_inputs) < 1)
+                array[bool_array] = 1000.
+                trans_qs[q] = array #np.array((array < 1), dtype=np._float)*1000.0 # penalise impossible transitions
 
-        for q in range(self.dfa.N):
-            trans_qqa[q] = Tnew[q,:].reshape((self.dfa.N,-1), order= "F")
-            array = np.zeros((self.dfa.N,self.S))
-            bool_array =(trans_qqa[q].dot(self.act_inputs) < 1)
-            array[bool_array] = 1000.
-            trans_qs[q] = array #np.array((array < 1), dtype=np._float)*1000.0 # penalise impossible transitions
+            trans_qs[:,:,-1]=np.zeros((self.dfa.N,self.dfa.N)) # set dummy state equal to zero
+            self.trans_qs = trans_qs
 
-        trans_qs[:,:,-1]=np.zeros((self.dfa.N,self.dfa.N)) # set dummy state equal to zero
-         # [T[0] T[1] T[2] ... ]
+        # [T[0] T[1] T[2] ... ]
         # given q, S
         # next SxAct -> prob(S')
         # W = 1accept(qnext) + 1_{not accept }(qnext)  V
         pol = np.zeros((self.dfa.N, self.S))
         for rec in range(recursions):
             for q in range(self.dfa.N):
-                W = np.amin(Accept+ nAccept.dot(V)+trans_qs[q],axis =0 ) # 1 x S'
+                W = np.amin(Accept+ nAccept.dot(V)+self.trans_qs[q],axis =0 ) # 1 x S'
                 W_a = np.block([[W.dot(self.P[a].T)] for a in range(self.A)])
                 if rec == recursions-1 : # at last step also comput the policy
                     pol[q] = W_a.argmax(axis = 0)
                 V[q] = W_a.max(axis = 0)  #max_{s_action}[ s_action X S]
 
 
-        W = np.amin(Accept+ nAccept.dot(V)+trans_qs[self.dfa.init[0]],axis =0 )
+        W = np.amin(Accept+ nAccept.dot(V)+self.trans_qs[self.dfa.init[0]],axis =0 )
         return V,pol, W
 
     def reach_bell(self, V = None):
+        assert False
+        # old implementation
         print('it')
         xi, yi = np.meshgrid(*self.srep)
 
@@ -313,6 +318,8 @@ class Rpol(): # refined policy
         self.aps = None  # aps mapping (S,aps)
         self.pol = policy
         self.s_finite= None
+        self.input_ap = None
+        self.ap_regions = None
 
         # interface
         self.K = np.zeros((len(MDP.urep),len(MDP.srep)))
@@ -334,13 +341,55 @@ class Rpol(): # refined policy
             s_next = s_concrete
 
         # get next discrete state
-        self.state = self.nextq( self.state, s_next)
+        self.state = self.nextq(self.state, s_next)
 
         # get next abstract MDP state
         s_abstract, s_abstract_v = self.nexts(self.state, s_next)
 
         # compute abstract input
-        u_ab = np.array(self.MDP.input_cst[self.pol[self.state,s_abstract]]).reshape(-1,1)
+        if s_abstract < self.MDP.S - 1:
+            u_ab = np.array(self.MDP.input_cst[self.pol[self.state, s_abstract]]).reshape(-1, 1)
+        else:
+            u_ab = np.zeros((len(self.MDP.input_cst[0]),1))
+
+
+
+        # refine
+
+        u = self.interface(u_ab, s_abstract, s_next)
+
+        return u # input
+
+
+    def cst(self, s_concrete, transformed = True):
+        """
+        :param s_next:  s_{k+1}
+        :return: input
+        """
+
+        if s_concrete.shape[1]>1:
+            u = np.zeros((len(self.MDP.urep),s_concrete.shape[1] ))
+            for i in range(s_concrete.shape[1]):
+                u[:,i] = self.cst(s_concrete[:,i].reshape((-1,1)),transformed = transformed).flatten()
+            return u
+        if not transformed:
+            s_next = LA.inv(self.MDP.T2x).dot(s_concrete)
+        else:
+            s_next = s_concrete
+
+
+        # get next discrete state
+        q = self.nextq( self.dfa.init[0], s_next)
+
+        # get next abstract MDP state
+        s_abstract, s_abstract_v = self.nexts(q, s_next)
+
+        # compute abstract input
+        if s_abstract < self.MDP.S - 1:
+            u_ab = np.array(self.MDP.input_cst[self.pol[q, s_abstract]]).reshape(-1, 1)
+        else:
+            u_ab = np.zeros((len(self.MDP.input_cst[0]),1))
+
 
         # refine
 
@@ -349,19 +398,16 @@ class Rpol(): # refined policy
         return u # input
 
     def interface(self,uab,sab,s):
+        """
+
+        :param uab:
+        :param sab:
+        :param s: after transform concrete state
+        :return:
+        """
         # only works after transform
         u = self.K.dot(s-sab) + uab
         return u
-
-    def nextq(self, q, s):
-        """
-        :param q: current q
-        :param s: next s after transform
-        :return: next q
-        """
-        print("DUMMY nextq() function")
-        self.state = q
-        return self.state
 
     def nexts(self, q_next, s_next):
         """
@@ -373,15 +419,20 @@ class Rpol(): # refined policy
         indexes, values = self.MDP.nextsets(s_next)
 
         # pick argument of max value
-        s_abstract = indexes[self.V[q_next][indexes].argmax()]
-        s_abstract_v = values[self.V[q_next][indexes].argmax()]
-
+        try:
+            s_abstract = indexes[self.V[q_next][indexes].argmax()]
+            s_abstract_v = values[self.V[q_next][indexes].argmax()]
+        except ValueError:
+            s_abstract = self.MDP.S
+            s_abstract_v = 0
 
         return s_abstract, s_abstract_v
 
-
-
     def val_concrete(self,s_concrete):
+        """
+        :param s_concrete: before transformation state
+        :return:
+        """
         if s_concrete.shape[1] > 1:
             val = np.zeros((s_concrete.shape[1],))
             for i in range(s_concrete.shape[1]):
@@ -401,11 +452,30 @@ class Rpol(): # refined policy
 
         # get next abstract MDP state
         s_abstract, s_abstract_v = self.nexts(self.state, s_next)
-        val = self.W[s_abstract]
+
+        if s_abstract < self.MDP.S-1:
+            val = self.W[s_abstract]
+        else:
+            val = 0
+
         return np.array([[val]])
 
+    def set_regions(self, dictio, regions):
+        self.input_ap = dict([(dictio[i],i) for i in dictio.keys()])
+        self.ap_regions = regions
+
+    def nextq(self, q, s):
+        """
+        :param q: current q
+        :param s: next s after transform
+        :return: next q
+        """
+        aps = tuple()
+        for input_i in self.ap_regions.keys():
+            if pc.is_inside(self.ap_regions[input_i], self.MDP.T2x.dot(np.array(s))):
+                aps += (input_i,)
+        # => next input!!!
+        i = self.input_ap[aps]
 
 
-
-
-
+        return self.dfa.T(i)[q].argmax()
