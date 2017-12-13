@@ -644,7 +644,31 @@ where the latter is the Kullback-Leibler divergence
  
 
  
+ \chapter{Shrinking and expanding polytopes}
  
+ \section{Based on ellipsoid  sets}
  
+ Consider polytope composed of the intersection of half spaces.
+We develop the reasoning first in 3D and then expend it to multidimensional vectors.
+ Given a plane defined as 
+\[ax+by+cz=d,\]
+this defines a half space as 
+\[\{(x,y,z)\mid ax+by+bz\leq d\}.\]
+
+Consider the case where $ a^2 + b^2 + c^2 =1$, then the vector $(a,b,c)$ defines the normal vector on the plane.
+The plane is shifted with vector $r_0=(ad,bd,cd)$.
+\[\{(x,y,z)\mid a(x-ad)+b(y-bd)+c(z-cd)\leq 0\}.\]
+We can now shift it as follows $r_0$ as $(d+\epsilon)(a,b,c)$
  
+
+In conclusion we can expand the half place with $\|(x,y,z)\|\leq \epsilon$
+\[\{(x,y,z)\mid ax+by+bz\leq d+\epsilon\}.\]
+Similarly, we can shrink it with $\|(x,y,z)\|\leq \epsilon$
+\[\{(x,y,z)\mid ax+by+bz\leq d-\epsilon\}.\]
+Remark that for this $\|(a,b,c)\|=1$.
+
+To expand with   $r^T Mr  \leq \epsilon^2$, define $r = M^{-1/2}\tilde r$,  then $\tilde r = M^{1/2} r$.  By transforming the half space with $ M^{1/2}$, and normalize it we can do the above trick again.
+
+
+
 \end{document}

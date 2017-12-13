@@ -36,6 +36,7 @@ from mdptoolbox.mdp import *
 import numpy as np
 import polytope as pc
 import itertools
+import numpy.linalg as LA
 
 class Markov(MDP):
     """Simple Markov Decision process
@@ -44,7 +45,7 @@ class Markov(MDP):
 
     """
 
-    def __init__(self,transitions, srep, urep,sedge):
+    def __init__(self,transitions, srep, urep,sedge, M=None, K=None, eps=None,T2x = None):
 
 
 
@@ -66,11 +67,12 @@ class Markov(MDP):
         self.act_inputs = None
         self.dfa = None
         self.final = None
-
+        self.T2x = T2x
 
         # accuracy
-        self.M = None
-        self.eps = None
+        self.M = M
+        self.eps = eps
+        self.K = K
         self.s_finite = None
 
         self.output_cst = dict([(s, sstate) for s, sstate in enumerate(itertools.product(*srep))])
@@ -104,10 +106,6 @@ class Markov(MDP):
         error=np.diag(sdiff.dot(self.M).dot(sdiff.T))
         s_range = np.arange(self.S-1) # minus to remove dummy variable
         return s_range[error<=self.eps**2], self.s_finite[error<=self.eps**2]
-        #print(self.s_finite)
-
-
-
 
     def settarget(self, Target=None):
         if Target is None:
@@ -130,11 +128,55 @@ class Markov(MDP):
         in_regions = dict()
         nin_regions = dict()
 
-        for input_i in regions.keys():
-            in_regions[input_i] = np.array([[1.] if pc.is_inside(regions[input_i], np.array(s)) else [0.] for s in itertools.product(*self.srep)])
+        if (self.eps is None) | (self.eps ==0):
+            for input_i in regions.keys():
+                in_regions[input_i] = np.array([[1.] if pc.is_inside(regions[input_i], self.T2x.dot(np.array(s))) else [0.] for s in itertools.product(*self.srep)])
 
-        for input_i in regions.keys():
-            nin_regions[input_i] = np.ones(in_regions[input_i].shape)-np.array([[1.] if pc.is_inside(regions[input_i], np.array(s)) else [0.] for s in itertools.product(*self.srep)])
+            for input_i in regions.keys():
+                nin_regions[input_i] = np.ones(in_regions[input_i].shape)-np.array([[1.] if pc.is_inside(regions[input_i], self.T2x.dot(np.array(s))) else [0.] for s in itertools.product(*self.srep)])
+
+        else :
+            u, s, v = LA.svd(self.M)
+            Minvhalf = LA.inv(v).dot(np.diag(np.power(s, -.5)))
+            Minhalf = np.diag(np.power(s, .5)).dot(v)
+            # eps is not =0,
+            for input_i in regions.keys(): # for each region, which is a polytope. Check whether it can be in it
+                #Big_polytope = regions[input_i] #<--- decrease size polytope
+
+                A = regions[input_i].A.dot(self.T2x).dot(Minvhalf)
+                b = regions[input_i].b
+                print(A)
+                scaling = np.zeros((A.shape[0],A.shape[0]))
+                for index in range(A.shape[0]):
+                    scaling[index,index] = LA.norm(A[index,:])**-1
+
+                A = scaling.dot(A).dot(Minhalf)
+                #Anorm = np.sqrt(np.sum(A * A, 1)).flatten()
+
+                b = scaling.dot(b) + self.eps
+
+                in_regions[input_i] = np.array(
+                    [[1.] if np.all(A.dot(np.array(s))-b<=0) else [0.] for s in
+                     itertools.product(*self.srep)])
+
+            for input_i in regions.keys():
+
+                A = regions[input_i].A.dot(self.T2x).dot(Minvhalf)
+                b = regions[input_i].b
+
+                scaling = np.zeros((A.shape[0],A.shape[0]))
+                for index in range(A.shape[0]):
+                    scaling[index,index] = LA.norm(A[index,:])**-1
+
+                A = scaling.dot(A).dot(Minhalf)
+                b = scaling.dot(b) - self.eps
+
+
+
+
+                nin_regions[input_i] = np.ones(in_regions[input_i].shape) - np.array(
+                    [[1.] if np.all(A.dot(np.array(s))-b<=0)else [0.] for s in
+                     itertools.product(*self.srep)])
 
         for aps in dictio.keys() :
 
@@ -207,52 +249,6 @@ class Markov(MDP):
         W = np.amin(Accept+ nAccept.dot(V)+trans_qs[self.dfa.init[0]],axis =0 )
         return V,pol, W
 
-
-
-
-
-
-        #print(W)
-
-
-        # qxS'-> set  q'
-
-
-        # given q, and values over q',S'
-        # pick worst q' based on S'
-
-        # add infty to impossible transitions  q, S' q'
-
-        # min_{q' in dfa_trans(qxS')}W(q',S') for all S'
-
-
-
-
-
-
-        #
-        #
-        #
-        # Q = np.empty((self.A, self.S))
-        # for aa in range(self.A):
-        #     qval = np.dot(self.P[aa],self.target + (np.ones(np.shape(self.target)) - self.target)* V)
-        #     Q[aa] = qval.reshape(-1)
-        #
-        # self.V = Q.max(axis=0).reshape((self.S,1))
-        # pol = Q.argmax(axis=0)
-        #
-        # ugrid = np.meshgrid(*self.urep)
-        # self.policy_u = np.empty((self.S,len(self.urep)))
-        #
-        # for u_index,u_grid_index in enumerate(ugrid):
-        #     u_row = u_grid_index.flatten()
-        #     for i,u in enumerate(pol):
-        #         self.policy_u[i][u_index] =u_row[u]
-        #
-        # return (Q.argmax(axis=0), Q.max(axis=0))
-
-
-
     def reach_bell(self, V = None):
         print('it')
         xi, yi = np.meshgrid(*self.srep)
@@ -306,13 +302,13 @@ class Markov(MDP):
 
 class Rpol(): # refined policy
 
-    def __init__(self, MDP, dfa, V, policy):
-        self.dfa = dfa
+    def __init__(self, MDP, V, W,policy):
+        self.dfa = MDP.dfa
         self.state = self.dfa.init[0]  ## composed of discrete state only
-        self.trans = dfa.Tmat  # a qq' discrete transitions
+        self.trans = MDP.dfa.Tmat  # a qq' discrete transitions
 
         self.V = V
-
+        self.W = W
         self.MDP= MDP # abstract states in MDP
         self.aps = None  # aps mapping (S,aps)
         self.pol = policy
@@ -321,17 +317,21 @@ class Rpol(): # refined policy
         # interface
         self.K = np.zeros((len(MDP.urep),len(MDP.srep)))
 
-    def __call__(self, s_next):
+    def __call__(self, s_concrete, transformed = True):
         """
         :param s_next:  s_{k+1}
         :return: input
         """
 
-        if s_next.shape[1]>1:
-            u = np.zeros((len(self.MDP.urep),s_next.shape[1] ))
-            for i in range(s_next.shape[1]):
-                u[:,i] = self.__call__( s_next[:,i].reshape((-1,1))).flatten()
+        if s_concrete.shape[1]>1:
+            u = np.zeros((len(self.MDP.urep),s_concrete.shape[1] ))
+            for i in range(s_concrete.shape[1]):
+                u[:,i] = self.__call__( s_concrete[:,i].reshape((-1,1)),transformed = transformed).flatten()
             return u
+        if not transformed:
+            s_next = LA.inv(self.MDP.T2x).dot(s_concrete)
+        else:
+            s_next = s_concrete
 
         # get next discrete state
         self.state = self.nextq( self.state, s_next)
@@ -349,13 +349,14 @@ class Rpol(): # refined policy
         return u # input
 
     def interface(self,uab,sab,s):
-
-        u = self.K.dot(sab-s) + uab
+        # only works after transform
+        u = self.K.dot(s-sab) + uab
         return u
+
     def nextq(self, q, s):
         """
         :param q: current q
-        :param s: next s
+        :param s: next s after transform
         :return: next q
         """
         print("DUMMY nextq() function")
@@ -364,9 +365,8 @@ class Rpol(): # refined policy
 
     def nexts(self, q_next, s_next):
         """
-
         :param q_next: next state in DFA
-        :param s_next: next concrete state
+        :param s_next: next concrete state (after transform)
         :return: next abstrac state
         """
 
@@ -381,11 +381,28 @@ class Rpol(): # refined policy
 
 
 
-    def  nextu(self):
+    def val_concrete(self,s_concrete):
+        if s_concrete.shape[1] > 1:
+            val = np.zeros((s_concrete.shape[1],))
+            for i in range(s_concrete.shape[1]):
+                valdd = self.val_concrete(s_concrete[:, i].reshape((-1, 1))).flatten()
 
-        print("DUMMY nexts() function")
-        return 0
+                try :
+                    val[i] = valdd
+                except :
+                    val[i] = 0
+                    print('ERR')
 
+            return val
+        s_next = LA.inv(self.MDP.T2x).dot(s_concrete)
+
+        # get next discrete state
+        self.state = self.nextq(self.state, s_next)
+
+        # get next abstract MDP state
+        s_abstract, s_abstract_v = self.nexts(self.state, s_next)
+        val = self.W[s_abstract]
+        return np.array([[val]])
 
 
 

@@ -1,6 +1,7 @@
 from label_abstraction.mdp import *
 import numpy as np
 
+import __future__
 def test_connection():
 
 	T0 = np.array([[0, 1], [1, 0]])
@@ -83,29 +84,35 @@ def test_mdp_dfsa_nondet():
 								   decimal=4)
 
 def test_ltl_synth():
-	T1 = np.array([[0.25, 0.25, 0.25, 0.25], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-	T2 = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0], [0.9, 0, 0, 0.1]])
 
-	def output(n):
-		# map Y1 -> 2^(2^AP)
-		if n == 1:
-			return set( ( ('s1',), ) )   # { {s1} }
-		elif n == 3:
-			return set( ( ('s2',), ) )   # { {s2} }
-		else:
-			return set( ( (), ), )		 # { { } }
+    T1 = np.array([[0.25, 0.25, 0.25, 0.25], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+    T2 = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0], [0.9, 0, 0, 0.1]])
 
-	system = MDP([T1, T2], output_fcn = output, output_name ='ap')
+    def output(n):
+        # map Y1 -> 2^(2^AP)
+        if n == 1:
+            return set( ( ('s1',), ) )   # { {s1} }
+        elif n == 3:
+            return set( ( ('s2',), ) )   # { {s2} }
+        else:
+            return set( ( (), ), )		 # { { } }
 
-	formula = '( ( F s1 ) & ( F s2 ) )'
-	dfsa, init, final,dict_input2prop = formula_to_mdp(formula)
+    system = MDP([T1, T2], output_fcn = output, output_name ='ap')
 
-	prod = ProductMDP(system, dfsa)
+    formula = '( ( F s1 ) & ( F s2 ) )'
+    dfsa, init, final,dict_input2prop = formula_to_mdp(formula)
 
-	V, _ = prod.solve_reach(accept=lambda s: s[1] in final)
+    prod = ProductMDP(system, dfsa)
 
-	np.testing.assert_almost_equal(V[::4], [0.5, 0, 0, 0.5],
-								   decimal=4)
+    V, _ = prod.solve_reach(accept=lambda s: s[1] in final)
+
+    print('Value function',V )
+    print(init, final)
+
+    np.testing.assert_almost_equal(V[::4], [0.5, 0, 0, 0.5],
+                                   decimal=4)
+    # ISSSUE with this test,
+
 
 def test_ltl_synth2():
 

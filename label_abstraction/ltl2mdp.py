@@ -3,6 +3,7 @@ import re
 import subprocess as subp
 import tempfile
 import numpy as np
+import os
 
 import pkg_resources as pr
 import sys
@@ -25,8 +26,9 @@ else:
 		ltl2ba_binary = 'label_abstraction/binaries/linux/ltl2ba'
 		scheck_binary = 'label_abstraction/binaries/linux/scheck2'
 	elif sys.platform == 'darwin':
-		ltl2ba_binary = './label_abstraction/binaries/mac/ltl2ba'
-		scheck_binary = './label_abstraction/binaries/mac/scheck2'
+		__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+		ltl2ba_binary = os.path.join(__location__, 'binaries', 'mac','ltl2ba')
+		scheck_binary = os.path.join(__location__, 'binaries', 'mac','scheck2')
 	else:
 		print ('%s platform not supported yet!' % sys.platform)
 		exit(1)

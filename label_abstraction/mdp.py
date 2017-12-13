@@ -229,20 +229,14 @@ def formula_to_mdp(formula):
   fsa.add_trap_state()
 
 
-
 # make two way mappings for states
-  dict_2state =  dict([(s, sstate) for s, sstate in enumerate(fsa.g.nodes())])
-  dict_fromstate = dict([(sstate, s) for s, sstate in enumerate(fsa.g.nodes())])
+  dict_2state =  dict([(s, sstate) for s, sstate in enumerate(sorted(fsa.g.nodes()))])
+  dict_fromstate = dict([(sstate, s) for s, sstate in enumerate(sorted(fsa.g.nodes()))])
   states = set(map(lambda state: dict_fromstate[state], fsa.g.nodes()))
-
-
-  print("print states", states)
-  print(dict_2state)
 
 
 
   inputs = set.union(*[attr['input'] for _,_,attr in fsa.g.edges(data=True)])
-
 
   N = len(fsa.g)
   M = len(inputs)
@@ -256,12 +250,14 @@ def formula_to_mdp(formula):
     for u in attr['input']:
       T[u][dict_fromstate[s1], dict_fromstate[s2]] = 1
 
+
   mdp = MDP(T, input_name='ap', input_fcn=fsa.bitmap_of_props,
          output_name='mu')
 
   init_states = set(map(lambda state: dict_fromstate[state], [state for (state, key) in fsa.init.items() if key == 1]))
   final_states = set(map(lambda state: dict_fromstate[state], fsa.final))
 
+  mdp.init = list(init_states)
 
   # create map number => sets of atom propositions
   print(fsa.props.keys())
@@ -276,6 +272,8 @@ def formula_to_mdp(formula):
           if status[i]:
             ap_set += (name,)
       dict_input2prop[fsa.bitmap_of_props(ap_set)] = ap_set
+  print(dict_input2prop)
+  print(final_states)
 
   return mdp, init_states, final_states, dict_input2prop
 
@@ -310,7 +308,7 @@ def solve_ltl_cosafe(mdp, formula):
      Outputs:
       - pol: a Policy maximizing the probability of enforcing formula''' 
 
-  dfsa, init, final = formula_to_mdp(formula)
+  dfsa, init, final,aux = formula_to_mdp(formula)
   prod = ProductMDP(mdp, dfsa)
   V, pol = prod.solve_reach(accept=lambda s: s[1] in final)
 

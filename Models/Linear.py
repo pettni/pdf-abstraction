@@ -20,7 +20,7 @@ from Models.MDP import Markov
 class LTI:
     """Define a discrete-time linear time invariant system"""
 
-    def __init__(self, a, b, c, d, x=None, bw=None, W=None, u=None):
+    def __init__(self, a, b, c, d, x=None, bw=None, W=None, u=None, T2x = None):
         self.a = a
         self.b = b
         self.c = c  # currently unused
@@ -28,6 +28,7 @@ class LTI:
         self.dim = len(a)
         self.m = b.shape[1]
         self.X = x
+        self.T2x = T2x
         if W is None:
             if bw is None:
                 self.W = None
@@ -36,6 +37,7 @@ class LTI:
                 self.bw = bw
                 self.W = bw.dot(bw.T)
         else:
+            self.bw = None
             self.W = W
 
         self.U = u
@@ -84,6 +86,26 @@ class LTI:
                 print('keep matrix Bw')
                 return self.bw
 
+    def normalize(self):
+        # compute svd
+        # compute singular value decomposition
+        # Meps = U*s*V, Meps**.5=U*s**.5
+        U, s, V = np.linalg.svd(self.W, full_matrices=True)
+
+        #x_trans = U.T * x
+        a_trans = U.dot(self.a).dot(U.T)
+        b_trans = U.dot(self.b)
+        c_trans = self.c.dot(U.T)
+        d_trans = self.d
+
+        # product over polytope
+        X_trans = pc.Polytope(A = self.X.A.dot(U.T), b = self.X.b)
+        sys_n = LTI(a_trans, b_trans, c_trans, d_trans, x=X_trans,u=self.U, W = np.diag(s), T2x = U.T)
+
+        return sys_n
+
+
+
     def abstract(self,d, un=3, verbose = True, Accuracy =True):
         from ApprxSimulation.LTI_simrel import eps_err
 
@@ -92,13 +114,13 @@ class LTI:
         A = self.a
         B = self.b
         C = self.c
-        Bw = self.setBw()
+        #Bw = self.setBw()
         U = self.setU()
 
         # check that Bw is a diagonal
         # = np.sum(np.absolute(np.dot(Bw,Bw.transpose()))) - np.trace(np.absolute(np.dot(Bw,Bw.transpose())))
-        assert np.sum(np.absolute(np.dot(Bw,Bw.transpose()))) - np.trace(np.absolute(np.dot(Bw,Bw.transpose()))) == 0
-        vars = np.diag(np.dot(Bw,Bw.transpose()))
+        assert np.sum(np.absolute(self.W)) - np.trace(np.absolute(self.W)) == 0
+        vars = np.diag(self.W)
 
         X = self.setX()
         n = self.dim
@@ -211,7 +233,6 @@ class LTI:
         return mdp_grid
 
 
-
     def abstract_io(self,d, un=3, verbose = True, Accuracy =True):
         from ApprxSimulation.LTI_simrel import eps_err
         from label_abstraction.mdp import MDP
@@ -221,13 +242,13 @@ class LTI:
         A = self.a
         B = self.b
         C = self.c
-        Bw = self.setBw()
+        #Bw = self.setBw()
         U = self.setU()
 
         # check that Bw is a diagonal
         # = np.sum(np.absolute(np.dot(Bw,Bw.transpose()))) - np.trace(np.absolute(np.dot(Bw,Bw.transpose())))
-        assert np.sum(np.absolute(np.dot(Bw,Bw.transpose()))) - np.trace(np.absolute(np.dot(Bw,Bw.transpose()))) == 0
-        vars = np.diag(np.dot(Bw,Bw.transpose()))
+        assert np.sum(np.absolute(self.W)) - np.trace(np.absolute(self.W)) == 0
+        vars = np.diag(self.W)
 
         X = self.setX()
         n = self.dim
@@ -243,6 +264,8 @@ class LTI:
             Dist = pc.box2poly(np.diag(d).dot(np.kron(np.ones((self.dim, 1)), np.array([[-1, 1]]))))
 
             M_min, K_min, eps_min = eps_err(self, Dist)
+        else:
+            M_min, K_min, eps_min = None, None, None
 
         if verbose == True and n == 2:
             # plot figure of x
@@ -324,10 +347,8 @@ class LTI:
             transition[u_index] = p_local
 
         # add dummy state that represents exiting the set of allowed states
-        mdp_grid = Markov(transition, srep, urep, sedge)
+        mdp_grid = Markov(transition, srep, urep, sedge, M=M_min, K=K_min, eps=eps_min,T2x = self.T2x)
 
-        #mdp_grid = MDP([transition[a] for a in range(transition.shape[0])],  output_fcn=state_fnc,  input_fcn=input_fnc)
-        #system = MDP([mdp_grid.P[a] for a in range(len(mdp_grid.P))], output_fcn=output, output_name='ap')
 
         if verbose == True and n == 2:
             fig = plt.figure()

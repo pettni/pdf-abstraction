@@ -46,7 +46,7 @@ print('1.  Tune gridding ratio')
 d_opt, d_vals,eps_values = tune_dratio(sys)
 # d_opt has optimal ratio with grid diameter of 1
 # choose grid sizes (factor of d_opt)
-d = 1.2 * d_opt#  with distance measure
+d = 1 * d_opt#  with distance measure
 print('Choose grid ribs as', d)
 
 ## step 2. grid and compute eps error

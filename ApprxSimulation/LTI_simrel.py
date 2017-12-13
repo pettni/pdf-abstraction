@@ -103,8 +103,8 @@ def eps_err(lti,Dist,lamb=.9, verbose =True):
                 K_min = L.value*Minv.value
 
     print "status:", prob.status
-    print "optimal value", eps_min
-    print "optimal var", M_min
+    print "optimal epsilon", eps_min
+    print "optimal M", M_min
     print "Optimal K", K_min
     if verbose:
         # Plot entries of x vs. gamma.
