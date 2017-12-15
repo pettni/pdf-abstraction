@@ -36,7 +36,8 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 import polytope as pc
-
+from matplotlib.patches import Ellipse
+import numpy.linalg as LA
 
 def patch_ellips(Meps, pos = None, number =20):
 
@@ -49,14 +50,14 @@ def patch_ellips(Meps, pos = None, number =20):
     #
     def x(number):
         Z = np.array([[math.cos(alpha), math.sin(alpha)] for alpha in np.linspace(0,2*math.pi,number)] )
-        xvalue = (np.diag(s ** -.5)).dot(U.T).dot(Z.T)
+        xvalue = V.T.dot((np.diag(s ** -.5))).dot(Z.T)
         if pos is None:
             return xvalue
 
         else:
             return xvalue+pos
 
-    print(x(number))
+    #print(x(number))
     # xarray = np.zeros((2,1))
     # if pos is None:
     #     xarray = xarray.append(x(alpha) for alpha in np.linspace(0,math.pi,number))
@@ -68,6 +69,21 @@ def patch_ellips(Meps, pos = None, number =20):
 
 
     return matplotlib.patches.Polygon(x(number).T)
+def eigsorted(cov):
+    vals, vecs = np.linalg.eigh(cov)
+    order = vals.argsort()[::-1]
+    return vals[order], vecs[:,order]
+
+def ellips_cov(cov, nstd, ax, pos = (0,0)):
+    vals, vecs = eigsorted(cov)
+    theta = np.degrees(np.arctan2(*vecs[:,0][::-1]))
+    w, h = 2 * nstd * np.sqrt(vals)
+    ell = Ellipse(xy=pos,
+                  width=w, height=h,
+                  angle=theta, color='b')
+    ell.set_facecolor('b')
+    ell.set_alpha(.1)
+    ax.add_artist(ell)
 
 def plot_rel(Meps, pos = None, number =20):
     fig = plt.figure()

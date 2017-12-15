@@ -93,14 +93,14 @@ class LTI:
         U, s, V = np.linalg.svd(self.W, full_matrices=True)
 
         #x_trans = U.T * x
-        a_trans = U.dot(self.a).dot(U.T)
-        b_trans = U.dot(self.b)
-        c_trans = self.c.dot(U.T)
+        a_trans = U.T.dot(self.a).dot(U)
+        b_trans = U.T.dot(self.b)
+        c_trans = self.c.dot(U)
         d_trans = self.d
 
         # product over polytope
-        X_trans = pc.Polytope(A = self.X.A.dot(U.T), b = self.X.b)
-        sys_n = LTI(a_trans, b_trans, c_trans, d_trans, x=X_trans,u=self.U, W = np.diag(s), T2x = U.T)
+        X_trans = pc.Polytope(A = self.X.A.dot(U), b = self.X.b, normalize = False)
+        sys_n = LTI(a_trans, b_trans, c_trans, d_trans, x=X_trans,u=self.U, W = np.diag(s), T2x = U)
 
         return sys_n
 
@@ -180,8 +180,12 @@ class LTI:
                 # compute probability in each dimension
                 Pi = tuple()
                 for i in range(n):
-                    Pi += (np.diff(norm.cdf(sedge[i], mean[i], vars[i]**.5)),) # probabilities for different dimensions
-
+                    if vars[i]>0:
+                        Pi += (np.diff(norm.cdf(sedge[i], mean[i], vars[i]**.5)),) # probabilities for different dimensions
+                    else :
+                        abs_dis = np.array(map(lambda s: abs(s- mean[i]), srep[i]))
+                        p_loc= np.zeros(srep[i].shape)[abs_dis.argmin()]
+                        Pi += (p_loc,)
                 # multiply over dimensions
                 P += (np.array([[reduce(operator.mul, p, 1) for p in itertools.product(*Pi)]]),)
 
@@ -235,7 +239,6 @@ class LTI:
 
     def abstract_io(self,d, un=3, verbose = True, Accuracy =True):
         from ApprxSimulation.LTI_simrel import eps_err
-        from label_abstraction.mdp import MDP
 
         ## Unpack LTI
         d = d.flatten()
@@ -331,12 +334,19 @@ class LTI:
 
 
 
-                mean = np.dot(A,np.array(sstate))+np.dot(B,np.array(u))  # Ax
+                mean = np.dot(A, np.array(sstate).reshape(-1, 1)) + np.dot(B, np.array(u).reshape(-1, 1))  # Ax
 
                 # compute probability in each dimension
                 Pi = tuple()
                 for i in range(n):
-                    Pi += (np.diff(norm.cdf(sedge[i], mean[i], vars[i]**.5)),) # probabilities for different dimensions
+                    if vars[i]>np.finfo(np.float32).eps:
+                        Pi += (np.diff(norm.cdf(sedge[i], mean[i], vars[i] ** .5)).reshape(-1),)  # probabilities for different dimensions
+                    else:
+                        abs_dis = np.array(map(lambda s: abs(s - mean[i]), srep[i]))
+                        p_loc = np.zeros(srep[i].shape)
+                        p_loc[abs_dis.argmin()] = 1
+                        Pi += (p_loc,)
+
 
                 # multiply over dimensions
                 P += (np.array([[reduce(operator.mul, p, 1) for p in itertools.product(*Pi)]]),)
@@ -397,7 +407,7 @@ class POMDP(LTI):
         LTI.__init__(self, lti.a, lti.b, lti.c, lti.d, x=lti.X, bw=lti.bw, u=lti.U)
         self.H = H
         self.V = V
-        self.W = np.dot(self.bw, self.bw.transpose())
+        self.W = lti.W
         self.mean = mean
         self.P = P
 
@@ -475,6 +485,26 @@ class beliefmodel:
         :return: LTI model of belief
         """
         # create LTI system
+
+        L,P = self.kalman()
+        S = self.H.dot(P).dot(self.H.transpose())+self.V
+
+        Cov = L.dot(S).dot(L.T)
+        self.c=c
+        belief_model = LTI(self.a, self.b, self.c, None, W = Cov)
+
+        return belief_model
+
+    def to_LTI_approx(self,c, P_init):
+        """
+        :param: c: accuracy mappng for abstraction
+        :param: P_init: initial covariance
+        :return: LTI model of belief
+        """
+        # create LTI system
+
+
+        # 1. compute P_ and P+
 
         L,P = self.kalman()
         S = self.H.dot(P).dot(self.H.transpose())+self.V

@@ -113,7 +113,7 @@ class Markov(MDP):
              return self.target
 
         if isinstance(Target,pc.Polytope):
-            self.target= np.array([[1.] if pc.is_inside(Target, np.array(s)) else [0.] for s in itertools.product(*self.srep)])
+            self.target= np.array([[1.] if np.array(s) in Target else [0.] for s in itertools.product(*self.srep)])
             print(np.shape(self.target))
         else:
             self.target = Target
@@ -131,10 +131,10 @@ class Markov(MDP):
 
         if (self.eps is None) | (self.eps ==0):
             for input_i in regions.keys():
-                in_regions[input_i] = np.array([[1.] if pc.is_inside(regions[input_i], self.T2x.dot(np.array(s))) else [0.] for s in itertools.product(*self.srep)])
+                in_regions[input_i] = np.array([[1.] if self.T2x.dot(np.array(s)) in regions[input_i] else [0.] for s in itertools.product(*self.srep)])
 
             for input_i in regions.keys():
-                nin_regions[input_i] = np.ones(in_regions[input_i].shape)-np.array([[1.] if pc.is_inside(regions[input_i], self.T2x.dot(np.array(s))) else [0.] for s in itertools.product(*self.srep)])
+                nin_regions[input_i] = np.ones(in_regions[input_i].shape)-np.array([[1.] if self.T2x.dot(np.array(s)) in regions[input_i] else [0.] for s in itertools.product(*self.srep)])
 
         else :
             u, s, v = LA.svd(self.M)
@@ -146,22 +146,24 @@ class Markov(MDP):
 
                 A = regions[input_i].A.dot(self.T2x).dot(Minvhalf)
                 b = regions[input_i].b
-                print(A)
+
                 scaling = np.zeros((A.shape[0],A.shape[0]))
                 for index in range(A.shape[0]):
                     scaling[index,index] = LA.norm(A[index,:])**-1
-
+                print('check norm of rows', scaling.dot(A))
                 A = scaling.dot(A).dot(Minhalf)
-                #Anorm = np.sqrt(np.sum(A * A, 1)).flatten()
 
                 b = scaling.dot(b) + self.eps
+
+                assert regions[input_i].A.shape == A.shape
+                assert regions[input_i].b.shape == b.shape
 
                 in_regions[input_i] = np.array(
                     [[1.] if np.all(A.dot(np.array(s))-b<=0) else [0.] for s in
                      itertools.product(*self.srep)])
 
             for input_i in regions.keys():
-
+                # quantify whether a state could be outside the polytope
                 A = regions[input_i].A.dot(self.T2x).dot(Minvhalf)
                 b = regions[input_i].b
 
@@ -198,7 +200,7 @@ class Markov(MDP):
         self.final =final
 
     def reach_dfa(self,V = None, recursions =1, delta = 0):
-
+        # TODO : Add delta
         assert self.act_inputs is not None
         assert self.dfa is not None
         assert self.final is not None
@@ -333,7 +335,7 @@ class Rpol(): # refined policy
         if s_concrete.shape[1]>1:
             u = np.zeros((len(self.MDP.urep),s_concrete.shape[1] ))
             for i in range(s_concrete.shape[1]):
-                u[:,i] = self.__call__( s_concrete[:,i].reshape((-1,1)),transformed = transformed).flatten()
+                u[:,i] = self.__call__( s_concrete[:,[i]],transformed = transformed).flatten()
             return u
         if not transformed:
             s_next = LA.inv(self.MDP.T2x).dot(s_concrete)
@@ -402,7 +404,7 @@ class Rpol(): # refined policy
 
         :param uab:
         :param sab:
-        :param s: after transform concrete state
+        :param s: after transform concrete state to normalised
         :return:
         """
         # only works after transform
@@ -445,7 +447,7 @@ class Rpol(): # refined policy
                     print('ERR')
 
             return val
-        s_next = LA.inv(self.MDP.T2x).dot(s_concrete)
+        s_next = LA.inv(self.MDP.T2x).dot(s_concrete) # transform to normalised
 
         # get next discrete state
         self.state = self.nextq(self.state, s_next)
@@ -467,12 +469,12 @@ class Rpol(): # refined policy
     def nextq(self, q, s):
         """
         :param q: current q
-        :param s: next s after transform
+        :param s: next s after transform to normalised
         :return: next q
         """
         aps = tuple()
         for input_i in self.ap_regions.keys():
-            if pc.is_inside(self.ap_regions[input_i], self.MDP.T2x.dot(np.array(s))):
+            if np.all((self.ap_regions[input_i].A.dot(self.MDP.T2x).dot(np.array(s).reshape((-1,1)))- self.ap_regions[input_i].b.reshape((-1,1))) < 0) :
                 aps += (input_i,)
         # => next input!!!
         i = self.input_ap[aps]
