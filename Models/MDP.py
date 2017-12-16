@@ -242,13 +242,19 @@ class Markov(MDP):
         # next SxAct -> prob(S')
         # W = 1accept(qnext) + 1_{not accept }(qnext)  V
         pol = np.zeros((self.dfa.N, self.S))
+        V_new = np.zeros((self.dfa.N, self.S))
         for rec in range(recursions):
+
             for q in range(self.dfa.N):
                 W = np.amin(Accept+ nAccept.dot(V)+self.trans_qs[q],axis =0 ) # 1 x S'
                 W_a = np.block([[W.dot(self.P[a].T)] for a in range(self.A)])
                 if rec == recursions-1 : # at last step also comput the policy
                     pol[q] = W_a.argmax(axis = 0)
-                V[q] = W_a.max(axis = 0)  #max_{s_action}[ s_action X S]
+                V_new[q] = W_a.max(axis = 0) - delta  #max_{s_action}[ s_action X S]
+                V_new[q] = V_new[q].clip(0,1) # limit to values between zero and one
+
+        V = V_new
+
 
 
         W = np.amin(Accept+ nAccept.dot(V)+self.trans_qs[self.dfa.init[0]],axis =0 )

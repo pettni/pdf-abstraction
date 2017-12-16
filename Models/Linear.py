@@ -495,25 +495,106 @@ class beliefmodel:
 
         return belief_model
 
-    def to_LTI_approx(self,c, P_init):
+    def to_LTI_approx(self,c, P_init, P_l,P_upper):
         """
         :param: c: accuracy mappng for abstraction
         :param: P_init: initial covariance
         :return: LTI model of belief
         """
+        import cvxpy as cvx
+
         # create LTI system
 
+        L, Pst = self.kalman()
 
-        # 1. compute P_ and P+
+        def bound_lower(po, P_init, P_l):
 
-        L,P = self.kalman()
-        S = self.H.dot(P).dot(self.H.transpose())+self.V
+            # 1. check P_init> P_l
+            ei, vec_ei = LA.eig(P_init - P_l)
+            if (ei < 0).any():
+                print("matrix is not a lower bound for P_init")
+                return 0
 
-        Cov = L.dot(S).dot(L.T)
-        self.c=c
-        belief_model = LTI(self.a, self.b, self.c, None, W = Cov)
+            # 2. check whether P_l+ > P_l
+            (x, P_lplus) = po.update(np.zeros(P_l.shape), P_l, simulate=0)
+            (x, P_lplus) = po.predict(np.zeros((po.b.shape[1], 1)), x=None, P=P_lplus)
+            ei, vec_ei = LA.eig(P_lplus - P_l)
+            if (ei < 0).any():
+                print("matrix is not a good lower bound")
+                return 0
+            print("P_l is a valid lower bound")
+            return 1
 
-        return belief_model
+        def bound_upper(belief_mdp, P_init, P_upper):
+
+            # 1. check P_init> P_l
+            ei, vec_ei = LA.eig(P_init - P_upper)
+            if (ei > 0).any():
+                print("matrix is not a upper bound for P_init")
+                return 0
+
+            # 2. check whether P_l+ > P_l
+            (x, P_lplus) = belief_mdp.update(np.zeros(P_upper.shape), P_upper, simulate=0)
+            (x, P_lplus) = belief_mdp.predict(np.zeros((belief_mdp.b.shape[1], 1)), P=P_lplus)
+            ei, vec_ei = LA.eig(P_lplus - P_upper)
+            if (ei > 0).any():
+                print("matrix is not a good upper bound")
+                return 0
+            print("P_up is a valid upper bound")
+            return 1
+
+        assert bound_lower(self, Pst, P_l)
+        assert bound_upper(self, Pst, P_upper)
+
+
+        # Average  P
+        P_bar = Pst #( obtained from Kalman)
+        S_inv_app = LA.inv(self.H.dot(P_upper).dot(self.H.T))
+        W = LA.inv(self.H.dot(P_l).dot(self.H.T))-LA.inv(self.H.dot(P_upper).dot(self.H.T))
+
+        n = P_bar.shape[0]
+        m = self.H.shape[0]
+
+        #Compute  S_delta
+
+        Sdelta = cvx.Semidef(n)
+        eps = cvx.Semidef(1)
+
+        constraintstup = (Sdelta -P_bar+P_l >> 0,Sdelta +P_bar-P_l >> 0, eps-np.ones((1,n)) * Sdelta  *  np.ones((n,1))>>0)
+        constraints = list(constraintstup)
+        np.ones((n,1))
+        obj = cvx.Minimize(eps)
+        prob = cvx.Problem(obj, constraints)
+
+        prob.solve()
+
+        print "status:", prob.status
+        S_del = Sdelta.value
+
+        Wdelta = cvx.Semidef(n)
+        eps = cvx.Semidef(1)
+        rmat = cvx.bmat([[Wdelta+P_upper-P_l, P_upper* self.H.T * W],
+                         [W * self.H * P_upper, W+W * self.H * (P_l-P_upper) *self.H.T * W]])
+        constraintstup = (rmat>>0, eps - np.ones((1, n)) * Wdelta * np.ones((n, 1)) >> 0)
+        constraints = list(constraintstup)
+        np.ones((n, 1))
+        obj = cvx.Minimize(eps)
+        prob2 = cvx.Problem(obj, constraints)
+
+        prob2.solve()
+
+        print "status:", prob2.status
+        W_del = Wdelta.value
+
+        # L,P = self.kalman()
+        # S = self.H.dot(P).dot(self.H.transpose())+self.V
+        #
+        # Cov = L.dot(S).dot(L.T)
+        # self.c=c
+        # belief_model = LTI(self.a, self.b, self.c, None, W = Cov)
+
+        # return belief_model
+        return S_del
 
     def predict(self, u, x=None, P=None):
         """
@@ -536,7 +617,7 @@ class beliefmodel:
     def update(self, x, P, e=None, z=None, simulate=True):
         """
         :param x: mean state estimate x_{k|k-1}
-        :param P: state est. covariance P_{k|k}
+        :param P: state est. covariance P_{k|k-1}
         :param e: zk-C_z x_{k|k-1}
         :param z: zk
         :return:(x_{k|k}, P_{k|k})
