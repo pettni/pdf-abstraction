@@ -191,8 +191,16 @@ class Markov(MDP):
             act_inputs[aps] = np.prod(np.block([[in_regions[input_i] if input_i in set_ap else nin_regions[input_i] for input_i in regions.keys()]]),axis=1)
             # ap of interest are now given as
         #fill in with zeros for the dummy state
+        assert act_inputs.sum(axis=0).min()>0
+
         act_inputs = np.block([[act_inputs,np.zeros((len(dictio.keys()),1))]])
+        print(act_inputs)
+
+
         self.act_inputs = act_inputs
+
+
+
         return act_inputs
 
     def setdfa(self,dfa,final):

@@ -2,10 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="31e704a2-ef6c-40a2-8981-ee3dd6419582" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Doc/.texpadtmp/doc.synctex.gz" afterPath="$PROJECT_DIR$/Doc/.texpadtmp/doc.synctex.gz" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Doc/doc.pdf" afterPath="$PROJECT_DIR$/Doc/doc.pdf" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/Case_study_adhs.ipynb" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Doc/doc.tex" afterPath="$PROJECT_DIR$/Doc/doc.tex" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/ApprxSimulation/LTI_simrel.py" afterPath="$PROJECT_DIR$/ApprxSimulation/LTI_simrel.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/ApprxSimulation/Visualize.py" afterPath="$PROJECT_DIR$/ApprxSimulation/Visualize.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Demo_file/LTI_Kalman_stationary.ipynb" afterPath="$PROJECT_DIR$/Demo_file/LTI_Kalman_stationary.ipynb" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Models/Linear.py" afterPath="$PROJECT_DIR$/Models/Linear.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Models/MDP.py" afterPath="$PROJECT_DIR$/Models/MDP.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Testruns.ipynb" afterPath="$PROJECT_DIR$/Testruns.ipynb" />
@@ -20,30 +21,31 @@
   </component>
   <component name="CoverageDataManager">
     <SUITE FILE_PATH="coverage/pdf_abstraction$test_mdp.coverage" NAME="test_mdp Coverage Results" MODIFIED="1513052638199" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/label_abstraction" />
-    <SUITE FILE_PATH="coverage/pdf_abstraction$Run_file.coverage" NAME="Run-file Coverage Results" MODIFIED="1513212553298" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/pdf_abstraction$Run_file.coverage" NAME="Run-file Coverage Results" MODIFIED="1513581499774" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/pdf_abstraction$LTI_gauss_abstract_eps.coverage" NAME="LTI_gauss_abstract_eps Coverage Results" MODIFIED="1512861591001" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Demo_file" />
     <SUITE FILE_PATH="coverage/pdf_abstraction$MDP.coverage" NAME="MDP Coverage Results" MODIFIED="1513046913251" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Models" />
     <SUITE FILE_PATH="coverage/pdf_abstraction$gdtl_dfa_example.coverage" NAME="gdtl_dfa_example Coverage Results" MODIFIED="1512521681097" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/pdf_abstraction$LTI_Gauss_abstract.coverage" NAME="LTI_Gauss_abstract Coverage Results" MODIFIED="1512708955824" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/Demo_file" />
     <SUITE FILE_PATH="coverage/pdf_abstraction$Nosetests_in_test_mdp_py.coverage" NAME="Nosetests in test_mdp.py Coverage Results" MODIFIED="1513212300605" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/label_abstraction" />
   </component>
+  <component name="DatabaseView">
+    <option name="SHOW_INTERMEDIATE" value="true" />
+    <option name="GROUP_SCHEMA" value="true" />
+    <option name="GROUP_CONTENTS" value="false" />
+    <option name="SORT_POSITIONED" value="false" />
+    <option name="SHOW_TABLE_DETAILS" value="true" />
+    <option name="SHOW_EMPTY_GROUPS" value="false" />
+    <option name="AUTO_SCROLL_FROM_SOURCE" value="false" />
+    <expand />
+    <select />
+  </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="LTI_gauss_abstract_eps.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Demo_file/LTI_gauss_abstract_eps.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="900">
-              <caret line="54" column="19" lean-forward="false" selection-start-line="54" selection-start-column="19" selection-end-line="54" selection-end-column="19" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
       <file leaf-file-name="Run-file.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Run-file.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1098">
-              <caret line="64" column="37" lean-forward="false" selection-start-line="64" selection-start-column="0" selection-end-line="65" selection-end-column="0" />
+            <state relative-caret-position="1530">
+              <caret line="88" column="27" lean-forward="false" selection-start-line="88" selection-start-column="13" selection-end-line="88" selection-end-column="27" />
               <folding>
                 <element signature="e#263#313#0" expanded="true" />
               </folding>
@@ -55,16 +57,34 @@
         <entry file="file://$PROJECT_DIR$/Testruns.ipynb">
           <provider selected="true" editor-type-id="ipnb-editor">
             <state>
-              <selected id="24" />
+              <selected id="5" />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="LTI_Kalman_stationary.ipynb" pinned="false" current-in-tab="true">
+      <file leaf-file-name="Case_study_adhs.ipynb" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/Case_study_adhs.ipynb">
+          <provider selected="true" editor-type-id="ipnb-editor">
+            <state>
+              <selected id="17" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="LTI_Kalman_stationary.ipynb" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Demo_file/LTI_Kalman_stationary.ipynb">
           <provider selected="true" editor-type-id="ipnb-editor">
             <state>
-              <selected id="25" />
+              <selected id="19" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="LTI_Gaus_scLTL.ipynb" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/Demo_file/LTI_Gaus_scLTL.ipynb">
+          <provider selected="true" editor-type-id="ipnb-editor">
+            <state>
+              <selected id="16" />
             </state>
           </provider>
         </entry>
@@ -72,11 +92,11 @@
       <file leaf-file-name="MDP.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Models/MDP.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="406">
-              <caret line="253" column="71" lean-forward="false" selection-start-line="253" selection-start-column="71" selection-end-line="253" selection-end-column="71" />
+            <state relative-caret-position="283">
+              <caret line="183" column="31" lean-forward="false" selection-start-line="183" selection-start-column="31" selection-end-line="183" selection-end-column="31" />
               <folding>
                 <element signature="e#1620#1658#0" expanded="true" />
-                <element signature="e#15111#15636#0" expanded="false" />
+                <element signature="e#15189#15714#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -85,7 +105,7 @@
       <file leaf-file-name="ltl2mdp.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/label_abstraction/ltl2mdp.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="3456">
+            <state relative-caret-position="630">
               <caret line="200" column="35" lean-forward="false" selection-start-line="200" selection-start-column="35" selection-end-line="200" selection-end-column="35" />
               <folding>
                 <element signature="e#0#21#0" expanded="true" />
@@ -97,8 +117,8 @@
       <file leaf-file-name="Visualize.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ApprxSimulation/Visualize.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="774">
-              <caret line="49" column="5" lean-forward="false" selection-start-line="49" selection-start-column="5" selection-end-line="49" selection-end-column="5" />
+            <state relative-caret-position="48">
+              <caret line="101" column="28" lean-forward="false" selection-start-line="101" selection-start-column="28" selection-end-line="101" selection-end-column="28" />
               <folding>
                 <element signature="e#1658#1675#0" expanded="true" />
               </folding>
@@ -109,12 +129,12 @@
       <file leaf-file-name="Linear.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Models/Linear.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="9900">
-              <caret line="577" column="71" lean-forward="false" selection-start-line="577" selection-start-column="71" selection-end-line="577" selection-end-column="71" />
+            <state relative-caret-position="165">
+              <caret line="361" column="56" lean-forward="false" selection-start-line="361" selection-start-column="56" selection-end-line="361" selection-end-column="86" />
               <folding>
                 <element signature="e#82#100#0" expanded="true" />
-                <element signature="e#1546#1947#0" expanded="false" />
-                <element signature="e#1987#2461#0" expanded="false" />
+                <element signature="e#1642#2043#0" expanded="false" />
+                <element signature="e#2083#2557#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -123,8 +143,8 @@
       <file leaf-file-name="LTI_simrel.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ApprxSimulation/LTI_simrel.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1152">
-              <caret line="70" column="1" lean-forward="false" selection-start-line="70" selection-start-column="1" selection-end-line="72" selection-end-column="71" />
+            <state relative-caret-position="69">
+              <caret line="389" column="21" lean-forward="false" selection-start-line="389" selection-start-column="21" selection-end-line="389" selection-end-column="34" />
               <folding>
                 <element signature="e#1664#1685#0" expanded="true" />
               </folding>
@@ -137,18 +157,13 @@
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
-        <option value="Jupyter Notebook" />
         <option value="Python Script" />
+        <option value="Jupyter Notebook" />
       </list>
     </option>
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>alphab</find>
-      <find>chain</find>
-      <find>import</find>
-      <find>dict</find>
-      <find>vstack</find>
       <find>Dist</find>
       <find>accept</find>
       <find>LA</find>
@@ -174,6 +189,11 @@
       <find>re</find>
       <find>beliefmodel</find>
       <find>all</find>
+      <find>grid</find>
+      <find>LA.sq</find>
+      <find>normali</find>
+      <find>fminboun</find>
+      <find>dfa_</find>
     </findStrings>
     <replaceStrings>
       <replace>lti</replace>
@@ -199,13 +219,15 @@
         <option value="$PROJECT_DIR$/setup.py" />
         <option value="$PROJECT_DIR$/label_abstraction/test_mdp.py" />
         <option value="$PROJECT_DIR$/label_abstraction/mdp.py" />
-        <option value="$PROJECT_DIR$/ApprxSimulation/LTI_simrel.py" />
         <option value="$PROJECT_DIR$/Run-file.py" />
-        <option value="$PROJECT_DIR$/ApprxSimulation/Visualize.py" />
         <option value="$PROJECT_DIR$/requirements.txt" />
         <option value="$PROJECT_DIR$/Demo_file/LTI_Gaus_scLTL.ipynb" />
-        <option value="$PROJECT_DIR$/Models/Linear.py" />
         <option value="$PROJECT_DIR$/Testruns.ipynb" />
+        <option value="$PROJECT_DIR$/Demo_file/LTI_Kalman_stationary.ipynb" />
+        <option value="$PROJECT_DIR$/ApprxSimulation/Visualize.py" />
+        <option value="$PROJECT_DIR$/Models/Linear.py" />
+        <option value="$PROJECT_DIR$/ApprxSimulation/LTI_simrel.py" />
+        <option value="$PROJECT_DIR$/Case_study_adhs.ipynb" />
         <option value="$PROJECT_DIR$/Models/MDP.py" />
       </list>
     </option>
@@ -218,8 +240,8 @@
   </component>
   <component name="ProjectFrameBounds">
     <option name="y" value="23" />
-    <option name="width" value="1001" />
-    <option name="height" value="810" />
+    <option name="width" value="1440" />
+    <option name="height" value="811" />
   </component>
   <component name="ProjectView">
     <navigator currentView="ProjectPane" proportions="" version="1">
@@ -469,7 +491,7 @@
     </history-entry>
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="23" width="1001" height="810" extended-state="0" />
+    <frame x="0" y="23" width="1440" height="811" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
@@ -477,16 +499,16 @@
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39583334" sideWeight="0.369814" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.20868348" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.44875348" sideWeight="0.63018596" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.12988827" sideWeight="0.63018596" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Execute Anonymous" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.11991658" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
-      <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.11783107" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3297568" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3297568" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.11731044" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.31129476" sideWeight="0.49713877" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Data View" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.30678466" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Salesforce" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Salesforce" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.12430168" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
@@ -502,23 +524,24 @@
       <window_info id="Debug Logs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32921812" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
-      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.41747573" sideWeight="0.5028612" order="8" side_tool="true" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39583334" sideWeight="0.369814" order="8" side_tool="true" content_ui="tabs" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="true" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.40221915" sideWeight="0.49713877" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.20868348" sideWeight="0.5" order="9" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.44875348" sideWeight="0.63018596" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Coverage" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="true" content_ui="tabs" />
       <window_info id="Execute Anonymous" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="11" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="12" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4134478" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.057224605" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
-      <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3297568" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.11158799" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.11731044" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32777777" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
-      <window_info id="Data View" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.30678466" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
-      <window_info id="Salesforce" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="13" side_tool="false" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.31129476" sideWeight="0.49713877" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Data View" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.30678466" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
+      <window_info id="Salesforce" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.12430168" sideWeight="0.5" order="13" side_tool="false" content_ui="tabs" />
     </layout-to-restore>
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -541,16 +564,6 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/label_abstraction/ltl2mdp.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3312">
-          <caret line="184" column="0" lean-forward="false" selection-start-line="184" selection-start-column="0" selection-end-line="184" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#21#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/label_abstraction/test_mdp.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1890">
@@ -581,8 +594,8 @@
           <caret line="376" column="0" lean-forward="false" selection-start-line="354" selection-start-column="0" selection-end-line="376" selection-end-column="0" />
           <folding>
             <element signature="e#82#100#0" expanded="true" />
-            <element signature="e#1546#1947#0" expanded="false" />
-            <element signature="e#1987#2461#0" expanded="false" />
+            <element signature="e#1642#2043#0" expanded="false" />
+            <element signature="e#2083#2557#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -830,6 +843,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="144">
           <caret line="8" column="5" lean-forward="false" selection-start-line="8" selection-start-column="5" selection-end-line="8" selection-end-column="5" />
+          <folding />
         </state>
       </provider>
     </entry>
@@ -837,17 +851,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="900">
           <caret line="54" column="19" lean-forward="false" selection-start-line="54" selection-start-column="19" selection-end-line="54" selection-end-column="19" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Run-file.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1098">
-          <caret line="64" column="37" lean-forward="false" selection-start-line="64" selection-start-column="0" selection-end-line="65" selection-end-column="0" />
-          <folding>
-            <element signature="e#263#313#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -858,69 +861,48 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/Run-file.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1530">
+          <caret line="88" column="27" lean-forward="false" selection-start-line="88" selection-start-column="13" selection-end-line="88" selection-end-column="27" />
+          <folding>
+            <element signature="e#263#313#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/Demo_file/LTI_Gaus_scLTL.ipynb">
       <provider selected="true" editor-type-id="ipnb-editor">
         <state>
-          <selected id="15" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/label_abstraction/ltl2mdp.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3456">
-          <caret line="200" column="35" lean-forward="false" selection-start-line="200" selection-start-column="35" selection-end-line="200" selection-end-column="35" />
-          <folding>
-            <element signature="e#0#21#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/ApprxSimulation/Visualize.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="774">
-          <caret line="49" column="5" lean-forward="false" selection-start-line="49" selection-start-column="5" selection-end-line="49" selection-end-column="5" />
-          <folding>
-            <element signature="e#1658#1675#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/ApprxSimulation/LTI_simrel.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1152">
-          <caret line="70" column="1" lean-forward="false" selection-start-line="70" selection-start-column="1" selection-end-line="72" selection-end-column="71" />
-          <folding>
-            <element signature="e#1664#1685#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Models/Linear.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="9900">
-          <caret line="577" column="71" lean-forward="false" selection-start-line="577" selection-start-column="71" selection-end-line="577" selection-end-column="71" />
-          <folding>
-            <element signature="e#82#100#0" expanded="true" />
-            <element signature="e#1546#1947#0" expanded="false" />
-            <element signature="e#1987#2461#0" expanded="false" />
-          </folding>
+          <selected id="16" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Testruns.ipynb">
       <provider selected="true" editor-type-id="ipnb-editor">
         <state>
-          <selected id="24" />
+          <selected id="5" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Models/MDP.py">
+    <entry file="file://$PROJECT_DIR$/ApprxSimulation/Visualize.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="406">
-          <caret line="253" column="71" lean-forward="false" selection-start-line="253" selection-start-column="71" selection-end-line="253" selection-end-column="71" />
+        <state relative-caret-position="48">
+          <caret line="101" column="28" lean-forward="false" selection-start-line="101" selection-start-column="28" selection-end-line="101" selection-end-column="28" />
           <folding>
-            <element signature="e#1620#1658#0" expanded="true" />
-            <element signature="e#15111#15636#0" expanded="false" />
+            <element signature="e#1658#1675#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Models/Linear.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="165">
+          <caret line="361" column="56" lean-forward="false" selection-start-line="361" selection-start-column="56" selection-end-line="361" selection-end-column="86" />
+          <folding>
+            <element signature="e#82#100#0" expanded="true" />
+            <element signature="e#1642#2043#0" expanded="false" />
+            <element signature="e#2083#2557#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -928,7 +910,45 @@
     <entry file="file://$PROJECT_DIR$/Demo_file/LTI_Kalman_stationary.ipynb">
       <provider selected="true" editor-type-id="ipnb-editor">
         <state>
-          <selected id="10" />
+          <selected id="22" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/label_abstraction/ltl2mdp.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="630">
+          <caret line="200" column="35" lean-forward="false" selection-start-line="200" selection-start-column="35" selection-end-line="200" selection-end-column="35" />
+          <folding>
+            <element signature="e#0#21#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/ApprxSimulation/LTI_simrel.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="69">
+          <caret line="389" column="21" lean-forward="false" selection-start-line="389" selection-start-column="21" selection-end-line="389" selection-end-column="34" />
+          <folding>
+            <element signature="e#1664#1685#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Models/MDP.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="283">
+          <caret line="183" column="31" lean-forward="false" selection-start-line="183" selection-start-column="31" selection-end-line="183" selection-end-column="31" />
+          <folding>
+            <element signature="e#1620#1658#0" expanded="true" />
+            <element signature="e#15189#15714#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Case_study_adhs.ipynb">
+      <provider selected="true" editor-type-id="ipnb-editor">
+        <state>
+          <selected id="23" />
         </state>
       </provider>
     </entry>

@@ -12,15 +12,15 @@ from scipy.stats import norm
 from functools import reduce # Valid in Python 2.6+, required in Python 3
 import operator
 from ApprxSimulation.Visualize import plot_rel, patch_ellips
-
+import warnings
 import control
 from Models.MDP import Markov
-
+import numpy.testing as nptest
 
 class LTI:
     """Define a discrete-time linear time invariant system"""
 
-    def __init__(self, a, b, c, d, x=None, bw=None, W=None, u=None, T2x = None):
+    def __init__(self, a, b, c, d, x=None, bw=None, W=None, u=None, T2x = None,stochdiff=None):
         self.a = a
         self.b = b
         self.c = c  # currently unused
@@ -29,6 +29,8 @@ class LTI:
         self.m = b.shape[1]
         self.X = x
         self.T2x = T2x
+
+        self.stochdiff = stochdiff
         if W is None:
             if bw is None:
                 self.W = None
@@ -495,8 +497,13 @@ class beliefmodel:
 
         return belief_model
 
-    def to_LTI_approx(self,c, P_init, P_l,P_upper):
+    def to_LTI_approx(self,c, P_init, P_l,P_upper,combined=True):
         """
+         this function checks whether the given matrices are indeed lower and
+          upper bounds for the time varying variance, which is initialized with P_init.
+          Additionally it gives the normed value of the noise difference and the rank to
+          be used for the chi-square cumulative distribution.
+          Furthermore it gives the approximate LTI over the belief space.
         :param: c: accuracy mappng for abstraction
         :param: P_init: initial covariance
         :return: LTI model of belief
@@ -511,16 +518,17 @@ class beliefmodel:
 
             # 1. check P_init> P_l
             ei, vec_ei = LA.eig(P_init - P_l)
-            if (ei < 0).any():
-                print("matrix is not a lower bound for P_init")
+            if (ei < 0).any() and not np.allclose(ei,np.zeros(ei.shape)) :
+                warnings.warn(np.array_str(ei))
+                warnings.warn('matrix is not a lower bound for P_init')
                 return 0
-
             # 2. check whether P_l+ > P_l
             (x, P_lplus) = po.update(np.zeros(P_l.shape), P_l, simulate=0)
             (x, P_lplus) = po.predict(np.zeros((po.b.shape[1], 1)), x=None, P=P_lplus)
             ei, vec_ei = LA.eig(P_lplus - P_l)
-            if (ei < 0).any():
-                print("matrix is not a good lower bound")
+            if (ei < 0).any() and not np.allclose(ei,np.zeros(ei.shape)) :
+                warnings.warn(np.array_str(ei))
+                warnings.warn(['matrix is not a a good lower bound'])
                 return 0
             print("P_l is a valid lower bound")
             return 1
@@ -529,62 +537,61 @@ class beliefmodel:
 
             # 1. check P_init> P_l
             ei, vec_ei = LA.eig(P_init - P_upper)
-            if (ei > 0).any():
-                print("matrix is not a upper bound for P_init")
+            if (ei > 0).any() and not np.allclose(ei,np.zeros(ei.shape)) :
+                warnings.warn(np.array_str(ei))
+                warnings.warn("matrix is not a upper bound for P_init")
                 return 0
 
             # 2. check whether P_l+ > P_l
             (x, P_lplus) = belief_mdp.update(np.zeros(P_upper.shape), P_upper, simulate=0)
             (x, P_lplus) = belief_mdp.predict(np.zeros((belief_mdp.b.shape[1], 1)), P=P_lplus)
             ei, vec_ei = LA.eig(P_lplus - P_upper)
-            if (ei > 0).any():
-                print("matrix is not a good upper bound")
+            if (ei > 0).any() and not np.allclose(ei,np.zeros(ei.shape)):
+                warnings.warn(np.array_str(ei))
+                warnings.warn("matrix is not a good upper bound")
                 return 0
             print("P_up is a valid upper bound")
             return 1
 
-        assert bound_lower(self, Pst, P_l)
-        assert bound_upper(self, Pst, P_upper)
+        assert bound_lower(self, P_init, P_l)
+        assert bound_upper(self, P_init, P_upper)
 
 
         # Average  P
         P_bar = Pst #( obtained from Kalman)
-        S_inv_app = LA.inv(self.H.dot(P_upper).dot(self.H.T))
-        W = LA.inv(self.H.dot(P_l).dot(self.H.T))-LA.inv(self.H.dot(P_upper).dot(self.H.T))
+        S_inv_app = LA.inv(self.H.dot(P_upper).dot(self.H.T)+self.V)
+        W = LA.inv(self.H.dot(P_l).dot(self.H.T)+ self.V)-LA.inv(self.H.dot(P_upper).dot(self.H.T)+self.V)
 
         n = P_bar.shape[0]
         m = self.H.shape[0]
 
-        #Compute  S_delta
+        def sqrtm(W):
+            u,s,v = LA.svd(W)
+            Wsqrtm =u.dot(np.diag(s**.5))
+            assert W.shape == Wsqrtm.shape
 
-        Sdelta = cvx.Semidef(n)
-        eps = cvx.Semidef(1)
+            return Wsqrtm
 
-        constraintstup = (Sdelta -P_bar+P_l >> 0,Sdelta +P_bar-P_l >> 0, eps-np.ones((1,n)) * Sdelta  *  np.ones((n,1))>>0)
-        constraints = list(constraintstup)
-        np.ones((n,1))
-        obj = cvx.Minimize(eps)
-        prob = cvx.Problem(obj, constraints)
+        # total error noise
 
-        prob.solve()
+        error_norm = (LA.norm((P_upper - P_l).dot(sqrtm(S_inv_app)),2),)
+        error_norm += (LA.norm((P_upper.dot(sqrtm(W))),2),)
 
-        print "status:", prob.status
-        S_del = Sdelta.value
+        error_rank = (LA.matrix_rank(S_inv_app), LA.matrix_rank(W))
 
-        Wdelta = cvx.Semidef(n)
-        eps = cvx.Semidef(1)
-        rmat = cvx.bmat([[Wdelta+P_upper-P_l, P_upper* self.H.T * W],
-                         [W * self.H * P_upper, W+W * self.H * (P_l-P_upper) *self.H.T * W]])
-        constraintstup = (rmat>>0, eps - np.ones((1, n)) * Wdelta * np.ones((n, 1)) >> 0)
-        constraints = list(constraintstup)
-        np.ones((n, 1))
-        obj = cvx.Minimize(eps)
-        prob2 = cvx.Problem(obj, constraints)
+        total_noisemat = np.block([[(P_upper-P_l).dot(sqrtm(S_inv_app)),P_upper.dot(sqrtm(W))]])
 
-        prob2.solve()
+        cov = P_bar.dot(self.H.T).dot(S_inv_app).dot(self.H).dot(P_bar)
 
-        print "status:", prob2.status
-        W_del = Wdelta.value
+        self.c=c
+
+        if combined :
+            total_error= LA.norm(np.block([[(P_upper - P_l).dot(sqrtm(S_inv_app)), P_upper.dot(sqrtm(W))]]),2)
+            total_rank = (LA.matrix_rank(S_inv_app)+ LA.matrix_rank(W))
+            belief_model = LTI(self.a, self.b, self.c, None, W=cov, stochdiff=(total_error, total_rank))
+
+            return belief_model,total_error,total_rank
+        # compute the dimension of the noise
 
         # L,P = self.kalman()
         # S = self.H.dot(P).dot(self.H.transpose())+self.V
@@ -592,9 +599,10 @@ class beliefmodel:
         # Cov = L.dot(S).dot(L.T)
         # self.c=c
         # belief_model = LTI(self.a, self.b, self.c, None, W = Cov)
+        belief_model = LTI(self.a, self.b, self.c, None, W = cov, stochdiff=(error_norm, error_rank))
 
         # return belief_model
-        return S_del
+        return belief_model,error_norm, error_rank
 
     def predict(self, u, x=None, P=None):
         """

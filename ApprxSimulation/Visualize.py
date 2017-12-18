@@ -96,10 +96,13 @@ def plot_rel(Meps, pos = None, number =20):
     plt.show()
 
 
-def plot_regions(regions, xlim, ylim):
+def plot_regions(regions, xlim, ylim, tikz=False):
     """
 
     :param regions:  dictionary with name: polytope
+    :param xlim: x axis limits
+    :param ylim: y axis limits
+    :param tikz: generate tikz tex code
     :return: figure
     """
 
@@ -107,7 +110,6 @@ def plot_regions(regions, xlim, ylim):
     ax = fig.add_subplot(111)
 
     for name in regions.keys():
-        print(name)
         patch = matplotlib.patches.Polygon(pc.extreme(regions[name]))
         lx, ux = pc.bounding_box(regions[name])  # lower and upperbounds over all dimensions
 
@@ -119,5 +121,8 @@ def plot_regions(regions, xlim, ylim):
     #ax.add_patch(patch)
     plt.xlim(xlim)
     plt.ylim(ylim)
+    if tikz:
+        from matplotlib2tikz import save as tikz_save
+        tikz_save('regions.tex', figureheight='\\figureheight', figurewidth='\\figurewidth')
     # plt.tight_layout()
     plt.show()
