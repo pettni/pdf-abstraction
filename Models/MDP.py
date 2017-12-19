@@ -207,7 +207,7 @@ class Markov(MDP):
         self.dfa = dfa
         self.final =final
 
-    def reach_dfa(self,V = None, recursions =1, delta = 0):
+    def reach_dfa(self,V = None, recursions=1, delta=0 ):
         # TODO : Add delta
         assert self.act_inputs is not None
         assert self.dfa is not None
@@ -258,10 +258,14 @@ class Markov(MDP):
                 W_a = np.block([[W.dot(self.P[a].T)] for a in range(self.A)])
                 if rec == recursions-1 : # at last step also comput the policy
                     pol[q] = W_a.argmax(axis = 0)
-                V_new[q] = W_a.max(axis = 0) - delta  #max_{s_action}[ s_action X S]
-                V_new[q] = V_new[q].clip(0,1) # limit to values between zero and one
+                if delta == 0:
+                    V_new[q] = W_a.max(axis = 0)   #max_{s_action}[ s_action X S]
+                else:
+                    V_new[q] = W_a.max(axis = 0) - delta  #max_{s_action}[ s_action X S]
 
-        V = V_new
+                V_new[q] = np.clip(V_new[q],0,1) # limit to values between zero and one
+                #print(q, V_new[q].sum(axis =0))
+            V = V_new
 
 
 
