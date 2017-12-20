@@ -100,7 +100,7 @@ def test_ltl_synth():
     system = MDP([T1, T2], output_fcn = output, output_name ='ap')
 
     formula = '( ( F s1 ) & ( F s2 ) )'
-    dfsa, init, final,dict_input2prop = formula_to_mdp(formula)
+    dfsa, init, final, _ = formula_to_mdp(formula)
 
     prod = ProductMDP(system, dfsa)
 
@@ -130,9 +130,14 @@ def test_ltl_synth2():
 
 	system = MDP([T1, T2], output_fcn = output, output_name ='ap')
 
-	print(system.output(1))
 	formula = '( ( F s1 ) & ( F s2 ) )'
 
 	pol = solve_ltl_cosafe(system, formula)
 
 
+def test_ltl_until():
+
+	formula = '( ( ! avoid U target ) & ( F avoid ) )'
+	dfsa, _, _, _ = formula_to_mdp(formula)
+
+	np.testing.assert_equal(len(dfsa), 4)

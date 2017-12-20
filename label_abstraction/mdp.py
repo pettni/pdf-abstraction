@@ -228,20 +228,12 @@ def formula_to_mdp(formula):
   fsa.from_formula(formula)
   fsa.add_trap_state()
 
-
-# make two way mappings for states
-  dict_2state =  dict([(s, sstate) for s, sstate in enumerate(sorted(fsa.g.nodes()))])
+  # mapping state -> state index
+  N = len(fsa.g)
   dict_fromstate = dict([(sstate, s) for s, sstate in enumerate(sorted(fsa.g.nodes()))])
-  states = set(map(lambda state: dict_fromstate[state], fsa.g.nodes()))
-
-
 
   inputs = set.union(*[attr['input'] for _,_,attr in fsa.g.edges(data=True)])
-
-  N = len(fsa.g)
   M = len(inputs)
-
-  assert(states == set(range(N)))
   assert(inputs == set(range(M)))
 
   T = [np.zeros((N, N)) for m in range(M)]
