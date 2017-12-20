@@ -6,13 +6,13 @@ def test_connection():
 
 	T0 = np.array([[0, 1], [1, 0]])
 	T1 = np.array([[1, 0], [0, 1]])
-	mdp1 = MDP([T0, T1], input_fcn=lambda m: m, output_fcn=lambda n: set([n]), input_name='u', output_name='z')
+	mdp1 = MDP([T0, T1], input_fcn=lambda m: m, output_fcn=lambda n: n, input_name='u', output_name='z')
 
 
 	T0 = np.array([[1, 0], [1, 0]])
 	T1 = np.array([[0, 1], [0, 1]])
 
-	mdp2 = MDP([T0, T1], input_fcn=lambda m: m, output_fcn=lambda n: set([n]), input_name='z', output_name='y')
+	mdp2 = MDP([T0, T1], input_fcn=lambda m: m, output_fcn=lambda n: n, input_name='z', output_name='y')
 
 	pmdp = ProductMDP(mdp1, mdp2)
 
@@ -41,9 +41,9 @@ def test_mdp_dfsa():
 
 	def output(n1):
 		if n1 == 2:
-			return set([1])
+			return 1
 		else:
-			return set([0])
+			return 0
 
 	T0 = np.array([[0.5, 0.25, 0.25], [0, 1, 0], [0, 0, 1]])
 	mdp = MDP([T0], output_fcn=output)
@@ -61,22 +61,22 @@ def test_mdp_dfsa():
 
 def test_mdp_dfsa_nondet():
 
-	def output(n1):
+	def connection(n1):
 		if n1 == 2:
 			return set([1])
 		elif n1 == 1:
-			return set([1,0])
+			return set([1, 0])
 		else:
 			return set([0])
 
 	T0 = np.array([[0.5, 0.25, 0.25], [0, 1, 0], [0, 0, 1]])
-	mdp = MDP([T0], output_fcn=output)
+	mdp = MDP([T0])
 
 	T1 = np.array([[1, 0], [0, 1]])
 	T2 = np.array([[0, 1], [0, 1]])
 	fsa = MDP([T1, T2])
 
-	prod = ProductMDP(mdp, fsa)
+	prod = ProductMDP(mdp, fsa, connection=connection)
 
 	V, _ = prod.solve_reach(accept=lambda y: y[1] == 1 )
 	np.testing.assert_almost_equal(V,
@@ -88,7 +88,7 @@ def test_ltl_synth():
     T1 = np.array([[0.25, 0.25, 0.25, 0.25], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
     T2 = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0], [0.9, 0, 0, 0.1]])
 
-    def output(n):
+    def connection(n):
         # map Y1 -> 2^(2^AP)
         if n == 1:
             return set( ( ('s1',), ) )   # { {s1} }
@@ -97,12 +97,12 @@ def test_ltl_synth():
         else:
             return set( ( (), ), )		 # { { } }
 
-    system = MDP([T1, T2], output_fcn = output, output_name ='ap')
+    system = MDP([T1, T2])
 
     formula = '( ( F s1 ) & ( F s2 ) )'
     dfsa, init, final, _ = formula_to_mdp(formula)
 
-    prod = ProductMDP(system, dfsa)
+    prod = ProductMDP(system, dfsa, connection=connection)
 
     V, _ = prod.solve_reach(accept=lambda s: s[1] in final)
 
@@ -119,7 +119,7 @@ def test_ltl_synth2():
 	T1 = np.array([[0.25, 0.25, 0.25, 0.25], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 	T2 = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0], [0.9, 0, 0, 0.1]])
 
-	def output(n):
+	def connection(n):
 		# map Y1 -> 2^(2^AP)
 		if n == 1:
 			return set( ( ('s1',), ) )   # { {s1} }
@@ -128,11 +128,11 @@ def test_ltl_synth2():
 		else:
 			return set( ( (), ), )		 # { { } }
 
-	system = MDP([T1, T2], output_fcn = output, output_name ='ap')
+	system = MDP([T1, T2])
 
 	formula = '( ( F s1 ) & ( F s2 ) )'
 
-	pol = solve_ltl_cosafe(system, formula)
+	pol = solve_ltl_cosafe(system, formula, connection)
 
 
 def test_ltl_until():

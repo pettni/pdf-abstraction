@@ -6,7 +6,7 @@ from label_abstraction.ltl2mdp import *
 
 class MDP(object):
   """Markov Decision Process"""
-  def __init__(self, T, input_fcn=lambda m: m, output_fcn=lambda n: set([n]), 
+  def __init__(self, T, input_fcn=lambda m: m, output_fcn=lambda n: n, 
                input_name='a', output_name='x'):
     '''
     Create an MDP
@@ -15,7 +15,7 @@ class MDP(object):
       T:  List of M stochastic transition matrices of size N x N such that T[m][n,n'] = P(n' | n, m).
           M is the number of actions and N the number of states.
       input:  input labeling function: U -> range(M) 
-      output: output labeling function: range(N) -> 2^Y
+      output: output labeling function: range(N) -> Y
       input_name: identifier for input state
       output_name: identifier for output state
 
@@ -55,12 +55,8 @@ class MDP(object):
       if not np.all(np.abs(t.dot(np.ones([self.N,1])) - np.ones([self.N,1])) < 1e-7 ):
         raise Exception('matrix not stochastic')
 
-    for n in range(self.N):
-      if not type(self.output(n) is set):
-        raise Exception('MDP outputs must be of type set')
-
   def __str__(self):
-    ret = 'MDP: %d states "%s" and %d inputs "%s"' % (self.N, self.output_name, self.M, self.input_name)
+    ret = 'MDP:  %d inputs "%s" --> %d states "%s"' % (self.M, self.input_name, self.N, self.output_name)
     return ret
 
   def __len__(self):
@@ -96,7 +92,7 @@ class MDP(object):
 
     # todo: solve backwards reachability to constrain search
 
-    is_accept = np.array([accept( list(self.output(n))[0] ) for n in range(self.N)])
+    is_accept = np.array([accept( self.output(n) ) for n in range(self.N)])
 
     V = np.array(is_accept, dtype='d')
     pol = np.zeros(V.shape)
@@ -118,7 +114,7 @@ class MDP(object):
 
 class ProductMDP(MDP):
   """Non-deterministic Product Markov Decision Process"""
-  def __init__(self, mdp1, mdp2):
+  def __init__(self, mdp1, mdp2, connection=None):
     '''
     Connect mdp1 and mdp2 in series. It must hold that mdp1.Y \subset mdp2.U.
     The resulting mdp has inputs mdp1.U and output alphabet mdp2.Y
@@ -127,12 +123,15 @@ class ProductMDP(MDP):
     self.deterministic = True
 
     # map range(N1) -> 2^range(N2)
-    self.connection = lambda mdp1_n: set(map(mdp2.input, mdp1.output(mdp1_n)))
+    if connection:
+      self.connection = lambda mdp1_n: set(map(mdp2.input, connection(mdp1.output(mdp1_n) ) ))
+    else:
+      self.connection = lambda mdp1_n: set([mdp2.input(mdp1.output(mdp1_n))])
 
     # Check that connection is valid
     for n1 in range(mdp1.N):
       inputs_n1 = self.connection(n1)
-      if not inputs_n1 <= set(range(mdp2.N)):
+      if not inputs_n1 <= set(range(mdp2.M)):
         raise Exception('invalid connection')
       if len(inputs_n1) > 1:
         self.deterministic = False
@@ -149,6 +148,7 @@ class ProductMDP(MDP):
     self.M = mdp1.M
     self.N = mdp1.N * mdp2.N
 
+    self.input_name = mdp1.input_name
     self.output_name = '(%s, %s)' % (mdp1.output_name, mdp2.output_name) 
 
   # State ordering for mdp11 = (p1, ..., pN1) mdp12 = (q1, ..., qN2):
@@ -159,7 +159,7 @@ class ProductMDP(MDP):
 
   def output(self, n):
     n1, n2 = self.local_states(n)
-    return set(product(self.mdp1.output(n1), self.mdp2.output(n2)))
+    return (self.mdp1.output(n1), self.mdp2.output(n2))
 
   def input(self, u):
     return self.mdp1.input(u)
@@ -174,13 +174,13 @@ class ProductMDP(MDP):
     return ret
 
   def t(self, m, n, n_p):
-    if self.deterministic:
+    if not self.deterministic:
       raise Exception('can not compute transition probabilities in nondeterministic product')
 
     n1, n2 = self.local_states(n)
     n1p, n2p = self.local_states(n_p)
 
-    return self.mdp1.t(m, n1, n1p) * self.mdp2.t(self.conn(n1p), n2, n2p)
+    return self.mdp1.t(m, n1, n1p) * self.mdp2.t( list(self.connection(n1p))[0], n2, n2p)
 
   def solve_reach(self, accept, prec=1e-5):
     '''solve reachability problem
@@ -210,7 +210,7 @@ class ProductMDP(MDP):
       V_new_m = [self.mdp1.T(m).dot(W.transpose()).transpose() for m in range(self.M)]
       V_new = np.zeros(V.shape)
       for m in range(self.M):
-        Pol[np.nonzero(V_new < V_new_m[m])] = m
+        Pol[np.nonzero(V < V_new_m[m])] = m
         V_new = np.maximum(V_new, V_new_m[m])
 
       # Max over accepting state
@@ -244,7 +244,7 @@ def formula_to_mdp(formula):
 
 
   mdp = MDP(T, input_name='ap', input_fcn=fsa.bitmap_of_props,
-         output_name='mu')
+            output_name='mu')
 
   init_states = set(map(lambda state: dict_fromstate[state], [state for (state, key) in fsa.init.items() if key == 1]))
   final_states = set(map(lambda state: dict_fromstate[state], fsa.final))
@@ -252,7 +252,6 @@ def formula_to_mdp(formula):
   mdp.init = list(init_states)
 
   # create map number => sets of atom propositions
-  print(fsa.props.keys())
   # make tuple with on off
   props= tuple()
   for ap in fsa.props.keys():
@@ -264,8 +263,6 @@ def formula_to_mdp(formula):
           if status[i]:
             ap_set += (name,)
       dict_input2prop[fsa.bitmap_of_props(ap_set)] = ap_set
-  print(dict_input2prop)
-  print(final_states)
 
   return mdp, init_states, final_states, dict_input2prop
 
@@ -287,21 +284,22 @@ class LTL_Policy(object):
     return self.pol(prod_state)
 
 
-def solve_ltl_cosafe(mdp, formula):
+def solve_ltl_cosafe(mdp, formula, connection):
   '''synthesize a policy that maximizes the probability of
      satisfaction of formula
      Inputs:
       - mdp: a MDP or ProductMDP with output alphabet Y
-      - formula: a syntactically cosafe LTL formula over Y
+      - formula: a syntactically cosafe LTL formula over AP
+      - connection: mapping Y -> 2^2^AP
 
-     Example: If Y = {'s1', 's2'}, the MDP output map should take 
-     values in 2^2^{'s1', 's2'} 
+     Example: If AP = {'s1', 's2'}, then connection(x) should be a 
+     value in 2^2^{'s1', 's2'} 
 
      Outputs:
       - pol: a Policy maximizing the probability of enforcing formula''' 
 
   dfsa, init, final,aux = formula_to_mdp(formula)
-  prod = ProductMDP(mdp, dfsa)
+  prod = ProductMDP(mdp, dfsa, connection)
   V, pol = prod.solve_reach(accept=lambda s: s[1] in final)
 
   return LTL_Policy(dfsa, list(init)[0], pol, V)
