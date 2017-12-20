@@ -318,9 +318,10 @@ def formula_to_mdp(formula):
 
 class LTL_Policy(object):
   """control policy"""
-  def __init__(self, dfsa, dfsa_init, pol, V):
+  def __init__(self, dfsa, dfsa_init, dfsa_final, pol, V):
     self.dfsa = dfsa
     self.dfsa_init = dfsa_init
+    self.dfsa_final = dfsa_final
     self.pol = pol
     self.V = V
 
@@ -337,6 +338,9 @@ class LTL_Policy(object):
   def get_input(self, syst_state):
     prod_state = syst_state * self.dfsa.N + np.nonzero(self.dfsa_state)[0][0]
     return self.pol[prod_state], self.V[prod_state]
+
+  def finished(self):
+    return np.nonzero(self.dfsa_state)[0][0] in self.dfsa_final
 
 
 def solve_ltl_cosafe(mdp, formula, connection):
@@ -357,5 +361,5 @@ def solve_ltl_cosafe(mdp, formula, connection):
   prod = ProductMDP(mdp, dfsa, connection)
   V, pol = prod.solve_reach(accept=lambda s: s[1] in final)
 
-  return LTL_Policy(dfsa, list(init)[0], pol, V)
+  return LTL_Policy(dfsa, list(init)[0], final, pol, V)
 
