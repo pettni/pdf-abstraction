@@ -1,8 +1,12 @@
 import numpy as np
 import scipy.sparse as sp
 from itertools import product
+import operator
 
 from label_abstraction.ltl2mdp import *
+
+def prod(n):
+  return reduce(operator.mul, n, 1)
 
 class MDP(object):
   """Markov Decision Process"""
@@ -56,7 +60,7 @@ class MDP(object):
         raise Exception('matrix not stochastic')
 
   def __str__(self):
-    ret = 'MDP:  %d inputs "%s" --> %d states "%s"' % (self.M, self.input_name, self.N, self.output_name)
+    ret = 'MDP: %d inputs "%s" --> %d states "%s"' % (self.M, self.input_name, self.N, self.output_name)
     return ret
 
   def __len__(self):
@@ -111,6 +115,51 @@ class MDP(object):
 
     return V, pol
 
+class ParallelMDP(MDP):
+
+  def __init__(self, mdplist):
+    '''
+    Connect mdp1 and mdp2 in parallel
+    The resulting mdp has inputs mdp1.U x mdp2.U and output alphabet mdp1.Y x mdp2.Y
+    '''
+
+    self.mdplist = mdplist
+
+    self.M = reduce(operator.mul, [mdp.M for mdp in mdplist], 1)
+    self.N = reduce(operator.mul, [mdp.N for mdp in mdplist], 1)
+
+    self.input_name = '(' + ', '.join(mdp.input_name for mdp in mdplist) + ')'
+    self.output_name = '(' + ', '.join(mdp.output_name for mdp in mdplist) + ')'
+
+  def local_states(self, n):
+    '''return indices in product'''
+    n_list = [mdp.N for mdp in self.mdplist]
+    return tuple(n % prod(n_list[i:]) / prod(n_list[i + 1:])
+            for i in range(len(n_list)))
+
+  def local_controls(self, m):
+    m_list = [mdp.M for mdp in self.mdplist]
+    return tuple(m % prod(m_list[i:]) / prod(m_list[i + 1:])
+            for i in range(len(m_list)))
+
+  def output(self, n):
+    loc_stat = self.local_states(n)
+    return tuple(mdpi.output(ni) for (mdpi, ni) in zip(self.mdplist, loc_stat))
+
+  def input(self, u):
+    m_list = [mdp.M for mdp in self.mdplist]
+    m = sum(self.mdplist[i].input(u[i]) * prod(m_list[i+1:]) for i in range(len(self.mdplist)))
+    return m
+
+  def t(self, m, n, n_p):
+    loc_n = self.local_states(n)
+    loc_n_p = self.local_states(n_p)
+    loc_m = self.local_controls(m)
+    return prod(mdp.t(mi, ni, ni_p) for mdp, mi, ni, ni_p in zip(self.mdplist, loc_m, loc_n, loc_n_p))
+
+  def T(self, m):
+    loc_m = self.local_controls(m)
+    return reduce(sp.kron, (mdp.T(mi) for (mdp, mi) in zip(self.mdplist, loc_m)), 1)
 
 class ProductMDP(MDP):
   """Non-deterministic Product Markov Decision Process"""

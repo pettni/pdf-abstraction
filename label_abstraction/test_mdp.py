@@ -141,3 +141,40 @@ def test_ltl_until():
 	dfsa, _, _, _ = formula_to_mdp(formula)
 
 	np.testing.assert_equal(len(dfsa), 4)
+
+
+def test_parallel():
+
+	T0 = np.eye(3)
+	T1 = np.array([[0,0.5,0.5], [0,1,0], [0,0,1]])
+
+	def output_fcn(n):
+	    if n == 0:
+	        return 'init'    # label unknown
+	    if n == 1:
+	        return 'safe'    # can traverse region
+	    if n == 2:
+	        return 'unsafe'  # can not traverse region
+	    
+	map1 = MDP([T0, T1], input_fcn=lambda meas1: meas1, input_name='meas1',
+	                     output_fcn=output_fcn, output_name='label1')
+
+	map2 = MDP([T0, T1], input_fcn=lambda meas2: meas2, input_name='meas2',
+	                     output_fcn=output_fcn, output_name='label2')
+
+	map3 = MDP([T0, T1], input_fcn=lambda meas3: meas3, input_name='meas3',
+	                     output_fcn=output_fcn, output_name='label3')
+
+	prod = ParallelMDP([map1, map2, map3])
+
+	for i1 in range(2):
+		for i2 in range(2):
+			for i3 in range(2):
+				np.testing.assert_equal((i1,i2,i3), prod.local_controls(prod.input((i1,i2,i3))))
+
+
+	for k in range(8):
+		T = prod.T(k).todense()
+		for i in range(27):
+			for j in range(27):
+				np.testing.assert_almost_equal(T[i,j], prod.t(k,i,j))
