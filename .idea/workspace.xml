@@ -2,11 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="31e704a2-ef6c-40a2-8981-ee3dd6419582" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/Demo_file/LTI_kalman_varying.ipynb" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Case_study_adhs.ipynb" afterPath="$PROJECT_DIR$/Case_study_adhs.ipynb" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Demo_file/LTI_Gaus_scLTL.ipynb" afterPath="$PROJECT_DIR$/Demo_file/LTI_Gaus_scLTL.ipynb" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Demo_file/LTI_Kalman_stationary.ipynb" afterPath="$PROJECT_DIR$/Demo_file/LTI_Kalman_stationary.ipynb" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Models/MDP.py" afterPath="$PROJECT_DIR$/Models/MDP.py" />
     </list>
     <ignored path="$PROJECT_DIR$/.idea/" />
@@ -43,7 +40,7 @@
         <entry file="file://$PROJECT_DIR$/Testruns.ipynb">
           <provider selected="true" editor-type-id="ipnb-editor">
             <state>
-              <selected id="5" />
+              <selected id="3" />
             </state>
           </provider>
         </entry>
@@ -52,7 +49,7 @@
         <entry file="file://$PROJECT_DIR$/Case_study_adhs.ipynb">
           <provider selected="true" editor-type-id="ipnb-editor">
             <state>
-              <selected id="18" />
+              <selected id="17" />
             </state>
           </provider>
         </entry>
@@ -87,8 +84,8 @@
       <file leaf-file-name="MDP.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Models/MDP.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="465">
-              <caret line="269" column="0" lean-forward="false" selection-start-line="269" selection-start-column="0" selection-end-line="269" selection-end-column="0" />
+            <state relative-caret-position="117">
+              <caret line="120" column="22" lean-forward="false" selection-start-line="120" selection-start-column="8" selection-end-line="120" selection-end-column="22" />
               <folding>
                 <element signature="e#1620#1658#0" expanded="true" />
                 <element signature="e#15382#15907#0" expanded="false" />
@@ -100,8 +97,8 @@
       <file leaf-file-name="ltl2mdp.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/label_abstraction/ltl2mdp.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="630">
-              <caret line="200" column="35" lean-forward="false" selection-start-line="200" selection-start-column="35" selection-end-line="200" selection-end-column="35" />
+            <state relative-caret-position="3222">
+              <caret line="187" column="35" lean-forward="false" selection-start-line="187" selection-start-column="35" selection-end-line="187" selection-end-column="35" />
               <folding>
                 <element signature="e#0#21#0" expanded="true" />
               </folding>
@@ -112,7 +109,7 @@
       <file leaf-file-name="Visualize.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ApprxSimulation/Visualize.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="48">
+            <state relative-caret-position="1710">
               <caret line="101" column="28" lean-forward="false" selection-start-line="101" selection-start-column="28" selection-end-line="101" selection-end-column="28" />
               <folding>
                 <element signature="e#1658#1675#0" expanded="true" />
@@ -124,7 +121,7 @@
       <file leaf-file-name="Linear.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Models/Linear.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="165">
+            <state relative-caret-position="6012">
               <caret line="361" column="56" lean-forward="false" selection-start-line="361" selection-start-column="56" selection-end-line="361" selection-end-column="86" />
               <folding>
                 <element signature="e#82#100#0" expanded="true" />
@@ -138,7 +135,7 @@
       <file leaf-file-name="LTI_simrel.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ApprxSimulation/LTI_simrel.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="69">
+            <state relative-caret-position="6858">
               <caret line="389" column="21" lean-forward="false" selection-start-line="389" selection-start-column="21" selection-end-line="389" selection-end-column="34" />
               <folding>
                 <element signature="e#1664#1685#0" expanded="true" />
@@ -221,9 +218,9 @@
         <option value="$PROJECT_DIR$/Models/Linear.py" />
         <option value="$PROJECT_DIR$/ApprxSimulation/LTI_simrel.py" />
         <option value="$PROJECT_DIR$/Demo_file/LTI_Kalman_stationary.ipynb" />
-        <option value="$PROJECT_DIR$/Models/MDP.py" />
         <option value="$PROJECT_DIR$/Demo_file/LTI_Gaus_scLTL.ipynb" />
         <option value="$PROJECT_DIR$/Demo_file/LTI_kalman_varying.ipynb" />
+        <option value="$PROJECT_DIR$/Models/MDP.py" />
         <option value="$PROJECT_DIR$/Case_study_adhs.ipynb" />
       </list>
     </option>
@@ -236,7 +233,7 @@
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
     <option name="y" value="23" />
-    <option name="width" value="1440" />
+    <option name="width" value="743" />
     <option name="height" value="811" />
   </component>
   <component name="ProjectView">
@@ -487,21 +484,22 @@
     </history-entry>
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="23" width="1440" height="809" extended-state="6" />
+    <frame x="0" y="23" width="1440" height="812" extended-state="6" />
+    <editor active="true" />
     <layout>
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Debug Logs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32921812" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39583334" sideWeight="0.369814" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.12988827" sideWeight="0.63018596" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.20868348" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.12988827" sideWeight="0.63018596" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Execute Anonymous" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3197425" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.10729614" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3297568" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.11731044" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
+      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.30615166" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.31129476" sideWeight="0.49713877" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Data View" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.30678466" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Salesforce" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.12430168" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
@@ -602,9 +600,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1152">
           <caret line="64" column="9" lean-forward="true" selection-start-line="64" selection-start-column="9" selection-end-line="64" selection-end-column="9" />
-          <folding>
-            <element signature="e#263#313#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -853,22 +848,12 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1530">
           <caret line="88" column="27" lean-forward="false" selection-start-line="88" selection-start-column="13" selection-end-line="88" selection-end-column="27" />
-          <folding>
-            <element signature="e#263#313#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Testruns.ipynb">
-      <provider selected="true" editor-type-id="ipnb-editor">
-        <state>
-          <selected id="5" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/ApprxSimulation/Visualize.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="48">
+        <state relative-caret-position="1710">
           <caret line="101" column="28" lean-forward="false" selection-start-line="101" selection-start-column="28" selection-end-line="101" selection-end-column="28" />
           <folding>
             <element signature="e#1658#1675#0" expanded="true" />
@@ -878,7 +863,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Models/Linear.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="165">
+        <state relative-caret-position="6012">
           <caret line="361" column="56" lean-forward="false" selection-start-line="361" selection-start-column="56" selection-end-line="361" selection-end-column="86" />
           <folding>
             <element signature="e#82#100#0" expanded="true" />
@@ -890,8 +875,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/label_abstraction/ltl2mdp.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="630">
-          <caret line="200" column="35" lean-forward="false" selection-start-line="200" selection-start-column="35" selection-end-line="200" selection-end-column="35" />
+        <state relative-caret-position="3222">
+          <caret line="187" column="35" lean-forward="false" selection-start-line="187" selection-start-column="35" selection-end-line="187" selection-end-column="35" />
           <folding>
             <element signature="e#0#21#0" expanded="true" />
           </folding>
@@ -900,21 +885,10 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/ApprxSimulation/LTI_simrel.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="69">
+        <state relative-caret-position="6858">
           <caret line="389" column="21" lean-forward="false" selection-start-line="389" selection-start-column="21" selection-end-line="389" selection-end-column="34" />
           <folding>
             <element signature="e#1664#1685#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Models/MDP.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="465">
-          <caret line="269" column="0" lean-forward="false" selection-start-line="269" selection-start-column="0" selection-end-line="269" selection-end-column="0" />
-          <folding>
-            <element signature="e#1620#1658#0" expanded="true" />
-            <element signature="e#15382#15907#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -940,10 +914,28 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/Testruns.ipynb">
+      <provider selected="true" editor-type-id="ipnb-editor">
+        <state>
+          <selected id="5" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Models/MDP.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="117">
+          <caret line="120" column="22" lean-forward="false" selection-start-line="120" selection-start-column="8" selection-end-line="120" selection-end-column="22" />
+          <folding>
+            <element signature="e#1620#1658#0" expanded="true" />
+            <element signature="e#15382#15907#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/Case_study_adhs.ipynb">
       <provider selected="true" editor-type-id="ipnb-editor">
         <state>
-          <selected id="18" />
+          <selected id="17" />
         </state>
       </provider>
     </entry>
