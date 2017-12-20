@@ -82,8 +82,8 @@ class MDP(object):
     '''output for state n''' 
     return self.output_fcn(n)
 
-  def evolve(self, state, input):
-    return self.T[input].dot(state)
+  def evolve(self, state, m):
+    return self.T(m).transpose().dot(state)
 
   def solve_reach(self, accept, prec=1e-5):
     '''solve reachability problem
@@ -248,7 +248,7 @@ class ProductMDP(MDP):
     # mu first dim, n second
     V = np.array(is_accept)
 
-    Pol = np.zeros(is_accept.shape)
+    Pol = np.zeros(is_accept.shape, dtype=int)
 
     while True:
       # Min over nondeterminism: W(mu,s') = min_{q \in y(s')} \sum_\mu' t(q,\mu,\mu') V(\mu', s')
@@ -320,17 +320,23 @@ class LTL_Policy(object):
   """control policy"""
   def __init__(self, dfsa, dfsa_init, pol, V):
     self.dfsa = dfsa
-    self.dfsa_state = dfsa_init
+    self.dfsa_init = dfsa_init
     self.pol = pol
     self.V = V
 
-  def report_system_output(self, out):
-    dfsa_action = self.dfsa.input_fcn(out)
+    self.reset()
+
+  def reset(self):
+    self.dfsa_state = np.zeros((1,self.dfsa.N)).flatten()
+    self.dfsa_state[self.dfsa_init] = 1
+
+  def report_aps(self, aps):
+    dfsa_action = self.dfsa.input_fcn( aps )
     self.dfsa_state = self.dfsa.evolve(self.dfsa_state, dfsa_action)
 
-  def get_system_input(self, syst_state):
-    prod_state = syst_state * self.dfsa.M + self.dfsa_state
-    return self.pol(prod_state)
+  def get_input(self, syst_state):
+    prod_state = syst_state * self.dfsa.N + np.nonzero(self.dfsa_state)[0][0]
+    return self.pol[prod_state], self.V[prod_state]
 
 
 def solve_ltl_cosafe(mdp, formula, connection):
@@ -347,7 +353,7 @@ def solve_ltl_cosafe(mdp, formula, connection):
      Outputs:
       - pol: a Policy maximizing the probability of enforcing formula''' 
 
-  dfsa, init, final,aux = formula_to_mdp(formula)
+  dfsa, init, final, _ = formula_to_mdp(formula)
   prod = ProductMDP(mdp, dfsa, connection)
   V, pol = prod.solve_reach(accept=lambda s: s[1] in final)
 
