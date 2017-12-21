@@ -3,7 +3,7 @@ import scipy.sparse as sp
 from itertools import product
 import operator
 
-from label_abstraction.ltl2mdp import *
+from best.fsa import *
 
 def prod(n):
   return reduce(operator.mul, n, 1)
@@ -35,7 +35,6 @@ class MDP(object):
     # Inputs are action labels
     self.input_fcn = input_fcn
     self.input_name = input_name
-
 
     # Outputs are state labels
     self.output_fcn = output_fcn
@@ -341,7 +340,6 @@ class LTL_Policy(object):
 
   def finished(self):
     return np.nonzero(self.dfsa_state)[0][0] in self.dfsa_final
-
 
 def solve_ltl_cosafe(mdp, formula, connection):
   '''synthesize a policy that maximizes the probability of

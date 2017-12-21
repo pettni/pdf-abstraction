@@ -1,4 +1,4 @@
-from label_abstraction.mdp import *
+from best.mdp import *
 import numpy as np
 
 import __future__
