@@ -14,9 +14,13 @@ def prod(n):
 
 class LTIAbstraction(object):
 
-  def __init__(self, lti_syst, d, un=3, verbose = True, Accuracy=True):
+  def __init__(self, lti_syst_orig, d, un=3, verbose = True, Accuracy=True):
 
     self.s_finite = None
+
+    # Diagonalize
+    lti_syst = lti_syst_orig.normalize()
+    self.T2x = lti_syst.T2x
 
     ## Unpack LTI
     d = d.flatten()
@@ -94,8 +98,14 @@ class LTIAbstraction(object):
 
     # x-valued output
     # mapping index -> center point
-    output_fcn = lambda s: (s, tuple(srep[i][s % prod(sn_list[i:]) / prod(sn_list[i + 1:])]
-                                 for i in range(len(sn_list))) )
+    def output_fcn(s):
+      if s == self.mdp.N-1:
+        return (s, (None,) * len(sn_list))
+      else:
+        x_diag = np.array(tuple(srep[i][s % prod(sn_list[i:]) / prod(sn_list[i + 1:])]
+                          for i in range(len(sn_list)))).reshape(2,1)
+        return (s,  self.transform_d_o(x_diag))
+
     self.mdp = MDP(transition_list, input_name='u_d', output_name='(s, x_d)', 
                    output_fcn=output_fcn)
 
@@ -106,7 +116,6 @@ class LTIAbstraction(object):
     self.M = M_min
     self.K = K_min
     self.eps = eps_min
-    self.T2x = lti_syst.T2x
 
     self.K_refine = np.zeros((len(self.urep), len(self.srep)))
 
@@ -117,44 +126,54 @@ class LTIAbstraction(object):
   def set_regions(self, regions):
     self.ap_regions = regions
 
+
   def plot(self, fig):
+    # todo: add transformation
     ax = fig.add_subplot(111)
 
     grid = np.meshgrid(*self.srep)
 
     ax.scatter(grid[0].flatten(), grid[1].flatten(), label='Finite states', color='k', s=10, marker="o")
 
-  def closest_abstract(self, s):
-    '''compute abstract state closest to s and in simulation'''
+
+  def closest_abstract(self, x):
+    '''compute abstract state s closest to x and in simulation'''
     if self.s_finite is None:
       self.s_finite = np.array(list(itertools.product(*self.srep)))  # compute the grid points
 
-    sdiff = self.s_finite-np.ones((self.s_finite.shape[0],1)).dot(s.reshape((1,-1)))
+    # convert to diagonal system
+    x_diag = self.transform_o_d(x)
+
+    # find closest abstract state
+    sdiff = self.s_finite-np.tile(x_diag.reshape((1,-1)), (self.s_finite.shape[0], 1))
     error=np.diag(sdiff.dot(self.M).dot(sdiff.T))
 
-    s_ab = error.argmin()
+    s = error.argmin()
 
     # no state simulates concrete state
-    if error[s_ab] >= self.eps**2:
-      s_ab = self.mdp.N-1
+    if error[s] >= self.eps**2:
+      s = self.mdp.N-1
 
-    return s_ab
+    return s
 
   def refine_input(self, u_ab, s_ab, s_conc):
     '''refine abstract input u_ab to concrete input'''
     u = np.array(self.input_cst[u_ab]).reshape(-1, 1)
 
+    # give zero if in dummy state
     if s_ab == self.mdp.N - 1:
       u = np.zeros((len(self.input_cst[0]),1))
 
     u = self.K_refine.dot(s_conc-s_ab) + u
     return u # input
 
-  def nextsets(self, s_next):
-    '''compute abstract states that are related to s_next via simulation relation
+  def all_abstract(self, x):
+    '''compute abstract states that are related to x via simulation relation
        - returns indices, points'''
     if self.s_finite is None:
       self.s_finite = np.array(list(itertools.product(*self.srep)))  # compute the grid points
+
+    x_diag = self.transform_o_d(x)
 
     if self.M is None:
       print("WARNING no M matrix given")
@@ -164,21 +183,27 @@ class LTIAbstraction(object):
       print("WARNING no epsilon give")
       self.eps = 1
 
-    # quantify the weighted difference between s_next, and values of s
-    sdiff = self.s_finite-np.ones((self.s_finite.shape[0],1)).dot(s_next.reshape((1,-1)))
+    # quantify the weighted difference between x_diag, and values of s
+    sdiff = self.s_finite-np.tile(x_diag.reshape((1,-1)), (self.s_finite.shape[0], 1))
     error=np.diag(sdiff.dot(self.M).dot(sdiff.T))
     s_range = np.arange(self.mdp.N-1) # minus to remove dummy state
     return s_range[error<=self.eps**2], self.s_finite[error<=self.eps**2]
 
-  def aps(self, s):
+  def aps(self, x):
+    '''return atomic propositions at concrete state x (original coordinates)'''
     aps = tuple()
     for input_i in self.ap_regions.keys():
-      if np.all((self.ap_regions[input_i].A.dot(self.T2x).dot(np.array(s).reshape((-1,1)))- self.ap_regions[input_i].b.reshape((-1,1))) < 0) :
+      if self.ap_regions[input_i].contains(x):
         aps += (input_i,)
     return aps
 
-  def transform(self, x):
+  def transform_o_d(self, x):
+    '''transform from original to diagonal coordinates'''
     return np.linalg.inv(self.T2x).dot(x)
+
+  def transform_d_o(self, x_diag):
+    '''transform from diagonal to original coordinates'''
+    return self.T2x.dot(x_diag)
 
   def map_dfa_inputs(self):
     '''for dict regions {'region': polytope}, compute dicts in_regions and nin_regions where

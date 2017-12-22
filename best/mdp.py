@@ -147,26 +147,31 @@ class ParallelMDP(MDP):
     self.computedT_csr = [None for m in range(self.M)]
 
   def global_state(self, n_loc):
+    '''local state n_loc to global n'''
     n_list = [mdp.N for mdp in self.mdplist]
     n = sum(self.mdplist[i].global_state(n_loc[i]) * prod(n_list[i+1:]) 
             for i in range(len(self.mdplist)))
-
     return n
 
   def local_states(self, n):
-    '''return indices in product'''
+    '''global n to local state n_loc'''
     n_list = [mdp.N for mdp in self.mdplist]
     return tuple( self.mdplist[i].local_states(n % prod(n_list[i:]) / prod(n_list[i + 1:]))
             for i in range(len(n_list)))
 
   def local_controls(self, m):
+    '''global to local controls'''
     m_list = [mdp.M for mdp in self.mdplist]
     return tuple(m % prod(m_list[i:]) / prod(m_list[i + 1:])
             for i in range(len(m_list)))
 
   def output(self, n):
-    loc_stat = self.local_states(n)
-    return tuple(mdpi.output(ni) for (mdpi, ni) in zip(self.mdplist, loc_stat))
+    '''output of global n'''
+    n_list = [mdp.N for mdp in self.mdplist]
+    loc_idx = tuple(n % prod(n_list[i:]) / prod(n_list[i + 1:])
+                    for i in range(len(n_list)))
+
+    return tuple(mdpi.output(ni) for (mdpi, ni) in zip(self.mdplist, loc_idx))
 
   def input(self, u):
     m_list = [mdp.M for mdp in self.mdplist]
@@ -248,14 +253,13 @@ class ProductMDP(MDP):
   #  (p1 q1) (p1 q2) ... (p1 qN2) (p2 q1) ... (pN1 qN2)
   def local_states(self, n):
     '''return indices in product'''
-    return (self.mdp1.local_states(n // self.mdp2.N), self.mdp1.local_states(n % self.mdp2.N))
+    return (self.mdp1.local_states(n // self.mdp2.N), self.mdp2.local_states(n % self.mdp2.N))
 
   def global_state(self, n):
     return self.mdp2.global_state(n[1]) + self.mdp2.N * self.mdp1.global_state(n[0])
 
   def output(self, n):
-    n1, n2 = self.local_states(n)
-    return (self.mdp1.output(n1), self.mdp2.output(n2))
+    return (self.mdp1.output(n // self.mdp2.N), self.mdp2.output(n % self.mdp2.N))
 
   def input(self, u):
     return self.mdp1.input(u)

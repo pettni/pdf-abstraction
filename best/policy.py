@@ -50,31 +50,27 @@ class RefinedPolicy(): # refined policy
     # interface
     self.K = np.zeros((len(abstr.urep), len(abstr.srep)))
 
-  def __call__(self, s_concrete, transformed=True):
+  def __call__(self, s_concrete):
     """
     :param s_next:  s_{k+1}
     :return: input
     """
-    if not transformed:
-        s_concrete_transformed = self.abstr.transform(s_concrete)
-    else:
-        s_concrete_transformed = s_concrete
 
     # get APs at concrete state
-    aps = self.abstr.aps(s_concrete_transformed)
+    aps = self.abstr.aps(s_concrete)
 
     # update policy state
     self.ltlpolicy.report_aps(aps)
 
     # get next abstract MDP state 
     # TODO: choose maximizer for V?
-    s_abstract = self.abstr.closest_abstract(s_concrete_transformed)   
+    s_abstract = self.abstr.closest_abstract(s_concrete)   
 
     # compute abstract input
     u_abstract, curr_val = self.ltlpolicy.get_input(s_abstract)
     
     # refine input
-    return self.abstr.refine_input(u_abstract, s_abstract, s_concrete_transformed)
+    return self.abstr.refine_input(u_abstract, s_abstract, s_concrete)
 
   def reset(self):
     self.ltlpolicy.reset()
@@ -82,7 +78,7 @@ class RefinedPolicy(): # refined policy
   def finished(self):
     return self.ltlpolicy.finished()
 
-  def cst(self, s_concrete, transformed=True):
+  def cst(self, s_concrete):
     """
     :param s_next:  s_{k+1}
     :return: input
@@ -91,10 +87,10 @@ class RefinedPolicy(): # refined policy
     if s_concrete.shape[1]>1:
       u = np.zeros((len(self.abstr.urep),s_concrete.shape[1] ))
       for i in range(s_concrete.shape[1]):
-        u[:,i] = self.cst( s_concrete[:,[i]], transformed).flatten()
+        u[:,i] = self.cst( s_concrete[:,[i]]).flatten()
       return u
 
-    u = self.__call__(s_concrete, transformed)
+    u = self.__call__(s_concrete)
     self.reset()
     return u
 
@@ -115,9 +111,7 @@ class RefinedPolicy(): # refined policy
 
       return val
 
-    s_concrete_transformed = self.abstr.transform(s_concrete)
-
-    s_abstract = self.abstr.closest_abstract(s_concrete_transformed)   
+    s_abstract = self.abstr.closest_abstract(s_concrete)   
 
     if s_abstract < self.abstr.mdp.N-1:
       val = self.W[s_abstract]
