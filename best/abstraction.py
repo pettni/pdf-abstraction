@@ -15,6 +15,9 @@ def prod(n):
 class LTIAbstraction(object):
 
   def __init__(self, lti_syst, d, un=3, verbose = True, Accuracy=True):
+
+    self.s_finite = None
+
     ## Unpack LTI
     d = d.flatten()
     A = lti_syst.a
@@ -93,7 +96,7 @@ class LTIAbstraction(object):
     # mapping index -> center point
     output_fcn = lambda s: (s, tuple(srep[i][s % prod(sn_list[i:]) / prod(sn_list[i + 1:])]
                                  for i in range(len(sn_list))) )
-    self.mdp = MDP(transition_list, input_name='u_d', output_name='x_d', 
+    self.mdp = MDP(transition_list, input_name='u_d', output_name='(s, x_d)', 
                    output_fcn=output_fcn)
 
     self.srep = srep
@@ -105,6 +108,15 @@ class LTIAbstraction(object):
     self.eps = eps_min
     self.T2x = lti_syst.T2x
 
+    self.K_refine = np.zeros((len(self.urep), len(self.srep)))
+
+    self.output_cst = dict([(s, sstate) for s, sstate in enumerate(itertools.product(*srep))])
+    self.input_cst = dict([(u, uvalue) for u, uvalue in enumerate(itertools.product(*urep))])
+
+
+  def set_regions(self, regions):
+    self.ap_regions = regions
+
   def plot(self, fig):
     ax = fig.add_subplot(111)
 
@@ -112,16 +124,75 @@ class LTIAbstraction(object):
 
     ax.scatter(grid[0].flatten(), grid[1].flatten(), label='Finite states', color='k', s=10, marker="o")
 
-  def map_dfa_inputs(self, regions):
+  def closest_abstract(self, s):
+    '''compute abstract state closest to s and in simulation'''
+    if self.s_finite is None:
+      self.s_finite = np.array(list(itertools.product(*self.srep)))  # compute the grid points
+
+    sdiff = self.s_finite-np.ones((self.s_finite.shape[0],1)).dot(s.reshape((1,-1)))
+    error=np.diag(sdiff.dot(self.M).dot(sdiff.T))
+
+    s_ab = error.argmin()
+
+    # no state simulates concrete state
+    if error[s_ab] >= self.eps**2:
+      s_ab = self.mdp.N-1
+
+    return s_ab
+
+  def refine_input(self, u_ab, s_ab, s_conc):
+    '''refine abstract input u_ab to concrete input'''
+    u = np.array(self.input_cst[u_ab]).reshape(-1, 1)
+
+    if s_ab == self.mdp.N - 1:
+      u = np.zeros((len(self.input_cst[0]),1))
+
+    u = self.K_refine.dot(s_conc-s_ab) + u
+    return u # input
+
+  def nextsets(self, s_next):
+    '''compute abstract states that are related to s_next via simulation relation
+       - returns indices, points'''
+    if self.s_finite is None:
+      self.s_finite = np.array(list(itertools.product(*self.srep)))  # compute the grid points
+
+    if self.M is None:
+      print("WARNING no M matrix given")
+      self.M =np.eye(len(self.srep))
+
+    if self.eps is None:
+      print("WARNING no epsilon give")
+      self.eps = 1
+
+    # quantify the weighted difference between s_next, and values of s
+    sdiff = self.s_finite-np.ones((self.s_finite.shape[0],1)).dot(s_next.reshape((1,-1)))
+    error=np.diag(sdiff.dot(self.M).dot(sdiff.T))
+    s_range = np.arange(self.mdp.N-1) # minus to remove dummy state
+    return s_range[error<=self.eps**2], self.s_finite[error<=self.eps**2]
+
+  def aps(self, s):
+    aps = tuple()
+    for input_i in self.ap_regions.keys():
+      if np.all((self.ap_regions[input_i].A.dot(self.T2x).dot(np.array(s).reshape((-1,1)))- self.ap_regions[input_i].b.reshape((-1,1))) < 0) :
+        aps += (input_i,)
+    return aps
+
+  def transform(self, x):
+    return np.linalg.inv(self.T2x).dot(x)
+
+  def map_dfa_inputs(self):
+    '''for dict regions {'region': polytope}, compute dicts in_regions and nin_regions where
+      in_regions['region'][s] = 1 if abstract state s may be in region and 0 otherwise
+      in_regions['region'][s] = 1 if abstract state s may be outside region and 0 otherwise '''
 
     in_regions = dict()
     nin_regions = dict()
 
     if (self.eps is None) | (self.eps ==0):
-      for input_i in regions.keys():
-        in_regions[input_i] = np.array([[1.] if self.T2x.dot(np.array(s)) in regions[input_i] else [0.] for s in itertools.product(*self.srep)])
+      for input_i in self.ap_regions.keys():
+        in_regions[input_i] = np.array([[1.] if self.T2x.dot(np.array(s)) in self.ap_regions[input_i] else [0.] for s in itertools.product(*self.srep)])
 
-      for input_i in regions.keys():
+      for input_i in self.ap_regions.keys():
         nin_regions[input_i] = np.ones(in_regions[input_i].shape)-np.array([[1.] if self.T2x.dot(np.array(s)) in regions[input_i] else [0.] for s in itertools.product(*self.srep)])
 
     else :
@@ -129,11 +200,11 @@ class LTIAbstraction(object):
       Minvhalf = np.linalg.inv(v).dot(np.diag(np.power(s, -.5)))
       Minhalf = np.diag(np.power(s, .5)).dot(v)
       # eps is not =0,
-      for input_i in regions.keys(): # for each region, which is a polytope. Check whether it can be in it
+      for input_i in self.ap_regions.keys(): # for each region, which is a polytope. Check whether it can be in it
         #Big_polytope = regions[input_i] #<--- decrease size polytope
 
-        A = regions[input_i].A.dot(self.T2x).dot(Minvhalf)
-        b = regions[input_i].b
+        A = self.ap_regions[input_i].A.dot(self.T2x).dot(Minvhalf)
+        b = self.ap_regions[input_i].b
 
         scaling = np.zeros((A.shape[0],A.shape[0]))
         for index in range(A.shape[0]):
@@ -143,17 +214,17 @@ class LTIAbstraction(object):
 
         b = scaling.dot(b) + self.eps
 
-        assert regions[input_i].A.shape == A.shape
-        assert regions[input_i].b.shape == b.shape
+        assert self.ap_regions[input_i].A.shape == A.shape
+        assert self.ap_regions[input_i].b.shape == b.shape
 
         in_regions[input_i] = np.array(
             [[1.] if np.all(A.dot(np.array(s))-b<=0) else [0.] for s in
              itertools.product(*self.srep)])
 
-      for input_i in regions.keys():
+      for input_i in self.ap_regions.keys():
         # quantify whether a state could be outside the polytope
-        A = regions[input_i].A.dot(self.T2x).dot(Minvhalf)
-        b = regions[input_i].b
+        A = self.ap_regions[input_i].A.dot(self.T2x).dot(Minvhalf)
+        b = self.ap_regions[input_i].b
 
         scaling = np.zeros((A.shape[0],A.shape[0]))
         for index in range(A.shape[0]):

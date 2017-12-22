@@ -1,7 +1,8 @@
 import numpy as np
 import scipy.sparse as sp
-from itertools import product
 import operator
+
+import time
 
 from best.fsa import *
 
@@ -42,10 +43,12 @@ class MDP(object):
 
     self.init = None
     # Transition matrices for each axis
-    self.Tmat = [None,] * self.M
+    self.Tmat_csr = [None,] * self.M
+    self.Tmat_coo = [None,] * self.M
 
     for m in range(self.M):
-      self.Tmat[m] = sp.csr_matrix(T[m])  # convert to sparse format
+      self.Tmat_csr[m] = sp.csr_matrix(T[m])  # convert to sparse format
+      self.Tmat_coo[m] = sp.coo_matrix(T[m])
 
     self.check()
 
@@ -65,9 +68,19 @@ class MDP(object):
   def __len__(self):
     return self.N
 
+  def global_state(self, n):
+    return n
+
+  def local_states(self, n):
+    return n
+
   def T(self, m):
     '''transition matrix for action m'''
-    return self.Tmat[m]
+    return self.Tmat_csr[m]
+
+  def Tcoo(self, m):
+    '''transition matrix for action in coo format'''
+    return self.Tmat_coo[m]
 
   def t(self, a, n, np):
     '''transition probability for action m and n -> np'''
@@ -130,10 +143,20 @@ class ParallelMDP(MDP):
     self.input_name = '(' + ', '.join(mdp.input_name for mdp in mdplist) + ')'
     self.output_name = '(' + ', '.join(mdp.output_name for mdp in mdplist) + ')'
 
+    self.computedT_coo = [None for m in range(self.M)]
+    self.computedT_csr = [None for m in range(self.M)]
+
+  def global_state(self, n_loc):
+    n_list = [mdp.N for mdp in self.mdplist]
+    n = sum(self.mdplist[i].global_state(n_loc[i]) * prod(n_list[i+1:]) 
+            for i in range(len(self.mdplist)))
+
+    return n
+
   def local_states(self, n):
     '''return indices in product'''
     n_list = [mdp.N for mdp in self.mdplist]
-    return tuple(n % prod(n_list[i:]) / prod(n_list[i + 1:])
+    return tuple( self.mdplist[i].local_states(n % prod(n_list[i:]) / prod(n_list[i + 1:]))
             for i in range(len(n_list)))
 
   def local_controls(self, m):
@@ -156,9 +179,26 @@ class ParallelMDP(MDP):
     loc_m = self.local_controls(m)
     return prod(mdp.t(mi, ni, ni_p) for mdp, mi, ni, ni_p in zip(self.mdplist, loc_m, loc_n, loc_n_p))
 
-  def T(self, m):
+  def computeTm(self, m):
     loc_m = self.local_controls(m)
-    return reduce(sp.kron, (mdp.T(mi) for (mdp, mi) in zip(self.mdplist, loc_m)), 1)
+    Tm_coo = reduce(sp.kron, (mdp.Tcoo(mi) for (mdp, mi) in zip(self.mdplist, loc_m)), 1)
+    Tm_coo.eliminate_zeros()
+
+    self.computedT_coo[m] = Tm_coo
+    self.computedT_csr[m] = Tm_coo.tocsr()
+
+  def T(self, m):
+    if self.computedT_csr[m] is None:
+      self.computeTm(m)
+    
+    return self.computedT_csr[m]
+
+  def Tcoo(self, m):
+    if self.computedT_coo[m] is None:
+      self.computeTm(m)
+
+    return self.computedT_coo[m]
+
 
 class ProductMDP(MDP):
   """Non-deterministic Product Markov Decision Process"""
@@ -170,25 +210,27 @@ class ProductMDP(MDP):
 
     self.deterministic = True
 
-    # map range(N1) -> 2^range(N2)
+    # map range(N1) -> 2^range(M2)
     if connection:
-      self.connection = lambda mdp1_n: set(map(mdp2.input, connection(mdp1.output(mdp1_n) ) ))
+      n1m2_conn = lambda mdp1_n: set(map(mdp2.input, connection(mdp1.output(mdp1_n) ) ))
     else:
-      self.connection = lambda mdp1_n: set([mdp2.input(mdp1.output(mdp1_n))])
+      n1m2_conn = lambda mdp1_n: set([mdp2.input(mdp1.output(mdp1_n))])
+
+    # compute connections
+    self.conn_list = [[m2 for m2 in n1m2_conn(n1)] for n1 in range(mdp1.N)]
 
     # Check that connection is valid
     for n1 in range(mdp1.N):
-      inputs_n1 = self.connection(n1)
-      if not inputs_n1 <= set(range(mdp2.M)):
+      if not self.conn_list[n1] <= set(range(mdp2.M)):
         raise Exception('invalid connection')
-      if len(inputs_n1) > 1:
+      if len(self.conn_list[n1]) > 1:
         self.deterministic = False
 
     if not self.deterministic:
       print('warning: creating nondeterministic product')
 
-    mdp1.check()
-    mdp2.check()
+    # mdp1.check()
+    # mdp2.check()
 
     self.mdp1 = mdp1
     self.mdp2 = mdp2
@@ -199,11 +241,17 @@ class ProductMDP(MDP):
     self.input_name = mdp1.input_name
     self.output_name = '(%s, %s)' % (mdp1.output_name, mdp2.output_name) 
 
+    self.computedT_csr = [None for m in range(self.M)]
+    self.computedT_coo = [None for m in range(self.M)]
+
   # State ordering for mdp11 = (p1, ..., pN1) mdp12 = (q1, ..., qN2):
   #  (p1 q1) (p1 q2) ... (p1 qN2) (p2 q1) ... (pN1 qN2)
   def local_states(self, n):
     '''return indices in product'''
-    return n // self.mdp2.N, n % self.mdp2.N
+    return (self.mdp1.local_states(n // self.mdp2.N), self.mdp1.local_states(n % self.mdp2.N))
+
+  def global_state(self, n):
+    return self.mdp2.global_state(n[1]) + self.mdp2.N * self.mdp1.global_state(n[0])
 
   def output(self, n):
     n1, n2 = self.local_states(n)
@@ -215,22 +263,58 @@ class ProductMDP(MDP):
   def T(self, m):
     if not self.deterministic:
       raise Exception('can not compute T matrix of nondeterministic product')
-    ret =  sp.bmat([[self.mdp1.t(m, n, n_p)*self.mdp2.T( list(self.connection(n_p))[0] ) 
-                     for n_p in range(self.mdp1.N)]
-                    for n in range(self.mdp1.N)])
-    ret.eliminate_zeros()
-    return ret
+
+    if self.computedT[m] is None:
+      Tm =  sp.bmat([[self.mdp1.t(m, n, n_p)*self.mdp2.T( self.conn_list[n_p][0] ) 
+                       for n_p in range(self.mdp1.N)]
+                      for n in range(self.mdp1.N)])
+      Tm.eliminate_zeros()
+      self.computedT[m] = Tm
+
+    return self.computedT[m]
+
+  def computeTm(self, m):
+    if not self.deterministic:
+      raise Exception('can not compute T matrix of nondeterministic product')
+
+    # desired matrix has blocks of form [ T1[m, s1, s1p] * T2[c(c1p), :, :] ]
+
+    T1coo = self.mdp1.Tcoo(m)
+
+    mat_list = [[sp.coo_matrix((self.mdp2.N, self.mdp2.N)) for np in range(self.mdp1.N)] 
+                for n in range(self.mdp1.N)]
+    # loop over non-zero entries in T1(m)
+    for (ni, npi, pri) in zip(T1coo.row, T1coo.col, T1coo.data):
+      mat_list[ni][npi] = pri * self.mdp2.Tcoo( self.conn_list[npi][0] )
+
+    Tm_coo = sp.bmat(mat_list)
+    Tm_coo.eliminate_zeros()
+
+    self.computedT_coo[m] = Tm_coo
+    self.computedT_csr[m] = Tm_coo.tocsr()
+
+  def T(self, m):
+    if self.computedT_csr[m] is None:
+      self.computeTm(m)
+    
+    return self.computedT_csr[m]
+
+  def Tcoo(self, m):
+    if self.computedT_coo[m] is None:
+      self.computeTm(m)
+
+    return self.computedT_coo[m]
 
   def t(self, m, n, n_p):
     if not self.deterministic:
       raise Exception('can not compute transition probabilities in nondeterministic product')
 
-    n1, n2 = self.local_states(n)
-    n1p, n2p = self.local_states(n_p)
+    # n1, n2 = self.local_states(n)
+    # n1p, n2p = self.local_states(n_p)
+    return self.T(m)[n,n_p]
+    # return self.mdp1.t(m, n1, n1p) * self.mdp2.t( list(self.connection(n1p))[0], n2, n2p)
 
-    return self.mdp1.t(m, n1, n1p) * self.mdp2.t( list(self.connection(n1p))[0], n2, n2p)
-
-  def solve_reach(self, accept, prec=1e-5):
+  def solve_reach(self, accept, maxiter=np.Inf, prec=1e-5):
     '''solve reachability problem
     Inputs:
     - accept: function range(N) -> {True, False} defining target set
@@ -243,16 +327,23 @@ class ProductMDP(MDP):
     # V(s1',s2',s3') -> V(s1',s2',s3) -> V(s1', s2, s3) -> V(s1, s2, s3)
     # where e.g.  V(s1',s2',s3) = \sum_{s3' \in y2(s2')} t3(m3, s3, s3') V(s1', s2', s3')
 
+    # todo: use sparse V and compute only in neighborhood of positivity
+
     is_accept = np.array([[accept((n, mu)) for n in range(self.mdp1.N)] for mu in range(self.mdp2.N)], dtype='d')
     # mu first dim, n second
     V = np.array(is_accept)
 
     Pol = np.zeros(is_accept.shape, dtype=int)
 
-    while True:
+    it = 0
+    start = time.time()
+
+    while it < maxiter:
+
+      print('iteration {}, time {}'.format(it, time.time()-start))
       # Min over nondeterminism: W(mu,s') = min_{q \in y(s')} \sum_\mu' t(q,\mu,\mu') V(\mu', s')
       Wq_list = [self.mdp2.T(q).dot(V) for q in range(self.mdp2.M)]
-      W = np.array([[min(Wq_list[q][mu, n] for q in self.connection(n)) for n in range(self.mdp1.N)]
+      W = np.array([[min(Wq_list[q][mu, n] for q in self.conn_list[n]) for n in range(self.mdp1.N)]
                          for mu in range(self.mdp2.N)])
       # Max over actions: V_new(mu, s) = max_{m} \sum_s' t(m, s, s') W(mu, s')
       V_new_m = [self.mdp1.T(m).dot(W.transpose()).transpose() for m in range(self.M)]
@@ -268,96 +359,8 @@ class ProductMDP(MDP):
         break
       V = V_new
 
+      it += 1
+
+    print('finished after {} iterations and {}s'.format(it, time.time()-start))
     return V.ravel(order='F'), Pol.ravel(order='F')
-
-
-def formula_to_mdp(formula):
-  fsa = Fsa()
-  fsa.from_formula(formula)
-  fsa.add_trap_state()
-
-  # mapping state -> state index
-  N = len(fsa.g)
-  dict_fromstate = dict([(sstate, s) for s, sstate in enumerate(sorted(fsa.g.nodes()))])
-
-  inputs = set.union(*[attr['input'] for _,_,attr in fsa.g.edges(data=True)])
-  M = len(inputs)
-  assert(inputs == set(range(M)))
-
-  T = [np.zeros((N, N)) for m in range(M)]
-
-  for (s1, s2, attr) in fsa.g.edges(data=True):
-    for u in attr['input']:
-      T[u][dict_fromstate[s1], dict_fromstate[s2]] = 1
-
-
-  mdp = MDP(T, input_name='ap', input_fcn=fsa.bitmap_of_props,
-            output_name='mu')
-
-  init_states = set(map(lambda state: dict_fromstate[state], [state for (state, key) in fsa.init.items() if key == 1]))
-  final_states = set(map(lambda state: dict_fromstate[state], fsa.final))
-
-  mdp.init = list(init_states)
-
-  # create map number => sets of atom propositions
-  # make tuple with on off
-  props= tuple()
-  for ap in fsa.props.keys():
-      props+=([True, False],)
-  dict_input2prop = dict()
-  for status in product(*props):
-      ap_set=tuple()
-      for i,name in enumerate(fsa.props.keys()):
-          if status[i]:
-            ap_set += (name,)
-      dict_input2prop[fsa.bitmap_of_props(ap_set)] = ap_set
-
-  return mdp, init_states, final_states, dict_input2prop
-
-
-class LTL_Policy(object):
-  """control policy"""
-  def __init__(self, dfsa, dfsa_init, dfsa_final, pol, V):
-    self.dfsa = dfsa
-    self.dfsa_init = dfsa_init
-    self.dfsa_final = dfsa_final
-    self.pol = pol
-    self.V = V
-
-    self.reset()
-
-  def reset(self):
-    self.dfsa_state = np.zeros((1,self.dfsa.N)).flatten()
-    self.dfsa_state[self.dfsa_init] = 1
-
-  def report_aps(self, aps):
-    dfsa_action = self.dfsa.input_fcn( aps )
-    self.dfsa_state = self.dfsa.evolve(self.dfsa_state, dfsa_action)
-
-  def get_input(self, syst_state):
-    prod_state = syst_state * self.dfsa.N + np.nonzero(self.dfsa_state)[0][0]
-    return self.pol[prod_state], self.V[prod_state]
-
-  def finished(self):
-    return np.nonzero(self.dfsa_state)[0][0] in self.dfsa_final
-
-def solve_ltl_cosafe(mdp, formula, connection):
-  '''synthesize a policy that maximizes the probability of
-     satisfaction of formula
-     Inputs:
-      - mdp: a MDP or ProductMDP with output alphabet Y
-      - formula: a syntactically cosafe LTL formula over AP
-      - connection: mapping Y -> 2^2^AP
-
-     Example: If AP = {'s1', 's2'}, then connection(x) should be a 
-     value in 2^2^{'s1', 's2'} 
-
-     Outputs:
-      - pol: a Policy maximizing the probability of enforcing formula''' 
-
-  dfsa, init, final, _ = formula_to_mdp(formula)
-  prod = ProductMDP(mdp, dfsa, connection)
-  V, pol = prod.solve_reach(accept=lambda s: s[1] in final)
-
-  return LTL_Policy(dfsa, list(init)[0], final, pol, V)
 
