@@ -4,8 +4,6 @@ import itertools
 import operator
 from scipy.stats import norm
 
-import matplotlib.pyplot as plt
-
 from best.mdp import MDP
 from ApprxSimulation.LTI_simrel import eps_err
 

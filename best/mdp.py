@@ -170,7 +170,6 @@ class ParallelMDP(MDP):
     n_list = [mdp.N for mdp in self.mdplist]
     loc_idx = tuple(n % prod(n_list[i:]) / prod(n_list[i + 1:])
                     for i in range(len(n_list)))
-
     return tuple(mdpi.output(ni) for (mdpi, ni) in zip(self.mdplist, loc_idx))
 
   def input(self, u):
