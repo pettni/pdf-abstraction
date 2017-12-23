@@ -59,11 +59,20 @@ class MDP(object):
         raise Exception('matrix not stochastic')
 
   def __str__(self):
-    ret = 'MDP: %d inputs "%s" --> %d states "%s"' % (self.M, self.input_name, self.N, self.output_name)
+    ret = 'MDP: {0} inputs "{2}" --> {1} outputs "{3}"' \
+          .format(self.M, self.N, self.input_name, self.output_name)
     return ret
 
   def __len__(self):
     return self.N
+
+  def nnz(self):
+    '''total number of stored transitions'''
+    return sum(self.Tcoo(m).nnz for m in range(self.M))
+
+  def sparsity(self):
+    '''percentage of transitions'''
+    return float(self.nnz()) / (self.N**2 * self.M)
 
   def global_state(self, n):
     return n
