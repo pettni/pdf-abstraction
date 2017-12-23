@@ -162,6 +162,8 @@ class LTIAbstraction(object):
     if s_ab == self.mdp.N - 1:
       u = np.zeros((len(self.input_cst[0]),1))
 
+    s_ab_center = s_ab # todo: make this center of cell!
+
     u = self.K_refine.dot(s_conc-s_ab) + u
     return u # input
 

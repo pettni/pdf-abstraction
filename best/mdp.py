@@ -4,10 +4,7 @@ import operator
 
 import time
 
-from best.fsa import *
-
-def prod(n):
-  return reduce(operator.mul, n, 1)
+from best import prod
 
 class MDP(object):
   """Markov Decision Process"""
