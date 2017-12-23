@@ -125,13 +125,15 @@ class LTIAbstraction(object):
     self.ap_regions = regions
 
 
-  def plot(self, fig):
-    # todo: add transformation
-    ax = fig.add_subplot(111)
+  def plot(self, ax):
 
     grid = np.meshgrid(*self.srep)
 
-    ax.scatter(grid[0].flatten(), grid[1].flatten(), label='Finite states', color='k', s=10, marker="o")
+    xy = np.vstack([grid[0].flatten(), grid[1].flatten()])
+
+    xy_t = self.transform_d_o(xy)
+
+    ax.scatter(xy_t[0,:], xy_t[1,:], label='Finite states', color='k', s=10, marker="o")
 
 
   def closest_abstract(self, x):

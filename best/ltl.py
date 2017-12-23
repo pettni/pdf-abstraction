@@ -73,8 +73,8 @@ def solve_ltl_cosafe(mdp, formula, connection, maxiter=np.Inf, algorithm='sofie'
     V, pol = mdp_dfsa.solve_reach(accept=lambda s: s[1] in dfsa_final, maxiter=maxiter)
   else:
     act_inputs = np.array([[1 if q in map(dfsa.input, connection( mdp.output(s) )) else 0 
-                            for s in range(mdp.N)] for q in range(dfsa.N)])
-    act_inputs[:,-1] = 0
+                            for s in range(mdp.N)] 
+                           for q in range(dfsa.M)])
     maxiter = min(maxiter, 100)  # todo: fix
     V, pol, _ = reach_dfa(act_inputs, mdp, dfsa, dfsa_final, recursions=maxiter, delta=0.0)
 
@@ -145,8 +145,8 @@ def reach_dfa(act_inputs, mdp, dfa, dfa_final, V = None, recursions=1, delta=0 )
     Tnew = sp.hstack(dfa.Tmat_csr).toarray()
     #print(Tnew.toarray())
 
-    trans_qqa = np.zeros((dfa.N,dfa.N,len(dfa.Tmat_csr))) # q,q',act
-    trans_qs = np.zeros((dfa.N,dfa.N, mdp.N)) # q, q',S'
+    trans_qqa = np.zeros((dfa.N, dfa.N, dfa.M)) # q, q', act
+    trans_qs  = np.zeros((dfa.N, dfa.N, mdp.N)) # q, q', S'
 
     for q in range(dfa.N):
         trans_qqa[q] = Tnew[q,:].reshape((dfa.N, -1), order="F")
@@ -181,4 +181,4 @@ def reach_dfa(act_inputs, mdp, dfa, dfa_final, V = None, recursions=1, delta=0 )
         V = V_new
 
     W = np.amin(Accept+ nAccept.dot(V)+trans_qs[dfa.init[0]],axis =0 )
-    return V,pol, W
+    return V, pol.astype(np.int32), W
