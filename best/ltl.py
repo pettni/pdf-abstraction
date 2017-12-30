@@ -3,7 +3,7 @@ import scipy.sparse as sp
 from itertools import product
 
 from best.fsa import Fsa
-from best.mdp import MDP, ProductMDP
+from best.mdp import MDP, ProductMDP, ProductMDP2
 
 def formula_to_mdp(formula):
   '''convert a co-safe LTL formula to a DFSA represented as a   
@@ -69,8 +69,8 @@ def solve_ltl_cosafe(mdp, formula, connection, maxiter=np.Inf, algorithm='sofie'
   dfsa, dfsa_init, dfsa_final, _ = formula_to_mdp(formula)
 
   if algorithm == 'petter':
-    mdp_dfsa = ProductMDP(mdp, dfsa, connection)
-    V, pol = mdp_dfsa.solve_reach(accept=lambda s: s[1] in dfsa_final, maxiter=maxiter)
+    prod_mdp = mdp.product(dfsa, connection)
+    V, pol = prod_mdp.solve_reach(accept=lambda s: s[-1] in dfsa_final, maxiter=maxiter)
   else:
     act_inputs = np.array([[1 if q in map(dfsa.input, connection( mdp.output(s) )) else 0 
                             for s in range(mdp.N)] 

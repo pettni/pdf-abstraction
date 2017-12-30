@@ -44,8 +44,6 @@ class MDP(object):
       output alphabet: Y
       input  alphabet: U
     '''
-    self.M = len(T)         # number of actions
-    self.N = T[0].shape[1]  # number of states
 
     # Inputs are action labels
     self.input_fcn = input_fcn
@@ -55,16 +53,23 @@ class MDP(object):
     self.output_fcn = output_fcn
     self.output_name = output_name
 
-    self.init = None
     # Transition matrices for each axis
-    self.Tmat_csr = [None,] * self.M
-    self.Tmat_coo = [None,] * self.M
+    self.Tmat_csr = [None,] * len(T)
+    self.Tmat_coo = [None,] * len(T)
 
-    for m in range(self.M):
+    for m in range(len(T)):
       self.Tmat_csr[m] = sp.csr_matrix(T[m])  # convert to sparse format
       self.Tmat_coo[m] = sp.coo_matrix(T[m])
 
     self.check()
+
+  @property
+  def N(self):
+    return self.Tmat_coo[0].shape[1]
+
+  @property
+  def M(self):
+    return len(self.Tmat_coo)
 
   def check(self):
     for m in range(self.M):
@@ -96,6 +101,47 @@ class MDP(object):
 
   def local_states(self, n):
     return n
+
+  def resolve_connection(self, new_mdp, connection):
+    new_conn_list = [[] for k in range(self.N)]
+    new_det = True
+
+    for n in range (self.N):
+      inputs = connection(self.output(n))
+      for inp in inputs:
+        new_conn_list[n].append( new_mdp.input(inp) )
+
+      if not set(new_conn_list[n]) <= set(range(new_mdp.M)):
+        raise Exception('invalid connection')
+      if len(new_conn_list[n]) == 0:
+        raise Exception('empty connection')
+      if len(new_conn_list[n]) > 1:
+        new_det = False
+    return new_conn_list, new_det
+
+  def product(self, new_mdp, connection):
+    if isinstance(new_mdp, ProductMDP2):
+      Error('not implemented')
+
+    new_conn_list = np.zeros([new_mdp.M, self.N])
+    new_det = True
+    
+    for n in range (self.N):
+      u_list = connection(self.output(n))
+
+      if len(u_list) == 0:
+        raise Exception('empty connection')
+
+      if len(u_list) > 1:
+        new_det = False
+
+      for u in u_list:
+        inp = new_mdp.input(u)
+        if inp < 0 or inp >= new_mdp.M:
+          raise Exception('invalid connection')
+        new_conn_list[inp, n] = 1
+
+    return ProductMDP2([self, new_mdp], [new_conn_list], [new_det])
 
   def T(self, m):
     '''transition matrix for action m'''
@@ -160,14 +206,24 @@ class ParallelMDP(MDP):
 
     self.mdplist = mdplist
 
-    self.M = reduce(operator.mul, [mdp.M for mdp in mdplist], 1)
-    self.N = reduce(operator.mul, [mdp.N for mdp in mdplist], 1)
-
-    self.input_name = '(' + ', '.join(mdp.input_name for mdp in mdplist) + ')'
-    self.output_name = '(' + ', '.join(mdp.output_name for mdp in mdplist) + ')'
-
     self.computedT_coo = [None for m in range(self.M)]
     self.computedT_csr = [None for m in range(self.M)]
+
+  @property
+  def N(self):
+    return reduce(operator.mul, [self.mdplist[i].N for i in range(len(self.mdplist))], 1)
+
+  @property
+  def M(self):
+    return reduce(operator.mul, [self.mdplist[i].M for i in range(len(self.mdplist))], 1)
+
+  @property
+  def input_name(self):
+    return '(' + ', '.join(self.mdplist[i].input_name for i in range(len(self.mdplist))) + ')'
+
+  @property
+  def output_name(self):
+    return '(' + ', '.join(self.mdplist[i].output_name for i in range(len(self.mdplist))) + ')'
 
   def global_state(self, n_loc):
     '''local state n_loc to global n'''
@@ -395,46 +451,35 @@ class ProductMDP(MDP):
     print('finished after {} iterations and {}s'.format(it, time.time()-start))
     return V.ravel(order='F'), Pol.ravel(order='F')
 
+
 class ProductMDP2(MDP):
   """Non-deterministic Product Markov Decision Process"""
-  def __init__(self, mdplist, conn_fcns):
+  def __init__(self, mdplist, conn_list, det_list):
 
-    self.N_list = [mdp.N for mdp in mdplist]
     self.mdplist = mdplist
+    self.conn_list = conn_list
+    self.det_list = det_list
 
-    # construct list of connection mappings X_1 * ... * X_i -> U_{i+1}
-    self.conn_list = []
-    for i in range(1, len(mdplist)):
-      # Number of states to "left"
-      n_list_left = [mdplist[j].N for j in range(i)]
-      left_N = prod(n_list_left)
+  @property
+  def N(self):
+    return prod(self.mdplist[i].N for i in range(len(self.mdplist)))
 
-      conn_i_list = [[] for k in range(left_N)]
-      
-      for n in range (left_N):
-        midx = idx_to_midx(n, n_list_left)
+  @property
+  def M(self):
+    return self.mdplist[0].M
 
-        output = list(mdplist[j].output(midx[j]) for j in range(i))
-        inputs = conn_fcns[i-1](output)
+  @property
+  def input_name(self):
+    return self.mdplist[0].input_name
 
-        for inp in inputs:
-          conn_i_list[n].append( mdplist[i].input(inp) )
+  @property
+  def output_name(self):
+    return '(' + ', '.join(self.mdplist[i].output_name 
+                           for i in range(len(self.mdplist))) + ')'
 
-      self.conn_list.append(conn_i_list)
-
-    # Check that connection is valid
-    for i in range(len(mdplist)-1):
-      n_list_left = [mdplist[j].N for j in range(i)]
-      left_N = prod(n_list_left)
-      for n in range (left_N):
-        if not set(self.conn_list[i][n]) <= set(range(mdplist[i+1].M)):
-          raise Exception('invalid connection')
-
-    self.M = mdplist[0].M
-    self.N = prod(mdp.N for mdp in mdplist)
-
-    self.input_name = mdplist[0].input_name
-    self.output_name = '(' + ', '.join(mdp.output_name for mdp in mdplist) + ')'
+  @property
+  def N_list(self):
+    return [self.mdplist[i].N for i in range(len(self.mdplist))]
 
 
   def global_state(self, n_loc):
@@ -460,6 +505,38 @@ class ProductMDP2(MDP):
   def input(self, u):
     return mdplist[0].input(u)
 
+  def product(self, new_mdp, connection):
+    ''' Attach a product mdp '''
+    if isinstance(new_mdp, ProductMDP2):
+      Error('not implemented')
+
+    new_conn_list = np.zeros([new_mdp.M] + self.N_list)
+    new_det = True
+
+    for n in range (self.N):
+      midx = idx_to_midx(n, self.N_list)
+      u_list = connection(self.output(n))
+
+      if len(u_list) == 0:
+        raise Exception('empty connection')
+
+      if len(u_list) > 1:
+        new_det = False
+
+      for u in u_list:
+        inp = new_mdp.input(u)
+        if inp < 0 or inp >= new_mdp.M:
+          raise Exception('invalid connection')
+        new_conn_list[inp][midx] = 1
+
+        # conn_list_a.append(inp)
+        # new_conn_list[n].append( new_mdp.input(inp) )
+
+    return ProductMDP2(self.mdplist + [new_mdp],
+                       self.conn_list + [new_conn_list],
+                       self.det_list + [new_det])
+
+
   def solve_reach(self, accept, maxiter=np.Inf, prec=1e-5):
     '''solve reachability problem
     Inputs:
@@ -472,7 +549,6 @@ class ProductMDP2(MDP):
     # todo: use sparse V and compute only in neighborhood of positivity
 
     V = np.zeros(self.N_list)
-    Pol = np.zeros(self.N_list, dtype=np.int32)
 
     V_accept = np.zeros(self.N_list)
     for n in range(self.N):
@@ -490,39 +566,33 @@ class ProductMDP2(MDP):
       for i in range(len(self.mdplist)-1, 0, -1):
         # carry out computation for i = n-1 ... 1
 
-        # todo: check if connection deterministic and simplify
+        # for each action to system i
+        Wq_list = np.array([sparse_tensor(self.mdplist[i].T(q), W, i) 
+                            for q in range(self.mdplist[i].M)])
 
-        # for each action
-        Wq_list = np.array([sparse_tensor(self.mdplist[i].T(q), W, i) for q in range(self.mdplist[i].M)])
+        # add dummy ones before minimizing
+        newdim = Wq_list.shape[:i+1] + tuple (1 for k in range(i, len(self.mdplist)))
+        reps = tuple(1 for k in range(i+1)) + Wq_list.shape[i+1:]
 
-        # Min over nondeterminism
-        for n in range(self.N):
+        Wq_dummy = (1 - self.conn_list[i-1]).reshape(newdim)  # promote to same dimension as Wq_list
+        Wq_dummy = np.tile(Wq_dummy, reps)                    # tile to make same size as Wq_list
+        Wq_list += Wq_dummy
 
-          midx = idx_to_midx(n, self.N_list)
-
-          midx_first = midx[:i]
-
-          idx_first = midx_to_idx(midx_first, self.N_list[:i])
-
-          possible_q = self.conn_list[i-1][idx_first]   # indexed by midx corresponding to n_0, ..., n_{i-1}
-
-          W[midx] = min(Wq_list[q][midx] for q in possible_q)
+        # # Min over nondeterminism
+        W = Wq_list.min(axis=0)
 
       # Max over actions: V_new(mu, s) = max_{m} \sum_s' t(m, s, s') W(mu, s')
-      V_new_m = [sparse_tensor(self.mdplist[0].T(m), W, 0) for m in range(self.M)]
-      V_new = np.zeros(V.shape)
-
-      for m in range(self.M):
-        Pol[np.nonzero(V < V_new_m[m])] = m
-        V_new = np.maximum(V_new, V_new_m[m])
-
-        # Max over accepting state
-        V_new = np.maximum(V_new, V_accept)
+      V_new_m = np.array([sparse_tensor(self.mdplist[0].T(m), W, 0) 
+                          for m in range(self.M)])
+      V_new = V_new_m.max(axis=0)
 
       if np.amax(np.abs(V_new - V)) < prec:
         break
       V = V_new
 
       it += 1
+
+    # Policy
+    Pol = V_new_m.argmax(axis=0)
 
     return V.ravel(), Pol.ravel()

@@ -1,4 +1,4 @@
-from best.mdp import MDP, ProductMDP, ParallelMDP
+from best.mdp import MDP, ProductMDP, ProductMDP2, ParallelMDP
 from best.ltl import solve_ltl_cosafe, formula_to_mdp
 import numpy as np
 
@@ -15,7 +15,7 @@ def test_connection():
 
 	mdp2 = MDP([T0, T1], input_fcn=lambda m: m, output_fcn=lambda n: n, input_name='z', output_name='y')
 
-	pmdp = ProductMDP(mdp1, mdp2)
+	pmdp = mdp1.product(mdp2, lambda n1: set([n1]))
 
 	np.testing.assert_almost_equal(pmdp.T(0).todense(), 
 								   np.array([[0,0,0,1], [0,0,0,1], [1,0,0,0], [1,0,0,0]]))
@@ -53,7 +53,9 @@ def test_mdp_dfsa():
 	T2 = np.array([[0, 1], [0, 1]])
 	fsa = MDP([T1, T2])
 
-	prod = ProductMDP(mdp, fsa)
+	connection = lambda n1: set([n1])
+
+	prod = mdp.product(fsa, connection)
 
 	V, _ = prod.solve_reach(accept=lambda y: y[1] == 1 )
 	np.testing.assert_almost_equal(V,
@@ -77,7 +79,7 @@ def test_mdp_dfsa_nondet():
 	T2 = np.array([[0, 1], [0, 1]])
 	fsa = MDP([T1, T2])
 
-	prod = ProductMDP(mdp, fsa, connection=connection)
+	prod = mdp.product(fsa, connection)
 
 	V, _ = prod.solve_reach(accept=lambda y: y[1] == 1 )
 	np.testing.assert_almost_equal(V,
@@ -103,7 +105,7 @@ def test_ltl_synth():
     formula = '( ( F s1 ) & ( F s2 ) )'
     dfsa, init, final, _ = formula_to_mdp(formula)
 
-    prod = ProductMDP(system, dfsa, connection=connection)
+    prod = system.product(dfsa, connection)
 
     V, _ = prod.solve_reach(accept=lambda s: s[1] in final)
 
@@ -133,7 +135,7 @@ def test_ltl_synth2():
 
 	formula = '( ( F s1 ) & ( F s2 ) )'
 
-	pol = solve_ltl_cosafe(system, formula, connection)
+	pol = solve_ltl_cosafe(system, formula, connection, algorithm='petter')
 
 
 def test_ltl_until():
