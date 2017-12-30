@@ -121,7 +121,7 @@ class MDP(object):
 
   def product(self, new_mdp, connection):
     if isinstance(new_mdp, ProductMDP):
-      Error('not implemented')
+      raise Exception('not implemented')
 
     new_conn_list = np.zeros([new_mdp.M, self.N])
     new_det = True
@@ -311,6 +311,36 @@ class ProductMDP(MDP):
   def N_list(self):
     return [self.mdplist[i].N for i in range(len(self.mdplist))]
 
+  def T(self, m):
+    if not all(self.det_list):
+      raise Exception('can not compute transition matrix of nondeterministic product')
+
+    Tret = self.mdplist[0].Tcoo(m)
+
+    for i in range(len(self.mdplist)-1):
+      N = Tret.shape[0]
+
+      mdp1 = self.mdplist[i]
+      mdp2 = self.mdplist[i+1]
+
+      conn = self.conn_list[i]
+      
+      # loop over non-zero entries in T1(m)
+      mat_list = [[sp.coo_matrix((mdp2.N, mdp2.N)) for n2 in range(N)] 
+                  for n1 in range(N)]
+
+      for (ni, npi, pri) in zip(Tret.row, Tret.col, Tret.data):
+
+        midx = idx_to_midx(npi, self.N_list[:i+1])
+
+        ai = np.nonzero(conn[:, midx].flatten())[0][0]
+        mat_list[ni][npi] = pri * mdp2.Tcoo( ai )
+
+      Tret = sp.bmat(mat_list)
+
+    Tret.eliminate_zeros()
+    return Tret
+
 
   def global_state(self, n_loc):
     '''local state n_loc to global n'''
@@ -338,7 +368,7 @@ class ProductMDP(MDP):
   def product(self, new_mdp, connection):
     ''' Attach a product mdp '''
     if isinstance(new_mdp, ProductMDP):
-      Error('not implemented')
+      raise Exception('not implemented')
 
     new_conn_list = np.zeros([new_mdp.M] + self.N_list)
     new_det = True
@@ -388,6 +418,8 @@ class ProductMDP(MDP):
     it = 0
     start = time.time()
 
+    Pol = -np.ones(self.N_list, dtype=np.int32)
+
     while it < maxiter:
       print('iteration {}, time {}'.format(it, time.time()-start))
       
@@ -416,13 +448,16 @@ class ProductMDP(MDP):
                           for m in range(self.M)])
       V_new = V_new_m.max(axis=0)
 
+      P_new = V_new_m.argmax(axis=0)
+      new_idx = np.nonzero(V_new > V)
+      Pol[new_idx] = P_new[new_idx]
+
       if np.amax(np.abs(V_new - V)) < prec:
         break
       V = V_new
 
       it += 1
 
-    # Policy
-    Pol = V_new_m.argmax(axis=0)
+    V = np.fmax(V, V_accept)
 
     return V.ravel(), Pol.ravel()
