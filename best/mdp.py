@@ -1,10 +1,27 @@
 import numpy as np
 import scipy.sparse as sp
 import operator
+from sparse_tensor import sparse_tensor
 
 import time
 
 from best import prod
+
+def idx_to_midx(idx, n_list):
+  # index to multiindex
+  assert idx >= 0
+  assert idx < prod(n_list)
+
+  return tuple(idx % prod(n_list[i:]) / prod(n_list[i + 1:]) for i in range(len(n_list)))
+
+
+def midx_to_idx(midx, n_list):
+  # multiindex to index
+  assert len(midx) == len(n_list)
+  assert all(midx[i] < n_list[i] for i in range(len(midx)))
+  assert all(midx[i] >= 0 for i in range(len(midx)))
+
+  return sum(midx[i] * prod(n_list[i+1:]) for i in range(len(n_list)))
 
 class MDP(object):
   """Markov Decision Process"""
@@ -288,6 +305,9 @@ class ProductMDP(MDP):
 
     # desired matrix has blocks of form [ T1[m, s1, s1p] * T2[c(c1p), :, :] ]
 
+    print "computing Tm"
+    start = time.time()
+
     T1coo = self.mdp1.Tcoo(m)
 
     mat_list = [[sp.coo_matrix((self.mdp2.N, self.mdp2.N)) for np in range(self.mdp1.N)] 
@@ -301,6 +321,8 @@ class ProductMDP(MDP):
 
     self.computedT_coo[m] = Tm_coo
     self.computedT_csr[m] = Tm_coo.tocsr()
+
+    print "computed Tm in ", time.time()-start
 
   def T(self, m):
     if self.computedT_csr[m] is None:
@@ -373,3 +395,134 @@ class ProductMDP(MDP):
     print('finished after {} iterations and {}s'.format(it, time.time()-start))
     return V.ravel(order='F'), Pol.ravel(order='F')
 
+class ProductMDP2(MDP):
+  """Non-deterministic Product Markov Decision Process"""
+  def __init__(self, mdplist, conn_fcns):
+
+    self.N_list = [mdp.N for mdp in mdplist]
+    self.mdplist = mdplist
+
+    # construct list of connection mappings X_1 * ... * X_i -> U_{i+1}
+    self.conn_list = []
+    for i in range(1, len(mdplist)):
+      # Number of states to "left"
+      n_list_left = [mdplist[j].N for j in range(i)]
+      left_N = prod(n_list_left)
+
+      conn_i_list = [[] for k in range(left_N)]
+      
+      for n in range (left_N):
+        midx = idx_to_midx(n, n_list_left)
+
+        output = list(mdplist[j].output(midx[j]) for j in range(i))
+        inputs = conn_fcns[i-1](output)
+
+        for inp in inputs:
+          conn_i_list[n].append( mdplist[i].input(inp) )
+
+      self.conn_list.append(conn_i_list)
+
+    # Check that connection is valid
+    for i in range(len(mdplist)-1):
+      n_list_left = [mdplist[j].N for j in range(i)]
+      left_N = prod(n_list_left)
+      for n in range (left_N):
+        if not set(self.conn_list[i][n]) <= set(range(mdplist[i+1].M)):
+          raise Exception('invalid connection')
+
+    self.M = mdplist[0].M
+    self.N = prod(mdp.N for mdp in mdplist)
+
+    self.input_name = mdplist[0].input_name
+    self.output_name = '(' + ', '.join(mdp.output_name for mdp in mdplist) + ')'
+
+
+  def global_state(self, n_loc):
+    '''local state n_loc to global n'''
+    n_list = [mdp.N for mdp in self.mdplist]   
+    n = sum(self.mdplist[i].global_state(n_loc[i]) * prod(n_list[i+1:]) 
+            for i in range(len(self.mdplist)))
+    return n
+
+  def local_states(self, n):
+    '''global n to local state n_loc'''
+    n_list = [mdp.N for mdp in self.mdplist]
+    return tuple( self.mdplist[i].local_states(n % prod(n_list[i:]) / prod(n_list[i + 1:]))
+            for i in range(len(n_list)))
+
+  def output(self, n):
+    '''output of global n'''
+    n_list = [mdp.N for mdp in self.mdplist]
+    loc_idx = tuple(n % prod(n_list[i:]) / prod(n_list[i + 1:])
+                    for i in range(len(n_list)))
+    return tuple(mdpi.output(ni) for (mdpi, ni) in zip(self.mdplist, loc_idx))
+
+  def input(self, u):
+    return mdplist[0].input(u)
+
+  def solve_reach(self, accept, maxiter=np.Inf, prec=1e-5):
+    '''solve reachability problem
+    Inputs:
+    - accept: function defining target set
+
+    Outputs::
+    - V: vector of length N representing probability to reach target for each state
+    - pol: vector of length N representing optimal action m \in range(M)'''
+
+    # todo: use sparse V and compute only in neighborhood of positivity
+
+    V = np.zeros(self.N_list)
+    Pol = np.zeros(self.N_list, dtype=np.int32)
+
+    V_accept = np.zeros(self.N_list)
+    for n in range(self.N):
+      midx = idx_to_midx(n, self.N_list)
+      V_accept[midx] = accept(midx) 
+
+    it = 0
+    start = time.time()
+
+    while it < maxiter:
+      print('iteration {}, time {}'.format(it, time.time()-start))
+      
+      W = np.fmax(V, V_accept)
+
+      for i in range(len(self.mdplist)-1, 0, -1):
+        # carry out computation for i = n-1 ... 1
+
+        # todo: check if connection deterministic and simplify
+
+        # for each action
+        Wq_list = np.array([sparse_tensor(self.mdplist[i].T(q), W, i) for q in range(self.mdplist[i].M)])
+
+        # Min over nondeterminism
+        for n in range(self.N):
+
+          midx = idx_to_midx(n, self.N_list)
+
+          midx_first = midx[:i]
+
+          idx_first = midx_to_idx(midx_first, self.N_list[:i])
+
+          possible_q = self.conn_list[i-1][idx_first]   # indexed by midx corresponding to n_0, ..., n_{i-1}
+
+          W[midx] = min(Wq_list[q][midx] for q in possible_q)
+
+      # Max over actions: V_new(mu, s) = max_{m} \sum_s' t(m, s, s') W(mu, s')
+      V_new_m = [sparse_tensor(self.mdplist[0].T(m), W, 0) for m in range(self.M)]
+      V_new = np.zeros(V.shape)
+
+      for m in range(self.M):
+        Pol[np.nonzero(V < V_new_m[m])] = m
+        V_new = np.maximum(V_new, V_new_m[m])
+
+        # Max over accepting state
+        V_new = np.maximum(V_new, V_accept)
+
+      if np.amax(np.abs(V_new - V)) < prec:
+        break
+      V = V_new
+
+      it += 1
+
+    return V.ravel(), Pol.ravel()
