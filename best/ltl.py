@@ -3,7 +3,7 @@ import scipy.sparse as sp
 from itertools import product
 
 from best.fsa import Fsa
-from best.mdp import MDP, ProductMDP, ProductMDP2
+from best.mdp import MDP, ProductMDP
 
 def formula_to_mdp(formula):
   '''convert a co-safe LTL formula to a DFSA represented as a   

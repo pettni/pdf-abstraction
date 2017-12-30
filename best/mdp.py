@@ -120,7 +120,7 @@ class MDP(object):
     return new_conn_list, new_det
 
   def product(self, new_mdp, connection):
-    if isinstance(new_mdp, ProductMDP2):
+    if isinstance(new_mdp, ProductMDP):
       Error('not implemented')
 
     new_conn_list = np.zeros([new_mdp.M, self.N])
@@ -141,7 +141,7 @@ class MDP(object):
           raise Exception('invalid connection')
         new_conn_list[inp, n] = 1
 
-    return ProductMDP2([self, new_mdp], [new_conn_list], [new_det])
+    return ProductMDP([self, new_mdp], [new_conn_list], [new_det])
 
   def T(self, m):
     '''transition matrix for action m'''
@@ -282,177 +282,7 @@ class ParallelMDP(MDP):
 
     return self.computedT_coo[m]
 
-
 class ProductMDP(MDP):
-  """Non-deterministic Product Markov Decision Process"""
-  def __init__(self, mdp1, mdp2, connection=None):
-    '''
-    Connect mdp1 and mdp2 in series. It must hold that mdp1.Y \subset mdp2.U.
-    The resulting mdp has inputs mdp1.U and output alphabet mdp2.Y
-    '''
-
-    self.deterministic = True
-
-    # map range(N1) -> 2^range(M2)
-    if connection:
-      n1m2_conn = lambda mdp1_n: set(map(mdp2.input, connection(mdp1.output(mdp1_n) ) ))
-    else:
-      n1m2_conn = lambda mdp1_n: set([mdp2.input(mdp1.output(mdp1_n))])
-
-    # compute connections
-    self.conn_list = [[m2 for m2 in n1m2_conn(n1)] for n1 in range(mdp1.N)]
-
-    # Check that connection is valid
-    for n1 in range(mdp1.N):
-      if not self.conn_list[n1] <= set(range(mdp2.M)):
-        raise Exception('invalid connection')
-      if len(self.conn_list[n1]) > 1:
-        self.deterministic = False
-
-    if not self.deterministic:
-      print('warning: creating nondeterministic product')
-
-    # mdp1.check()
-    # mdp2.check()
-
-    self.mdp1 = mdp1
-    self.mdp2 = mdp2
-
-    self.M = mdp1.M
-    self.N = mdp1.N * mdp2.N
-
-    self.input_name = mdp1.input_name
-    self.output_name = '(%s, %s)' % (mdp1.output_name, mdp2.output_name) 
-
-    self.computedT_csr = [None for m in range(self.M)]
-    self.computedT_coo = [None for m in range(self.M)]
-
-  # State ordering for mdp11 = (p1, ..., pN1) mdp12 = (q1, ..., qN2):
-  #  (p1 q1) (p1 q2) ... (p1 qN2) (p2 q1) ... (pN1 qN2)
-  def local_states(self, n):
-    '''return indices in product'''
-    return (self.mdp1.local_states(n // self.mdp2.N), self.mdp2.local_states(n % self.mdp2.N))
-
-  def global_state(self, n):
-    return self.mdp2.global_state(n[1]) + self.mdp2.N * self.mdp1.global_state(n[0])
-
-  def output(self, n):
-    return (self.mdp1.output(n // self.mdp2.N), self.mdp2.output(n % self.mdp2.N))
-
-  def input(self, u):
-    return self.mdp1.input(u)
-
-  def T(self, m):
-    if not self.deterministic:
-      raise Exception('can not compute T matrix of nondeterministic product')
-
-    if self.computedT[m] is None:
-      Tm =  sp.bmat([[self.mdp1.t(m, n, n_p)*self.mdp2.T( self.conn_list[n_p][0] ) 
-                       for n_p in range(self.mdp1.N)]
-                      for n in range(self.mdp1.N)])
-      Tm.eliminate_zeros()
-      self.computedT[m] = Tm
-
-    return self.computedT[m]
-
-  def computeTm(self, m):
-    if not self.deterministic:
-      raise Exception('can not compute T matrix of nondeterministic product')
-
-    # desired matrix has blocks of form [ T1[m, s1, s1p] * T2[c(c1p), :, :] ]
-
-    print "computing Tm"
-    start = time.time()
-
-    T1coo = self.mdp1.Tcoo(m)
-
-    mat_list = [[sp.coo_matrix((self.mdp2.N, self.mdp2.N)) for np in range(self.mdp1.N)] 
-                for n in range(self.mdp1.N)]
-    # loop over non-zero entries in T1(m)
-    for (ni, npi, pri) in zip(T1coo.row, T1coo.col, T1coo.data):
-      mat_list[ni][npi] = pri * self.mdp2.Tcoo( self.conn_list[npi][0] )
-
-    Tm_coo = sp.bmat(mat_list)
-    Tm_coo.eliminate_zeros()
-
-    self.computedT_coo[m] = Tm_coo
-    self.computedT_csr[m] = Tm_coo.tocsr()
-
-    print "computed Tm in ", time.time()-start
-
-  def T(self, m):
-    if self.computedT_csr[m] is None:
-      self.computeTm(m)
-    
-    return self.computedT_csr[m]
-
-  def Tcoo(self, m):
-    if self.computedT_coo[m] is None:
-      self.computeTm(m)
-
-    return self.computedT_coo[m]
-
-  def t(self, m, n, n_p):
-    if not self.deterministic:
-      raise Exception('can not compute transition probabilities in nondeterministic product')
-
-    # n1, n2 = self.local_states(n)
-    # n1p, n2p = self.local_states(n_p)
-    return self.T(m)[n,n_p]
-    # return self.mdp1.t(m, n1, n1p) * self.mdp2.t( list(self.connection(n1p))[0], n2, n2p)
-
-  def solve_reach(self, accept, maxiter=np.Inf, prec=1e-5):
-    '''solve reachability problem
-    Inputs:
-    - accept: function range(N) -> {True, False} defining target set
-
-    Outputs::
-    - V: vector of length N representing probability to reach target for each state
-    - pol: vector of length N representing optimal action m \in range(M)'''
-
-    # todo: extend to longer connections via recursive computation of W
-    # V(s1',s2',s3') -> V(s1',s2',s3) -> V(s1', s2, s3) -> V(s1, s2, s3)
-    # where e.g.  V(s1',s2',s3) = \sum_{s3' \in y2(s2')} t3(m3, s3, s3') V(s1', s2', s3')
-
-    # todo: use sparse V and compute only in neighborhood of positivity
-
-    is_accept = np.array([[accept((n, mu)) for n in range(self.mdp1.N)] for mu in range(self.mdp2.N)], dtype='d')
-    # mu first dim, n second
-    V = np.array(is_accept)
-
-    Pol = np.zeros(is_accept.shape, dtype=int)
-
-    it = 0
-    start = time.time()
-
-    while it < maxiter:
-
-      print('iteration {}, time {}'.format(it, time.time()-start))
-      # Min over nondeterminism: W(mu,s') = min_{q \in y(s')} \sum_\mu' t(q,\mu,\mu') V(\mu', s')
-      Wq_list = [self.mdp2.T(q).dot(V) for q in range(self.mdp2.M)]
-      W = np.array([[min(Wq_list[q][mu, n] for q in self.conn_list[n]) for n in range(self.mdp1.N)]
-                         for mu in range(self.mdp2.N)])
-      # Max over actions: V_new(mu, s) = max_{m} \sum_s' t(m, s, s') W(mu, s')
-      V_new_m = [self.mdp1.T(m).dot(W.transpose()).transpose() for m in range(self.M)]
-      V_new = np.zeros(V.shape)
-      for m in range(self.M):
-        Pol[np.nonzero(V < V_new_m[m])] = m
-        V_new = np.maximum(V_new, V_new_m[m])
-
-      # Max over accepting state
-      V_new = np.maximum(V_new, is_accept)
-
-      if np.amax(np.abs(V_new - V)) < prec:
-        break
-      V = V_new
-
-      it += 1
-
-    print('finished after {} iterations and {}s'.format(it, time.time()-start))
-    return V.ravel(order='F'), Pol.ravel(order='F')
-
-
-class ProductMDP2(MDP):
   """Non-deterministic Product Markov Decision Process"""
   def __init__(self, mdplist, conn_list, det_list):
 
@@ -507,7 +337,7 @@ class ProductMDP2(MDP):
 
   def product(self, new_mdp, connection):
     ''' Attach a product mdp '''
-    if isinstance(new_mdp, ProductMDP2):
+    if isinstance(new_mdp, ProductMDP):
       Error('not implemented')
 
     new_conn_list = np.zeros([new_mdp.M] + self.N_list)
@@ -532,7 +362,7 @@ class ProductMDP2(MDP):
         # conn_list_a.append(inp)
         # new_conn_list[n].append( new_mdp.input(inp) )
 
-    return ProductMDP2(self.mdplist + [new_mdp],
+    return ProductMDP(self.mdplist + [new_mdp],
                        self.conn_list + [new_conn_list],
                        self.det_list + [new_det])
 
