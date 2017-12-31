@@ -217,10 +217,12 @@ class LTIAbstraction(object):
 
     if (self.eps is None) | (self.eps ==0):
       for input_i in self.ap_regions.keys():
-        in_regions[input_i] = np.array([[1.] if self.T2x.dot(np.array(s)) in self.ap_regions[input_i] else [0.] for s in itertools.product(*self.srep)])
+        in_regions[input_i] = np.array([[1.] if self.T2x.dot(np.array(s)) in self.ap_regions[input_i] else [0.] 
+                                        for s in itertools.product(*self.srep)])
 
       for input_i in self.ap_regions.keys():
-        nin_regions[input_i] = np.ones(in_regions[input_i].shape)-np.array([[1.] if self.T2x.dot(np.array(s)) in regions[input_i] else [0.] for s in itertools.product(*self.srep)])
+        nin_regions[input_i] = np.ones(in_regions[input_i].shape)-np.array([[1.] if self.T2x.dot(np.array(s)) in regions[input_i] else [0.] 
+                                       for s in itertools.product(*self.srep)])
 
     else :
       u, s, v = np.linalg.svd(self.M)

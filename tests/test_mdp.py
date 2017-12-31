@@ -30,6 +30,17 @@ def test_connection():
 	np.testing.assert_almost_equal(vals2, [1, 1, 1, 1])
 
 
+def test_prune():
+	T0 = np.array([[0.5, 0.05, 0.45], [0, 1, 0], [0, 0.01, 0.99]])
+	mdp = MDP([T0])
+	mdp.prune(tresh=0.06)
+
+	TprunedA = np.array([[0.5/0.95, 0, 0.45/0.95], [0, 1, 0], [0, 0, 1]])
+
+	Tpruned = mdp.T(0).todense()
+	print Tpruned
+	np.testing.assert_almost_equal(Tpruned, TprunedA)
+
 def test_reach():
 	T0 = np.array([[0.5, 0.25, 0.25], [0, 1, 0], [0, 0, 1]])
 	mdp = MDP([T0])

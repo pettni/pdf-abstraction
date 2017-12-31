@@ -88,6 +88,23 @@ class MDP(object):
   def __len__(self):
     return self.N
 
+  def prune(self, tresh = 1e-8):
+    # remove transitions with probability less than tresh and renormalize
+    for m in range(self.M):
+      data = self.Tmat_csr[m].data
+      indices = self.Tmat_csr[m].indices
+      indptr = self.Tmat_csr[m].indptr
+      data[np.nonzero(data < tresh)] = 0
+
+      new_mat = sp.csr_matrix((data, indices, indptr), shape=self.Tmat_csr[m].shape)
+
+      # diagonal matrix with row sums
+      norms = new_mat.dot( np.ones(new_mat.shape[1]) )
+      norms_mat = sp.coo_matrix((1/norms, (range(new_mat.shape[1]), range(new_mat.shape[1])))) 
+
+      self.Tmat_csr[m] = norms_mat.dot(new_mat)
+      self.Tmat_coo[m] = sp.coo_matrix(self.Tmat_csr[m])
+
   def nnz(self):
     '''total number of stored transitions'''
     return sum(self.Tcoo(m).nnz for m in range(self.M))
@@ -397,7 +414,7 @@ class ProductMDP(MDP):
                        self.det_list + [new_det])
 
 
-  def solve_reach(self, accept, maxiter=np.Inf, prec=1e-5):
+  def solve_reach(self, accept, maxiter=np.Inf, prec=1e-5, verbose=False):
     '''solve reachability problem
     Inputs:
     - accept: function defining target set
@@ -421,7 +438,9 @@ class ProductMDP(MDP):
     Pol = -np.ones(self.N_list, dtype=np.int32)
 
     while it < maxiter:
-      print('iteration {}, time {}'.format(it, time.time()-start))
+
+      if verbose:
+        print('iteration {}, time {}'.format(it, time.time()-start))
       
       W = np.fmax(V, V_accept)
 
@@ -459,5 +478,7 @@ class ProductMDP(MDP):
       it += 1
 
     V = np.fmax(V, V_accept)
+
+    print('finished after {}s and {} iterations'.format(time.time()-start, it))
 
     return V.ravel(), Pol.ravel()
