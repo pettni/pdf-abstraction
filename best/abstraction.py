@@ -54,9 +54,6 @@ class LTIAbstraction(object):
       srep += (np.arange(lx[i], ux[i], dval)+dval/2,)
       sedge += (np.arange(lx[i], ux[i]+dval, dval),)
 
-    sn_list = [len(sr) for sr in srep]
-    sn = prod(sn_list) # number of finite states
-
     # grid input
     urep = tuple()
     lu, uu = pc.bounding_box(lti_syst.U)  # lower and upperbounds over all dimensions
@@ -65,6 +62,9 @@ class LTIAbstraction(object):
 
     un_list = [len(ur) for ur in urep]
     un = prod(un_list)  # number of finite states
+
+    sn_list = [len(sr) for sr in srep]
+    sn = prod(sn_list) # number of finite states
 
     transition_list = [np.zeros((sn+1, sn+1)) for m in range(un)]
 
@@ -93,23 +93,12 @@ class LTIAbstraction(object):
 
       transition_list[u_index] = p_local
 
-
-    # x-valued output
-    # mapping index -> center point
-    def output_fcn(s):
-      if s == self.mdp.N-1:
-        return (s, (None,) * len(sn_list))
-      else:
-        x_diag = np.array(tuple(srep[i][s % prod(sn_list[i:]) / prod(sn_list[i + 1:])]
-                          for i in range(len(sn_list)))).reshape(2,1)
-        return (s,  self.transform_d_o(x_diag))
-
-    self.mdp = MDP(transition_list, input_name='u_d', output_name='(s, x_d)', 
-                   output_fcn=output_fcn)
-
     self.srep = srep
     self.urep = urep
     self.sedge = sedge
+
+    self.mdp = MDP(transition_list, input_name='u_d', output_name='(s, x_d)', 
+                   output_fcn=lambda s: (s, self.s_to_x(s)))
 
     self.M = M_min
     self.K = K_min
@@ -120,10 +109,11 @@ class LTIAbstraction(object):
     self.output_cst = dict([(s, sstate) for s, sstate in enumerate(itertools.product(*srep))])
     self.input_cst = dict([(u, uvalue) for u, uvalue in enumerate(itertools.product(*urep))])
 
+  def __len__(self):
+    return prod(len(sr) for sr in self.srep)
 
   def set_regions(self, regions):
     self.ap_regions = regions
-
 
   def plot(self, ax):
 
@@ -156,18 +146,19 @@ class LTIAbstraction(object):
 
     return s
 
-  def refine_input(self, u_ab, s_ab, s_conc):
+  def interface(self, u_ab, s_ab, x):
     '''refine abstract input u_ab to concrete input'''
-    u = np.array(self.input_cst[u_ab]).reshape(-1, 1)
 
+    u = np.array(self.input_cst[u_ab]).reshape(-1, 1)
+    
     # give zero if in dummy state
     if s_ab == self.mdp.N - 1:
-      u = np.zeros((len(self.input_cst[0]),1))
+      return np.zeros((len(self.input_cst[0]),1))
 
-    s_ab_center = s_ab # todo: make this center of cell!
+    x_s = self.s_to_x(s_ab)
 
-    u = self.K_refine.dot(s_conc-s_ab) + u
-    return u # input
+    return self.K.dot(x - x_s) + u
+
 
   def all_abstract(self, x):
     '''compute abstract states that are related to x via simulation relation
@@ -206,6 +197,18 @@ class LTIAbstraction(object):
   def transform_d_o(self, x_diag):
     '''transform from diagonal to original coordinates'''
     return self.T2x.dot(x_diag)
+
+  def s_to_x(self, s):
+    '''return center of cell s'''
+    sn_list = [len(sr) for sr in self.srep]
+    sn = prod(sn_list) # number of finite states
+
+    if s == self.mdp.N-1:
+      return None
+
+    x_diag = np.array(tuple(self.srep[i][s % prod(sn_list[i:]) / prod(sn_list[i + 1:])]
+                          for i in range(len(sn_list)))).reshape(-1,1)
+    return self.transform_d_o(x_diag)
 
   def map_dfa_inputs(self):
     '''for dict regions {'region': polytope}, compute dicts in_regions and nin_regions where

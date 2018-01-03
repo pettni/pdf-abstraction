@@ -414,7 +414,7 @@ class ProductMDP(MDP):
                        self.det_list + [new_det])
 
 
-  def solve_reach(self, accept, maxiter=np.Inf, prec=1e-5, verbose=False):
+  def solve_reach(self, accept, maxiter=np.Inf, delta=0, prec=1e-5, verbose=False):
     '''solve reachability problem
     Inputs:
     - accept: function defining target set
@@ -459,13 +459,13 @@ class ProductMDP(MDP):
         Wq_dummy = np.tile(Wq_dummy, reps)                    # tile to make same size as Wq_list
         Wq_list += Wq_dummy
 
-        # # Min over nondeterminism
+        # Min over nondeterminism
         W = Wq_list.min(axis=0)
 
       # Max over actions: V_new(mu, s) = max_{m} \sum_s' t(m, s, s') W(mu, s')
       V_new_m = np.array([sparse_tensor(self.mdplist[0].T(m), W, 0) 
                           for m in range(self.M)])
-      V_new = V_new_m.max(axis=0)
+      V_new = np.maximum(V_new_m.max(axis=0) - delta, 0)
 
       P_new = V_new_m.argmax(axis=0)
       new_idx = np.nonzero(V_new > V)

@@ -52,7 +52,7 @@ def formula_to_mdp(formula):
   return mdp, init_states, final_states, dict_input2prop
 
 
-def solve_ltl_cosafe(mdp, formula, connection, maxiter=np.Inf,
+def solve_ltl_cosafe(mdp, formula, connection, maxiter=np.Inf, delta=0.,
                      algorithm='sofie', verbose=False):
   '''synthesize a policy that maximizes the probability of
      satisfaction of formula
@@ -72,13 +72,15 @@ def solve_ltl_cosafe(mdp, formula, connection, maxiter=np.Inf,
   if algorithm == 'petter':
     prod_mdp = mdp.product(dfsa, connection)
     V, pol = prod_mdp.solve_reach(accept=lambda s: s[-1] in dfsa_final, 
-                                  maxiter=maxiter, verbose=verbose)
+                                  delta=delta, maxiter=maxiter, 
+                                  verbose=verbose)
   else:
     act_inputs = np.array([[1 if q in map(dfsa.input, connection( mdp.output(s) )) else 0 
                             for s in range(mdp.N)] 
                            for q in range(dfsa.M)])
     maxiter = min(maxiter, 100)  # todo: fix
-    V, pol, _ = reach_dfa(act_inputs, mdp, dfsa, dfsa_final, recursions=maxiter, delta=0.0)
+    V, pol, _ = reach_dfa(act_inputs, mdp, dfsa, dfsa_final, 
+                          recursions=maxiter, delta=delta)
 
   pol_qn = pol.reshape( (dfsa.N, mdp.N), order='F' )
   V_qn = V.reshape( (dfsa.N, mdp.N), order='F' )
