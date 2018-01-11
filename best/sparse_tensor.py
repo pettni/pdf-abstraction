@@ -3,7 +3,7 @@ from itertools import product
 
 def sparse_tensor(a, b, dim):
 	# multiplication of sparse matrix a with tensor b along dimension dim:
-	# c(i1, ...ij, ..., in) = \sum_{ij} a(ij,ij') b(i1, ..., ij', ..., in)
+	# c(i1, ...ij, ..., in) = \sum_{ij'} a(ij,ij') b(i1, ..., ij', ..., in)
 
 	assert a.shape[1] == b.shape[dim]
 

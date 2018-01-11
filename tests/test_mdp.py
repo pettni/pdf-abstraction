@@ -29,6 +29,22 @@ def test_connection():
 	vals2, _ = pmdp.solve_reach(accept=lambda s: s[0]==0 and s[1]==0)
 	np.testing.assert_almost_equal(vals2, [1, 1, 1, 1])
 
+def test_connection():
+
+	T0 = np.array([[0.5, 0.5], [0, 1.]])
+	T1 = np.array([[0.2, 0.8], [1, 0]])
+	T2 = np.array([[0.2, 0.8], [1, 0]])
+
+	mdp1 = MDP([T0, T1, T2])
+	mdp2 = MDP([T0, T1, T2])
+	mdp3 = MDP([T0, T1, T2])
+
+	prod = mdp1.product(mdp2, connection = lambda n: set([1]))
+	prod = prod.product(mdp3, connection = lambda n: set([2]))
+
+	pT = np.kron(np.kron(T0, T1), T2)
+
+	np.testing.assert_almost_equal(prod.T(0).todense(), pT)
 
 def test_prune():
 	T0 = np.array([[0.5, 0.05, 0.45], [0, 1, 0], [0, 0.01, 0.99]])

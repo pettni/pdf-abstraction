@@ -242,6 +242,10 @@ class ParallelMDP(MDP):
   def output_name(self):
     return '(' + ', '.join(self.mdplist[i].output_name for i in range(len(self.mdplist))) + ')'
 
+  @property
+  def N_list(self):
+    return [self.mdplist[i].N for i in range(len(self.mdplist))]
+
   def global_state(self, n_loc):
     '''local state n_loc to global n'''
     n_list = [mdp.N for mdp in self.mdplist]
@@ -349,8 +353,7 @@ class ProductMDP(MDP):
       for (ni, npi, pri) in zip(Tret.row, Tret.col, Tret.data):
 
         midx = idx_to_midx(npi, self.N_list[:i+1])
-
-        ai = np.nonzero(conn[:, midx].flatten())[0][0]
+        ai = np.nonzero(conn[(slice(None, mdp2.M, None),) + midx].flatten())[0][0]
         mat_list[ni][npi] = pri * mdp2.Tcoo( ai )
 
       Tret = sp.bmat(mat_list)
