@@ -162,7 +162,7 @@ def test_ltl_synth2():
 
 	formula = '( ( F s1 ) & ( F s2 ) )'
 
-	pol = solve_ltl_cosafe(system, formula, connection, algorithm='petter')
+	pol = solve_ltl_cosafe(system, formula, connection)
 
 
 def test_ltl_until():

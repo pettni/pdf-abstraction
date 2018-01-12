@@ -5,7 +5,7 @@ from sparse_tensor import sparse_tensor
 
 import time
 
-from best import prod
+from best import prod, sparse_tensordot
 
 def idx_to_midx(idx, n_list):
   # index to multiindex
@@ -66,6 +66,10 @@ class MDP(object):
   @property
   def N(self):
     return self.Tmat_coo[0].shape[1]
+
+  @property
+  def N_list(self):
+    return (self.N,)
 
   @property
   def M(self):
@@ -428,31 +432,51 @@ class ProductMDP(MDP):
 
     # todo: use sparse V and compute only in neighborhood of positivity
 
-    V = np.zeros(self.N_list)
-
-    V_accept = np.zeros(self.N_list)
-    for n in range(self.N):
-      midx = idx_to_midx(n, self.N_list)
-      V_accept[midx] = accept(midx) 
+    if type(accept).__module__ == np.__name__:
+      # accept already given
+      V_accept = accept
+    else:
+      # we got a function
+      V_accept = np.zeros(self.N_list)
+      for n in range(self.N):
+        midx = idx_to_midx(n, self.N_list)
+        V_accept[midx] = accept(midx) 
 
     it = 0
     start = time.time()
 
-    Pol = -np.ones(self.N_list, dtype=np.int32)
+    V = np.zeros(self.N_list)
 
     while it < maxiter:
 
       if verbose:
         print('iteration {}, time {}'.format(it, time.time()-start))
       
-      W = np.fmax(V, V_accept)
+      V_new_m = self.__sequential_bellman(np.fmax(V, V_accept), delta)
 
-      for i in range(len(self.mdplist)-1, 0, -1):
-        # carry out computation for i = n-1 ... 1
+      V_new = np.maximum(V_new_m.max(axis=0) - delta, 0)
 
+      if np.amax(np.abs(V_new - V)) < prec:
+        break
+      V = V_new
+
+      it += 1
+
+    print('finished after {}s and {} iterations'.format(time.time()-start, it))
+
+    return V.ravel(), V_new_m.argmax(axis=0).ravel()
+
+
+  def __sequential_bellman(self, W, delta=0):
+
+    for i in range(len(self.mdplist)-1, 0, -1):
+
+      if not self.det_list[i-1]:
+        # connection is nondeterministic
+    
         # for each action to system i
-        Wq_list = np.array([sparse_tensor(self.mdplist[i].T(q), W, i) 
-                            for q in range(self.mdplist[i].M)])
+        Wq_list = np.stack([sparse_tensordot(self.mdplist[i].T(m), W, i) 
+                          for m in range(self.mdplist[i].M)])
 
         # add dummy ones before minimizing
         newdim = Wq_list.shape[:i+1] + tuple (1 for k in range(i, len(self.mdplist)))
@@ -465,23 +489,21 @@ class ProductMDP(MDP):
         # Min over nondeterminism
         W = Wq_list.min(axis=0)
 
-      # Max over actions: V_new(mu, s) = max_{m} \sum_s' t(m, s, s') W(mu, s')
-      V_new_m = np.array([sparse_tensor(self.mdplist[0].T(m), W, 0) 
-                          for m in range(self.M)])
-      V_new = np.maximum(V_new_m.max(axis=0) - delta, 0)
+      else: 
+        # connection is deterministic
+        dummy = self.conn_list[i-1]
+        while len(dummy.shape) < 1 + len(self.mdplist):
+          # promote to higher dim to ensure broadcasting is done correctly
+          dummy = dummy[...,np.newaxis]
 
-      P_new = V_new_m.argmax(axis=0)
-      new_idx = np.nonzero(V_new > V)
-      Pol[new_idx] = P_new[new_idx]
+        # # element-wise product
+        W = reduce(np.add, 
+                   (dummy[m] * sparse_tensordot(self.mdplist[i].T(m), W, i) 
+                                       for m in range(self.mdplist[i].M)),
+                   np.zeros(self.N_list))
 
-      if np.amax(np.abs(V_new - V)) < prec:
-        break
-      V = V_new
+    # Max over actions: V_new(mu, s) = max_{m} \sum_s' t(m, s, s') W(mu, s')
+    V_new_m = np.stack([sparse_tensordot(self.mdplist[0].T(m), W, 0) 
+                        for m in range(self.M)])
 
-      it += 1
-
-    V = np.fmax(V, V_accept)
-
-    print('finished after {}s and {} iterations'.format(time.time()-start, it))
-
-    return V.ravel(), Pol.ravel()
+    return V_new_m
