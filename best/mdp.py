@@ -452,7 +452,7 @@ class ProductMDP(MDP):
       if verbose:
         print('iteration {}, time {}'.format(it, time.time()-start))
       
-      V_new_m = self.__sequential_bellman(np.fmax(V, V_accept), delta)
+      V_new_m = self.sequential_bellman(np.fmax(V, V_accept))
 
       V_new = np.maximum(V_new_m.max(axis=0) - delta, 0)
 
@@ -467,7 +467,8 @@ class ProductMDP(MDP):
     return V.ravel(), V_new_m.argmax(axis=0).ravel()
 
 
-  def __sequential_bellman(self, W, delta=0):
+  def sequential_bellman(self, W):
+    ''' sequentially compute V_{ux} = \sum_{x'} T_{uxx'} W_{x'} for a serial MDP'''
 
     for i in range(len(self.mdplist)-1, 0, -1):
 
