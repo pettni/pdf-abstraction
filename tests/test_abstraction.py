@@ -1,8 +1,21 @@
-from best.abstraction import LTIAbstraction
+from best.abstraction import Abstraction, LTIAbstraction
 from Models.Linear import LTI
 
 import numpy as np
 import polytope as pc
+
+def test_grid():
+	abstr = Abstraction([-1, -1], [1, 1], [5, 5])
+	for s in range(5*5):
+		np.testing.assert_equal(s, abstr.x_to_s(abstr.s_to_x(s)))
+
+	xx = 2 * np.random.rand(2,10) - 1
+	for i in range(10):
+		x = xx[:,i].flatten()
+		s = abstr.x_to_s(x)
+		xc = abstr.s_to_x(s)
+
+		np.testing.assert_array_less( np.abs(xc - x),  0.2)
 
 def test_tranformation():
 	dim = 2
@@ -27,7 +40,6 @@ def test_tranformation():
 	xx = 20 * np.random.rand(2,10) - 10
 	for i in range(10):
 		x = xx[:,i].reshape((2,1))
-		print x
 		s_ab = abstr.closest_abstract(x)
 
 		x_out = abstr.mdp.output(s_ab)

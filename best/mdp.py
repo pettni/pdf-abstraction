@@ -5,23 +5,7 @@ from sparse_tensor import sparse_tensor
 
 import time
 
-from best import prod, sparse_tensordot
-
-def idx_to_midx(idx, n_list):
-  # index to multiindex
-  assert idx >= 0
-  assert idx < prod(n_list)
-
-  return tuple(idx % prod(n_list[i:]) / prod(n_list[i + 1:]) for i in range(len(n_list)))
-
-
-def midx_to_idx(midx, n_list):
-  # multiindex to index
-  assert len(midx) == len(n_list)
-  assert all(midx[i] < n_list[i] for i in range(len(midx)))
-  assert all(midx[i] >= 0 for i in range(len(midx)))
-
-  return sum(midx[i] * prod(n_list[i+1:]) for i in range(len(n_list)))
+from best import *
 
 class MDP(object):
   """Markov Decision Process"""
@@ -497,10 +481,10 @@ class ProductMDP(MDP):
           # promote to higher dim to ensure broadcasting is done correctly
           dummy = dummy[...,np.newaxis]
 
-        # # element-wise product
+        # element-wise product
         W = reduce(np.add, 
                    (dummy[m] * sparse_tensordot(self.mdplist[i].T(m), W, i) 
-                                       for m in range(self.mdplist[i].M)),
+                    for m in range(self.mdplist[i].M)),
                    np.zeros(self.N_list))
 
     # Max over actions: V_new(mu, s) = max_{m} \sum_s' t(m, s, s') W(mu, s')

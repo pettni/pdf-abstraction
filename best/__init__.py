@@ -27,3 +27,19 @@ def sparse_tensordot(a, b, dim):
 	new_shape[dim] = a.shape[0]
 
 	return tl.fold(a.dot(tl.unfold(b, dim)), dim, new_shape)
+
+def idx_to_midx(idx, n_list):
+  # index to multiindex
+  assert idx >= 0
+  assert idx < prod(n_list)
+
+  return tuple(idx % prod(n_list[i:]) / prod(n_list[i + 1:]) for i in range(len(n_list)))
+
+
+def midx_to_idx(midx, n_list):
+  # multiindex to index
+  assert len(midx) == len(n_list)
+  assert all(midx[i] < n_list[i] for i in range(len(midx)))
+  assert all(midx[i] >= 0 for i in range(len(midx)))
+
+  return sum(midx[i] * prod(n_list[i+1:]) for i in range(len(n_list)))

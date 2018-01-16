@@ -2,15 +2,75 @@ import numpy as np
 import polytope as pc
 import itertools
 import operator
+import scipy.sparse as sp
 from scipy.stats import norm
 
+from best import *
 from best.mdp import MDP
 from ApprxSimulation.LTI_simrel import eps_err
 
-def prod(n):
-  return reduce(operator.mul, n, 1)
+class Abstraction(object):
 
-class LTIAbstraction(object):
+  def __init__(self, x_low, x_up, n_list):
+    ''' Create abstraction of \prod_i [x_low[i], x_up[i]] with n_list[i] discrete states 
+      in dimension i, and with 1-step movements'''
+
+    self.x_low = np.array(x_low, dtype=np.double).flatten()
+    self.x_up = np.array(x_up, dtype=np.double).flatten()
+    self.n_list = n_list
+    self.eta_list = (self.x_up - self.x_low)/np.array(self.n_list)
+
+    def move(s0, dim, direction):
+      # which state is in direction along dim from s0?
+      midx_s0 = idx_to_midx(s0, n_list)
+      midx_s1 = list(midx_s0)
+      midx_s1[dim] += direction
+      midx_s1[dim] = max(0, midx_s1[dim])
+      midx_s1[dim] = min(n_list[dim]-1, midx_s1[dim])
+      return midx_to_idx(midx_s1, n_list)
+
+    T_list = [sp.eye(self.N)]
+    for d in range(len(n_list)):
+      vals = np.ones(self.N)
+      n0 = np.arange(self.N)
+      npl = [move(s0, d,  1) for s0 in np.arange(self.N) ]
+      npm = [move(s0, d, -1) for s0 in np.arange(self.N) ]
+
+      T_pm = sp.coo_matrix((vals, (n0, npm)), shape=(self.N, self.N))
+      T_list.append(T_pm)
+
+      T_pl = sp.coo_matrix((vals, (n0, npl)), shape=(self.N, self.N))
+      T_list.append(T_pl)
+
+    self.mdp = MDP(T_list, output_name='xc', output_fcn=self.s_to_x)
+
+  @property
+  def N(self):
+    return prod(self.n_list)
+
+  def s_to_x(self, s):
+    '''center of cell s'''
+    return self.x_low + self.eta_list/2 + self.eta_list * idx_to_midx(s, self.n_list)
+
+  def x_to_s(self, x):
+    '''closest abstract state to x'''
+    if not np.all(x.flatten() < self.x_up) and np.all(x.flatten() > self.x_low):
+        raise Exception('x outside abstraction domain')
+    midx = (np.array(x).flatten() - self.x_low)/self.eta_list
+    return midx_to_idx(map(np.int, midx), self.n_list)
+
+  def interface(self, u_ab, s_ab, x):
+    '''return target point for given abstract control and action'''
+    return self.s_to_x(self.mdp.T(u_ab).getrow(s_ab).indices[0])
+
+  def plot(self, ax):
+    xy_t = np.array([self.s_to_x(s) for s in range(prod(self.n_list))])
+
+    ax.scatter(xy_t[:,0], xy_t[:,1], label='Finite states', color='k', s=10, marker="o")
+    ax.set_xlim(self.x_low[0], self.x_up[0])
+    ax.set_ylim(self.x_low[1], self.x_up[1])
+
+class LTIAbstraction(Abstraction):
 
   def __init__(self, lti_syst_orig, d, un=3, verbose = True, Accuracy=True):
 
