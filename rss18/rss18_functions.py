@@ -1,5 +1,12 @@
 import numpy as np
 from best.mdp import MDP
+import matplotlib.patches as patches
+import polytope as pc
+
+def plot_region(ax, poly, name, prob, color='red', alpha=0.5, hatch=False, fill=True):
+    ax.add_patch(patches.Polygon(pc.extreme(poly), color=color, alpha=alpha, hatch=hatch, fill=fill))
+    _, xc = pc.cheby_ball(poly)
+    ax.text(xc[0]-0.4, xc[1]-0.43, '${}_{}$\n$p={}$'.format(name[0].upper(), name[1], prob))
 
 def get_mdp(p0, qw, name):
     # Create map belief MDP with prior p0 and qw quality of weak measurements
@@ -115,13 +122,13 @@ class RoverPolicy:
         self.ltlpol = ltlpol
         self.rover_abstr = rover_abstr
     
-    def __call__(self, x, s_map, aps):
-        self.ltlpol.report_aps(aps)
+    def __call__(self, x_rov, s_map, APs):
+        self.ltlpol.report_aps(APs)
 
-        s_ab = self.rover_abstr.x_to_s(x)
-        u_ab, _ = self.ltlpol.get_input((s_ab, s_map))
+        s_ab = self.rover_abstr.x_to_s(x_rov)
+        u_ab, val = self.ltlpol.get_input((s_ab, s_map))
 
-        return self.rover_abstr.interface(u_ab, s_ab, x)
+        return self.rover_abstr.interface(u_ab, s_ab, x_rov), val
     
     def finished(self):
         return self.ltlpol.finished()
@@ -131,23 +138,24 @@ class RoverPolicy:
 
 class CopterPolicy:
     
-    def __init__(self, pol, final_val, copter_abstr):
+    def __init__(self, pol, val, copter_abstr):
         self.pol = pol
-        self.final_val = final_val
+        self.val = val
         self.ft = False
         self.copter_abstr = copter_abstr
             
-    def __call__(self, x, mapstate):
+    def __call__(self, x_cop, s_map):
                 
-        s_ab = self.copter_abstr.x_to_s(x)
+        s_ab = self.copter_abstr.x_to_s(x_cop)
 
-        if self.final_val[s_ab, mapstate] >= 1:
+        val = self.val[s_ab, s_map]
+        u_ab = self.pol[s_ab, s_map]
+
+        if val >= np.max(self.val.flatten()):
             self.ft = True
             u_ab = 0
-        else:
-            u_ab = self.pol[s_ab, mapstate]
 
-        return self.copter_abstr.interface(u_ab, s_ab, x)
+        return self.copter_abstr.interface(u_ab, s_ab, x_cop), val
     
     def reset(self):
         self.ft = False
