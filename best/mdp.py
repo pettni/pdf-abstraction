@@ -9,7 +9,7 @@ from best import *
 
 class MDP(object):
   """Markov Decision Process"""
-  def __init__(self, T, input_fcn=lambda m: m, output_fcn=lambda n: n, 
+  def __init__(self, T, input_fcn=None, output_fcn=None, 
                input_name='a', output_name='x'):
     '''
     Create an MDP
@@ -162,10 +162,14 @@ class MDP(object):
 
   def input(self, u):
     '''index of input u'''
+    if self.input_fcn is None:
+      return u
     return self.input_fcn(u)
 
   def output(self, n):
     '''output for state n''' 
+    if self.output_fcn is None:
+      return n
     return self.output_fcn(n)
 
   def evolve(self, state, m):
@@ -236,16 +240,22 @@ class ParallelMDP(MDP):
 
   def global_state(self, n_loc):
     '''local state n_loc to global n'''
-    n_list = [mdp.N for mdp in self.mdplist]
-    n = sum(self.mdplist[i].global_state(n_loc[i]) * prod(n_list[i+1:]) 
+
+    if isinstance(n_loc, int):
+      # for recursive calls
+      return n_loc
+
+    if not len(self.N_list) == len(n_loc):
+      raise Exception('invalid length')
+
+    n = sum(self.mdplist[i].global_state(n_loc[i]) * prod(self.N_list[i+1:]) 
             for i in range(len(self.mdplist)))
     return n
 
   def local_states(self, n):
     '''global n to local state n_loc'''
-    n_list = [mdp.N for mdp in self.mdplist]
-    return tuple( self.mdplist[i].local_states(n % prod(n_list[i:]) / prod(n_list[i + 1:]))
-            for i in range(len(n_list)))
+    return tuple( self.mdplist[i].local_states(n % prod(self.N_list[i:]) / prod(self.N_list[i + 1:]))
+            for i in range(len(self.N_list)))
 
   def local_controls(self, m):
     '''global to local controls'''
@@ -255,9 +265,8 @@ class ParallelMDP(MDP):
 
   def output(self, n):
     '''output of global n'''
-    n_list = [mdp.N for mdp in self.mdplist]
-    loc_idx = tuple(n % prod(n_list[i:]) / prod(n_list[i + 1:])
-                    for i in range(len(n_list)))
+    loc_idx = tuple(n % prod(self.N_list[i:]) / prod(self.N_list[i + 1:])
+                    for i in range(len(self.N_list)))
     return tuple(mdpi.output(ni) for (mdpi, ni) in zip(self.mdplist, loc_idx))
 
   def input(self, u):
@@ -352,8 +361,15 @@ class ProductMDP(MDP):
 
   def global_state(self, n_loc):
     '''local state n_loc to global n'''
-    n_list = [mdp.N for mdp in self.mdplist]   
-    n = sum(self.mdplist[i].global_state(n_loc[i]) * prod(n_list[i+1:]) 
+
+    if isinstance(n_loc, int):
+      # for recursive calls
+      return n_loc
+
+    if not len(self.N_list) == len(n_loc):
+      raise Exception('invalid length')
+
+    n = sum(self.mdplist[i].global_state(n_loc[i]) * prod(self.N_list[i+1:]) 
             for i in range(len(self.mdplist)))
     return n
 

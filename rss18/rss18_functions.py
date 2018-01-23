@@ -52,6 +52,20 @@ def get_conn_rov_env(regs):
         return set([tuple(ret)])
     return conn_rov_env
 
+# COPTER-ENVIRONMENT connection
+def get_conn_copt_env(regs, copter_sight):
+    def conn_copt_env(xr):
+        ret = [0 for i in range(len(regs))]
+        i = 0
+        for (name, info) in regs.iteritems():
+            if is_adjacent(info[0], xr[0:2], 0) and xr[2] < 2.5:
+                ret[i] = 2    # strong measurement
+            elif is_adjacent(info[0], xr[0:2], copter_sight) and xr[2] > 2.5:
+                ret[i] = 1    # weak measurement
+            i += 1
+            
+        return set([tuple(ret)])
+    return conn_copt_env
 
 # (ROVER-ENVIRONMENT)-LTL connection
 def get_ltl_connection(regs):
@@ -94,36 +108,18 @@ def is_adjacent(poly, x, distance):
     # return true x within distance 3 of func
     return np.all(poly.A.dot(x) < poly.b + distance)
 
-# COPTER-ENVIRONMENT connection
-def get_conn_copt_env(regs, copter_sight):
-    def conn_copt_env(xr):
-        ret = [0 for i in range(len(regs))]
-        i = 0
-        for (name, info) in regs.iteritems():
-            if is_adjacent(info[0], xr[0:2], 0) and xr[2] < 2.5:
-                ret[i] = 2    # strong measurement
-            elif is_adjacent(info[0], xr[0:2], copter_sight) and xr[2] > 2.5:
-                ret[i] = 1    # weak measurement
-            i += 1
-            
-        return set([tuple(ret)])
-    return conn_copt_env
-
 # Control policies
 class RoverPolicy:
     
-    def __init__(self, ltlpol, rover_abstr, rover_env_mdp):
+    def __init__(self, ltlpol, rover_abstr):
         self.ltlpol = ltlpol
         self.rover_abstr = rover_abstr
-        self.rover_env_mdp = rover_env_mdp
     
-    def __call__(self, x, mapstate, aps):
+    def __call__(self, x, s_map, aps):
         self.ltlpol.report_aps(aps)
 
         s_ab = self.rover_abstr.x_to_s(x)
-
-        s_tot = self.rover_env_mdp.global_state((s_ab, mapstate))
-        u_ab, curr_val = self.ltlpol.get_input(s_tot)
+        u_ab, _ = self.ltlpol.get_input((s_ab, s_map))
 
         return self.rover_abstr.interface(u_ab, s_ab, x)
     
@@ -132,7 +128,6 @@ class RoverPolicy:
     
     def reset(self):
         self.ltlpol.reset()    
-
 
 class CopterPolicy:
     

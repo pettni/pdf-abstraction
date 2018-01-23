@@ -19,18 +19,21 @@ class Abstraction(object):
     self.x_up = np.array(x_up, dtype=np.double).flatten()
     self.n_list = n_list
     self.eta_list = (self.x_up - self.x_low)/np.array(self.n_list)
+    self.T_list = None
+
+  def abstract(self):
 
     def move(s0, dim, direction):
       # which state is in direction along dim from s0?
-      midx_s0 = idx_to_midx(s0, n_list)
+      midx_s0 = idx_to_midx(s0, self.n_list)
       midx_s1 = list(midx_s0)
       midx_s1[dim] += direction
       midx_s1[dim] = max(0, midx_s1[dim])
-      midx_s1[dim] = min(n_list[dim]-1, midx_s1[dim])
-      return midx_to_idx(midx_s1, n_list)
+      midx_s1[dim] = min(self.n_list[dim]-1, midx_s1[dim])
+      return midx_to_idx(midx_s1, self.n_list)
 
     T_list = [sp.eye(self.N)]
-    for d in range(len(n_list)):
+    for d in range(len(self.n_list)):
       vals = np.ones(self.N)
       n0 = np.arange(self.N)
       npl = [move(s0, d,  1) for s0 in np.arange(self.N) ]
@@ -42,7 +45,11 @@ class Abstraction(object):
       T_pl = sp.coo_matrix((vals, (n0, npl)), shape=(self.N, self.N))
       T_list.append(T_pl)
 
-    self.mdp = MDP(T_list, output_name='xc', output_fcn=self.s_to_x)
+    self.T_list = T_list
+
+    output_fcn = lambda s: self.x_low + self.eta_list/2 + self.eta_list * idx_to_midx(s, self.n_list)
+
+    return MDP(T_list, output_name='xc', output_fcn=output_fcn)
 
   @property
   def N(self):
@@ -61,7 +68,7 @@ class Abstraction(object):
 
   def interface(self, u_ab, s_ab, x):
     '''return target point for given abstract control and action'''
-    return self.s_to_x(self.mdp.T(u_ab).getrow(s_ab).indices[0])
+    return self.s_to_x(self.T_list[u_ab].getrow(s_ab).indices[0])
 
   def plot(self, ax):
     xy_t = np.array([self.s_to_x(s) for s in range(prod(self.n_list))])
