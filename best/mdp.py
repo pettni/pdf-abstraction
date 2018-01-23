@@ -448,7 +448,7 @@ class ProductMDP(MDP):
 
     print('finished after {}s and {} iterations'.format(time.time()-start, it))
 
-    return V.ravel(), V_new_m.argmax(axis=0).ravel()
+    return V, V_new_m.argmax(axis=0)
 
 
   def sequential_bellman(self, W):

@@ -76,8 +76,8 @@ def solve_ltl_cosafe(mdp, formula, connection, maxiter=np.Inf, delta=0., verbose
   V, pol = prod_mdp.solve_reach(Vacc, delta=delta, maxiter=maxiter, 
                                 verbose=verbose)
 
-  pol_qn = pol.reshape( (dfsa.N, mdp.N), order='F' )
-  V_qn = V.reshape( (dfsa.N, mdp.N), order='F' )
+  pol_qn = pol.ravel().reshape( (dfsa.N, mdp.N), order='F' )
+  V_qn = V.ravel().reshape( (dfsa.N, mdp.N), order='F' )
 
   return LTL_Policy(dfsa, list(dfsa_init)[0], dfsa_final, pol_qn, V_qn)
 
