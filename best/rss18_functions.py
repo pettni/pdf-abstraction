@@ -8,7 +8,7 @@ def plot_region(ax, poly, name, prob, color='red', alpha=0.5, hatch=False, fill=
     _, xc = pc.cheby_ball(poly)
     ax.text(xc[0]-0.4, xc[1]-0.43, '${}_{}$\n$p={}$'.format(name[0].upper(), name[1], prob))
 
-def get_mdp(p0, qw, name):
+def environment_belief_model(p0, qw, name):
     # Create map belief MDP with prior p0 and qw quality of weak measurements
     if p0 == 0:
         # no dynamics
@@ -121,12 +121,20 @@ class RoverPolicy:
     def __init__(self, ltlpol, rover_abstr):
         self.ltlpol = ltlpol
         self.rover_abstr = rover_abstr
-    
+
+        self.t = 0
+        self.s_ab = None
+
     def __call__(self, x_rov, s_map, APs):
         self.ltlpol.report_aps(APs)
 
         s_ab = self.rover_abstr.x_to_s(x_rov)
-        u_ab, val = self.ltlpol.get_input((s_ab, s_map))
+        
+        if s_ab != self.s_ab and self.s_ab != None:
+            self.t +=  1
+        
+        self.s_ab = s_ab
+        u_ab, val = self.ltlpol((s_ab, s_map), self.t)
 
         return self.rover_abstr.interface(u_ab, s_ab, x_rov), val
     
@@ -134,31 +142,45 @@ class RoverPolicy:
         return self.ltlpol.finished()
     
     def reset(self):
-        self.ltlpol.reset()    
+        self.ltlpol.reset()
+        self.t = 0
+        self.s_ab = None    
 
 class CopterPolicy:
     
-    def __init__(self, pol, val, copter_abstr):
-        self.pol = pol
-        self.val = val
+    def __init__(self, pol_list, val_list, copter_abstr):
+        self.pol_list = pol_list
+        self.val_list = val_list
         self.ft = False
         self.copter_abstr = copter_abstr
+
+        self.t = 0
+        self.s_ab = None
             
     def __call__(self, x_cop, s_map):
                 
         s_ab = self.copter_abstr.x_to_s(x_cop)
 
-        val = self.val[s_ab, s_map]
-        u_ab = self.pol[s_ab, s_map]
+        if s_ab != self.s_ab and self.s_ab != None:
+            self.t +=  1
 
-        if val >= np.max(self.val.flatten()):
+        if self.t >= len(self.val_list):
             self.ft = True
             u_ab = 0
+            val = self.val_list[-1][s_ab, s_map]
+        else:
+            self.s_ab = s_ab
+
+            val = self.val_list[self.t][s_ab, s_map]
+            u_ab = self.pol_list[self.t][s_ab, s_map]
+
 
         return self.copter_abstr.interface(u_ab, s_ab, x_cop), val
     
     def reset(self):
         self.ft = False
+        self.t = 0
+        self.s_ab = None
     
     def finished(self):
         return self.ft

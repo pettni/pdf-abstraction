@@ -24,10 +24,10 @@ def test_connection():
 								   np.array([[1,0,0,0], [1,0,0,0], [0,0,0,1], [0,0,0,1]]))
 
 	vals1, _ = pmdp.solve_reach(accept=lambda s: s[0]==0 and s[1]==1)
-	np.testing.assert_almost_equal(vals1, [0, 1, 0, 0])
+	np.testing.assert_almost_equal(vals1[0], [0, 1, 0, 0])
 
 	vals2, _ = pmdp.solve_reach(accept=lambda s: s[0]==0 and s[1]==0)
-	np.testing.assert_almost_equal(vals2, [1, 1, 1, 1])
+	np.testing.assert_almost_equal(vals2[0], [1, 1, 1, 1])
 
 def test_connection():
 
@@ -63,7 +63,7 @@ def test_reach():
 	
 	V, _ = mdp.solve_reach(accept=lambda y: y==2)
 
-	np.testing.assert_almost_equal(V, [0.5, 0, 1], decimal=4)
+	np.testing.assert_almost_equal(V[0], [0.5, 0, 1], decimal=4)
 
 def test_mdp_dfsa():
 
@@ -85,7 +85,7 @@ def test_mdp_dfsa():
 	prod = mdp.product(fsa, connection)
 
 	V, _ = prod.solve_reach(accept=lambda y: y[1] == 1 )
-	np.testing.assert_almost_equal(V,
+	np.testing.assert_almost_equal(V[0],
 								   [[0.5, 1], [0, 1], [1, 1]],
 								   decimal=4)
 
@@ -109,7 +109,7 @@ def test_mdp_dfsa_nondet():
 	prod = mdp.product(fsa, connection)
 
 	V, _ = prod.solve_reach(accept=lambda y: y[1] == 1 )
-	np.testing.assert_almost_equal(V,
+	np.testing.assert_almost_equal(V[0],
 								   [[0.5, 1], [0, 1], [1, 1]],
 								   decimal=4)
 
@@ -136,12 +136,8 @@ def test_ltl_synth():
 
     V, _ = prod.solve_reach(accept=lambda s: s[1] in final)
 
-    print('Value function',V )
-    print(init, final)
-
-    np.testing.assert_almost_equal(V[:,0], [0.5, 0, 0, 0.5],
+    np.testing.assert_almost_equal(V[0][:,0], [0.5, 0, 0, 0.5],
                                    decimal=4)
-    # ISSSUE with this test,
 
 
 def test_ltl_synth2():
@@ -208,3 +204,23 @@ def test_parallel():
 		for i in range(27):
 			for j in range(27):
 				np.testing.assert_almost_equal(T[i,j], prod.t(k,i,j))
+
+def test_reach_finitetime():
+
+	T0 = np.array([[0.9, 0, 0.1], [0, 1, 0], [0, 0, 1]])
+	T1 = np.array([[0, 0.5, 0.5], [0, 1, 0], [0, 0, 1]])
+
+	mdp = MDP([T0, T1])
+
+	accept = lambda n: n == 2
+
+	vlist, plist = mdp.solve_reach(accept, horizon=3)
+
+	np.testing.assert_almost_equal(vlist[0][0], 0.1 + 0.9*0.1 + 0.9**2*0.5)
+	np.testing.assert_almost_equal(vlist[1][0], 0.1 + 0.9*0.5)
+	np.testing.assert_almost_equal(vlist[2][0], 0.5)
+
+	np.testing.assert_almost_equal(plist[0][0], 0)
+	np.testing.assert_almost_equal(plist[1][0], 0)
+	np.testing.assert_almost_equal(plist[2][0], 1)
+

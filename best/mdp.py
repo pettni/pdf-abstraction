@@ -183,14 +183,21 @@ class MDP(object):
     return np.stack([sparse_tensordot(self.T(m), W, 0) for m in range(self.M)])
 
 
-  def solve_reach(self, accept, maxiter=np.Inf, delta=0, prec=1e-5, verbose=False):
+  def solve_reach(self, accept, horizon=np.Inf, delta=0, prec=1e-5, verbose=False):
     '''solve reachability problem
     Inputs:
     - accept: function defining target set
+    - horizon: reachability horizon (standard is infinite-horizon)
+    - delta: failure probability in each step
+    - prec: termination tolerance (inifinite-horizon case)
 
     Outputs::
-    - V: vector of length N representing probability to reach target for each state
-    - pol: vector of length N representing optimal action m \in range(M)'''
+    - val_list: array [V0 V1 .. VT] of value functions
+    - pol_list: array [P0 P1 .. PT] of value functions
+
+    The infinite-horizon problem has a stationary value function and policy. In this
+    case the return arguments have length 1, i.e. val_list = [V0], pol_list = [P0].
+    '''
 
     if type(accept).__module__ == np.__name__:
       # accept already given
@@ -207,24 +214,34 @@ class MDP(object):
 
     V = np.zeros(self.N_list, dtype=DTYPE)
 
-    while it < maxiter:
+    val_list = []
+    pol_list = []
+
+    while it < horizon:
       if verbose:
         print('iteration {}, time {}'.format(it, time.time()-start))
       
       V_new_m = self.bellman(np.fmax(V, V_accept))
       V_new = np.maximum(V_new_m.max(axis=0) - delta, 0)
 
+      if horizon < np.Inf and it < horizon-1:
+        val_list.insert(0, V_new)
+        pol_new = V_new_m.argmax(axis=0).astype(DTYPE_ACTION, copy=False)
+        pol_list.insert(0, pol_new)
+
       if np.amax(np.abs(V_new - V)) < prec:
         break
       V = V_new
+
       it += 1
 
-    pol = V_new_m.argmax(axis=0).astype(DTYPE_ACTION, copy=False)
+    val_list.insert(0, V_new)
+    pol_new = V_new_m.argmax(axis=0).astype(DTYPE_ACTION, copy=False)
+    pol_list.insert(0, pol_new)
 
-    if verbose:
-      print('finished after {}s and {} iterations'.format(time.time()-start, it))
+    print('finished after {}s and {} iterations'.format(time.time()-start, it))
 
-    return V, pol
+    return val_list, pol_list
 
 
 class ParallelMDP(MDP):

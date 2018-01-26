@@ -37,7 +37,7 @@ def formula_to_mdp(formula):
   return mdp, init_states, final_states, fsa.props
 
 
-def solve_ltl_cosafe(mdp, formula, connection, maxiter=np.Inf, delta=0., verbose=False):
+def solve_ltl_cosafe(mdp, formula, connection, horizon=np.Inf, delta=0., verbose=False):
   '''synthesize a policy that maximizes the probability of
      satisfaction of formula
      Inputs:
@@ -58,22 +58,22 @@ def solve_ltl_cosafe(mdp, formula, connection, maxiter=np.Inf, delta=0., verbose
   Vacc = np.zeros(prod_mdp.N_list)
   Vacc[...,list(dfsa_final)[0]] = 1
 
-  V, pol = prod_mdp.solve_reach(Vacc, delta=delta, maxiter=maxiter, 
+  val, pol = prod_mdp.solve_reach(Vacc, delta=delta, horizon=horizon, 
                                 verbose=verbose)
 
-  return LTL_Policy(proplist, dfsa.Tmat_csr, list(dfsa_init)[0], dfsa_final, pol, V)
+  return LTL_Policy(proplist, dfsa.Tmat_csr, list(dfsa_init)[0], dfsa_final, pol, val)
 
 
 class LTL_Policy(object):
   """control policy"""
-  def __init__(self, proplist, dfsa_Tlist, dfsa_init, dfsa_final, pol, V):
+  def __init__(self, proplist, dfsa_Tlist, dfsa_init, dfsa_final, pol, val):
     '''create a control policy object'''
     self.proplist = proplist
     self.dfsa_Tlist = dfsa_Tlist
     self.dfsa_init = dfsa_init
     self.dfsa_final = dfsa_final
     self.pol = pol
-    self.V = V
+    self.val = val
 
     self.dfsa_state = self.dfsa_init
 
@@ -83,7 +83,6 @@ class LTL_Policy(object):
 
   def report_aps(self, aps):
     '''report atomic propositions to update internal controller state'''
-
     dfsa_action = 0
     for x in map(lambda p: self.proplist.get(p, 0), aps):
       dfsa_action |= x
@@ -93,10 +92,10 @@ class LTL_Policy(object):
 
     self.dfsa_state = row.indices[0]
 
-  def get_input(self, syst_state):
+  def __call__(self, syst_state, t=0):
     '''get input from policy'''
     idx = tuple(syst_state) + (self.dfsa_state,)
-    return self.pol[idx], self.V[idx]
+    return self.pol[t][idx], self.val[t][idx]
 
   def finished(self):
     '''check if policy reached target'''
