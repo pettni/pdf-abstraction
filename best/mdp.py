@@ -1,15 +1,17 @@
 import numpy as np
 import scipy.sparse as sp
 import operator
-from sparse_tensor import sparse_tensor
 
 import time
 
 from best import *
 
+DTYPE = np.float32
+DTYPE_ACTION = np.uint8
+
 class MDP(object):
   """Markov Decision Process"""
-  def __init__(self, T, input_fcn=lambda m: m, output_fcn=lambda n: n, 
+  def __init__(self, T, input_fcn=None, output_fcn=None, 
                input_name='a', output_name='x'):
     '''
     Create an MDP
@@ -42,8 +44,8 @@ class MDP(object):
     self.Tmat_coo = [None,] * len(T)
 
     for m in range(len(T)):
-      self.Tmat_csr[m] = sp.csr_matrix(T[m])  # convert to sparse format
-      self.Tmat_coo[m] = sp.coo_matrix(T[m])
+      self.Tmat_csr[m] = sp.csr_matrix(T[m], dtype=DTYPE)
+      self.Tmat_coo[m] = sp.coo_matrix(T[m], dtype=DTYPE)
 
     self.check()
 
@@ -65,7 +67,7 @@ class MDP(object):
       if not t.shape == (self.N, self.N):
         raise Exception('matrix not square')
 
-      if not np.all(np.abs(t.dot(np.ones([self.N,1])) - np.ones([self.N,1])) < 1e-7 ):
+      if not np.all(np.abs(t.dot(np.ones([self.N,1])) - np.ones([self.N,1])) < 1e-5 ):
         raise Exception('matrix not stochastic')
 
   def __str__(self):
@@ -128,7 +130,7 @@ class MDP(object):
     if isinstance(new_mdp, ProductMDP):
       raise Exception('not implemented')
 
-    new_conn_list = np.zeros([new_mdp.M, self.N])
+    new_conn_list = np.zeros([new_mdp.M, self.N], dtype=bool)
     new_det = True
     
     for n in range (self.N):
@@ -162,44 +164,68 @@ class MDP(object):
 
   def input(self, u):
     '''index of input u'''
+    if self.input_fcn is None:
+      return u
     return self.input_fcn(u)
 
   def output(self, n):
     '''output for state n''' 
+    if self.output_fcn is None:
+      return n
     return self.output_fcn(n)
 
   def evolve(self, state, m):
     return self.T(m).transpose().dot(state)
 
-  def solve_reach(self, accept, prec=1e-5):
+
+  def bellman(self, W):
+    '''compute V_{ux} = \sum_{x'} T_{uxx'} W_x' '''
+    return np.stack([sparse_tensordot(self.T(m), W, 0) for m in range(self.M)])
+
+
+  def solve_reach(self, accept, maxiter=np.Inf, delta=0, prec=1e-5, verbose=False):
     '''solve reachability problem
     Inputs:
-    - accept: function range(N) -> {True, False} defining target set
+    - accept: function defining target set
 
     Outputs::
     - V: vector of length N representing probability to reach target for each state
     - pol: vector of length N representing optimal action m \in range(M)'''
 
-    # todo: solve backwards reachability to constrain search
+    if type(accept).__module__ == np.__name__:
+      # accept already given
+      V_accept = accept.astype(DTYPE, copy=False)
+    else:
+      # we got a function
+      V_accept = np.zeros(self.N_list, dtype=DTYPE)
+      for n in range(self.N):
+        midx = idx_to_midx(n, self.N_list)
+        V_accept[midx] = accept(self.output(n)) 
 
-    is_accept = np.array([accept( self.output(n) ) for n in range(self.N)])
+    it = 0
+    start = time.time()
 
-    V = np.array(is_accept, dtype='d')
-    pol = np.zeros(V.shape)
+    V = np.zeros(self.N_list, dtype=DTYPE)
 
-    while True:
-      V_new_m = [self.T(m).dot(V) for m in range(self.M)]
-      V_new = np.zeros(V.shape)
-      for m in range(self.M):
-        pol[np.nonzero(V_new < V_new_m[m])] = m
-        V_new = np.maximum(V_new, V_new_m[m])
-  
-      V_new = np.maximum(V_new, is_accept)
-      if np.max(np.abs(V_new - V)) < prec:
+    while it < maxiter:
+      if verbose:
+        print('iteration {}, time {}'.format(it, time.time()-start))
+      
+      V_new_m = self.bellman(np.fmax(V, V_accept))
+      V_new = np.maximum(V_new_m.max(axis=0) - delta, 0)
+
+      if np.amax(np.abs(V_new - V)) < prec:
         break
       V = V_new
+      it += 1
+
+    pol = V_new_m.argmax(axis=0).astype(DTYPE_ACTION, copy=False)
+
+    if verbose:
+      print('finished after {}s and {} iterations'.format(time.time()-start, it))
 
     return V, pol
+
 
 class ParallelMDP(MDP):
 
@@ -208,7 +234,6 @@ class ParallelMDP(MDP):
     Connect mdp1 and mdp2 in parallel
     The resulting mdp has inputs mdp1.U x mdp2.U and output alphabet mdp1.Y x mdp2.Y
     '''
-
     self.mdplist = mdplist
 
     self.computedT_coo = [None for m in range(self.M)]
@@ -236,16 +261,22 @@ class ParallelMDP(MDP):
 
   def global_state(self, n_loc):
     '''local state n_loc to global n'''
-    n_list = [mdp.N for mdp in self.mdplist]
-    n = sum(self.mdplist[i].global_state(n_loc[i]) * prod(n_list[i+1:]) 
+
+    if isinstance(n_loc, int):
+      # for recursive calls
+      return n_loc
+
+    if not len(self.N_list) == len(n_loc):
+      raise Exception('invalid length')
+
+    n = sum(self.mdplist[i].global_state(n_loc[i]) * prod(self.N_list[i+1:]) 
             for i in range(len(self.mdplist)))
     return n
 
   def local_states(self, n):
     '''global n to local state n_loc'''
-    n_list = [mdp.N for mdp in self.mdplist]
-    return tuple( self.mdplist[i].local_states(n % prod(n_list[i:]) / prod(n_list[i + 1:]))
-            for i in range(len(n_list)))
+    return tuple( self.mdplist[i].local_states(n % prod(self.N_list[i:]) / prod(self.N_list[i + 1:]))
+            for i in range(len(self.N_list)))
 
   def local_controls(self, m):
     '''global to local controls'''
@@ -255,9 +286,8 @@ class ParallelMDP(MDP):
 
   def output(self, n):
     '''output of global n'''
-    n_list = [mdp.N for mdp in self.mdplist]
-    loc_idx = tuple(n % prod(n_list[i:]) / prod(n_list[i + 1:])
-                    for i in range(len(n_list)))
+    loc_idx = tuple(n % prod(self.N_list[i:]) / prod(self.N_list[i + 1:])
+                    for i in range(len(self.N_list)))
     return tuple(mdpi.output(ni) for (mdpi, ni) in zip(self.mdplist, loc_idx))
 
   def input(self, u):
@@ -273,7 +303,7 @@ class ParallelMDP(MDP):
 
   def computeTm(self, m):
     loc_m = self.local_controls(m)
-    Tm_coo = reduce(sp.kron, (mdp.Tcoo(mi) for (mdp, mi) in zip(self.mdplist, loc_m)), 1)
+    Tm_coo = reduce(sp.kron, (mdp.Tcoo(mi) for (mdp, mi) in zip(self.mdplist, loc_m)), np.array([1], dtype=DTYPE) )
     Tm_coo.eliminate_zeros()
 
     self.computedT_coo[m] = Tm_coo
@@ -282,14 +312,13 @@ class ParallelMDP(MDP):
   def T(self, m):
     if self.computedT_csr[m] is None:
       self.computeTm(m)
-    
     return self.computedT_csr[m]
 
   def Tcoo(self, m):
     if self.computedT_coo[m] is None:
       self.computeTm(m)
-
     return self.computedT_coo[m]
+
 
 class ProductMDP(MDP):
   """Non-deterministic Product Markov Decision Process"""
@@ -335,7 +364,7 @@ class ProductMDP(MDP):
       conn = self.conn_list[i]
       
       # loop over non-zero entries in T1(m)
-      mat_list = [[sp.coo_matrix((mdp2.N, mdp2.N)) for n2 in range(N)] 
+      mat_list = [[sp.coo_matrix((mdp2.N, mdp2.N), dtype=DTYPE) for n2 in range(N)] 
                   for n1 in range(N)]
 
       for (ni, npi, pri) in zip(Tret.row, Tret.col, Tret.data):
@@ -349,11 +378,17 @@ class ProductMDP(MDP):
     Tret.eliminate_zeros()
     return Tret
 
-
   def global_state(self, n_loc):
     '''local state n_loc to global n'''
-    n_list = [mdp.N for mdp in self.mdplist]   
-    n = sum(self.mdplist[i].global_state(n_loc[i]) * prod(n_list[i+1:]) 
+
+    if isinstance(n_loc, int):
+      # for recursive calls
+      return n_loc
+
+    if not len(self.N_list) == len(n_loc):
+      raise Exception('invalid length')
+
+    n = sum(self.mdplist[i].global_state(n_loc[i]) * prod(self.N_list[i+1:]) 
             for i in range(len(self.mdplist)))
     return n
 
@@ -378,7 +413,7 @@ class ProductMDP(MDP):
     if isinstance(new_mdp, ProductMDP):
       raise Exception('not implemented')
 
-    new_conn_list = np.zeros([new_mdp.M] + self.N_list)
+    new_conn_list = np.zeros([new_mdp.M] + self.N_list, dtype=bool)
     new_det = True
 
     for n in range (self.N):
@@ -397,61 +432,11 @@ class ProductMDP(MDP):
           raise Exception('invalid connection')
         new_conn_list[inp][midx] = 1
 
-        # conn_list_a.append(inp)
-        # new_conn_list[n].append( new_mdp.input(inp) )
-
     return ProductMDP(self.mdplist + [new_mdp],
                        self.conn_list + [new_conn_list],
                        self.det_list + [new_det])
 
-
-  def solve_reach(self, accept, maxiter=np.Inf, delta=0, prec=1e-5, verbose=False):
-    '''solve reachability problem
-    Inputs:
-    - accept: function defining target set
-
-    Outputs::
-    - V: vector of length N representing probability to reach target for each state
-    - pol: vector of length N representing optimal action m \in range(M)'''
-
-    # todo: use sparse V and compute only in neighborhood of positivity
-
-    if type(accept).__module__ == np.__name__:
-      # accept already given
-      V_accept = accept
-    else:
-      # we got a function
-      V_accept = np.zeros(self.N_list)
-      for n in range(self.N):
-        midx = idx_to_midx(n, self.N_list)
-        V_accept[midx] = accept(midx) 
-
-    it = 0
-    start = time.time()
-
-    V = np.zeros(self.N_list)
-
-    while it < maxiter:
-
-      if verbose:
-        print('iteration {}, time {}'.format(it, time.time()-start))
-      
-      V_new_m = self.sequential_bellman(np.fmax(V, V_accept))
-
-      V_new = np.maximum(V_new_m.max(axis=0) - delta, 0)
-
-      if np.amax(np.abs(V_new - V)) < prec:
-        break
-      V = V_new
-
-      it += 1
-
-    print('finished after {}s and {} iterations'.format(time.time()-start, it))
-
-    return V.ravel(), V_new_m.argmax(axis=0).ravel()
-
-
-  def sequential_bellman(self, W):
+  def bellman(self, W):
     ''' sequentially compute V_{ux} = \sum_{x'} T_{uxx'} W_{x'} for a serial MDP'''
 
     for i in range(len(self.mdplist)-1, 0, -1):
@@ -485,7 +470,7 @@ class ProductMDP(MDP):
         W = reduce(np.add, 
                    (dummy[m] * sparse_tensordot(self.mdplist[i].T(m), W, i) 
                     for m in range(self.mdplist[i].M)),
-                   np.zeros(self.N_list))
+                   np.zeros(self.N_list, dtype=DTYPE))
 
     # Max over actions: V_new(mu, s) = max_{m} \sum_s' t(m, s, s') W(mu, s')
     V_new_m = np.stack([sparse_tensordot(self.mdplist[0].T(m), W, 0) 

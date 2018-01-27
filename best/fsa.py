@@ -304,7 +304,6 @@ class Fsa(object):
     prop_bitmap = 0
     for x in map(lambda p: self.props.get(p, 0), props):
       prop_bitmap |= x
-    # prop_bitmap = reduce(lambda x, y: x | y, map(lambda p: self.props.get(p, 0), props), 0)
     return prop_bitmap
 
   def next_states_of_fsa(self, q, props):

@@ -86,7 +86,7 @@ def test_mdp_dfsa():
 
 	V, _ = prod.solve_reach(accept=lambda y: y[1] == 1 )
 	np.testing.assert_almost_equal(V,
-								   [0.5, 1, 0, 1, 1, 1],
+								   [[0.5, 1], [0, 1], [1, 1]],
 								   decimal=4)
 
 def test_mdp_dfsa_nondet():
@@ -110,7 +110,7 @@ def test_mdp_dfsa_nondet():
 
 	V, _ = prod.solve_reach(accept=lambda y: y[1] == 1 )
 	np.testing.assert_almost_equal(V,
-								   [0.5, 1, 0, 1, 1, 1],
+								   [[0.5, 1], [0, 1], [1, 1]],
 								   decimal=4)
 
 def test_ltl_synth():
@@ -139,7 +139,7 @@ def test_ltl_synth():
     print('Value function',V )
     print(init, final)
 
-    np.testing.assert_almost_equal(V[::4], [0.5, 0, 0, 0.5],
+    np.testing.assert_almost_equal(V[:,0], [0.5, 0, 0, 0.5],
                                    decimal=4)
     # ISSSUE with this test,
 
