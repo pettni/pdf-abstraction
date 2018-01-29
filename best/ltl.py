@@ -94,6 +94,9 @@ class LTL_Policy(object):
 
   def __call__(self, syst_state, t=0):
     '''get input from policy'''
+    if t >= len(self.val):
+      print 'Warning: t={} larger than horizon {}. Setting t={}'.format(t, len(self.val), len(self.val))
+      t = len(self.val)-1
     idx = tuple(syst_state) + (self.dfsa_state,)
     return self.pol[t][idx], self.val[t][idx]
 

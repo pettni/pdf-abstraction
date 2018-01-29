@@ -177,11 +177,49 @@ class MDP(object):
   def evolve(self, state, m):
     return self.T(m).transpose().dot(state)
 
-
   def bellman(self, W):
     '''compute V_{ux} = \sum_{x'} T_{uxx'} W_x' '''
     return np.stack([sparse_tensordot(self.T(m), W, 0) for m in range(self.M)])
 
+  def solve_reach_constrained(self, Vacc0, Vcon0, treshhold, horizon, verbose=False):
+    '''
+      Compute max  P(reach Vacc0)
+              s.t. P(reach Vcon0) >= treshold
+    '''
+    Vacc = np.zeros(self.N_list, dtype=DTYPE)
+    Vcon = np.zeros(self.N_list, dtype=DTYPE)
+
+    val_list = []
+    pol_list = []
+
+    it = 0
+    start = time.time()
+    while it < horizon:
+      if verbose:
+        print('iteration {}, time {}'.format(it, time.time()-start))
+
+      # Iterate constraint
+      Vcon_new_m = self.bellman(np.fmax(Vcon, Vcon0.astype(DTYPE)))
+      Vcon = Vcon_new_m.max(axis = 0)
+
+      # Max action over those that satisfy constraint
+      Vacc_new_m = self.bellman(np.fmax(Vacc, Vacc0.astype(DTYPE)))
+
+      Vcon_gr = Vcon_new_m >= treshhold  # to bool
+
+      Vacc = (Vacc_new_m * Vcon_gr).max(axis = 0)
+
+      # Subtract to satisfy constraint even if Vacc=0
+      pol = (Vacc_new_m * Vcon_gr - 2*(1-Vcon_gr)).argmax(axis = 0).astype(DTYPE_ACTION, copy=False)
+
+      val_list.insert(0, Vacc)
+      pol_list.insert(0, pol)
+
+      it += 1
+
+    print('finished after {}s and {} iterations'.format(time.time()-start, it))
+
+    return val_list, pol_list
 
   def solve_reach(self, accept, horizon=np.Inf, delta=0, prec=1e-5, verbose=False):
     '''solve reachability problem

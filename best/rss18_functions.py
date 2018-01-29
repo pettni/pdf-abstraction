@@ -3,37 +3,36 @@ from best.mdp import MDP
 import matplotlib.patches as patches
 import polytope as pc
 
+
+def vertex_to_poly(V):
+    data = pc.quickhull.quickhull(V)
+    return pc.Polytope(data[0], data[1])
+
 def plot_region(ax, poly, name, prob, color='red', alpha=0.5, hatch=False, fill=True):
     ax.add_patch(patches.Polygon(pc.extreme(poly), color=color, alpha=alpha, hatch=hatch, fill=fill))
     _, xc = pc.cheby_ball(poly)
     ax.text(xc[0]-0.4, xc[1]-0.43, '${}_{}$\n$p={}$'.format(name[0].upper(), name[1], prob))
 
-def environment_belief_model(p0, qw, name):
+
+def environment_belief_model(p0, levels, name):
     # Create map belief MDP with prior p0 and qw quality of weak measurements
     if p0 == 0:
         # no dynamics
-        Tnone = np.array([1])
-        Tweak = np.array([1])
-        Tstrong = np.array([1])
-        output_fcn = lambda s: 0
-    
+        return MDP([np.array([1])], input_name=name+'_u', output_name=name+'_b', 
+                   input_fcn = lambda n: 0, output_fcn = lambda s: 0)
     elif p0 == 1:
-        Tnone = np.array([1])
-        Tweak = np.array([1])
-        Tstrong = np.array([1])
-        output_fcn = lambda s: 1
-        
+        return MDP([np.array([1])], input_name=name+'_u', output_name=name+'_b',
+                   input_fcn = lambda n: 0, output_fcn = lambda s: 1)
     else:
-        pm = p0/2
-        pp = p0 + (1-p0)/2
-        # levels [0 p- p0 p+ 1]
+        pm = levels[0]
+        pp = levels[1]
 
         Tnone = np.eye(5);
-        Tweak = np.array([[1,           0,             0,       0,              0], 
-                          [qw*(1-pm),   (1-qw)*(1-pm), 0,       (1-qw)*pm,      qw*pm],
-                          [qw*(1-p0),   (1-qw)*p0,     0,       (1-qw)*(1-p0),  qw*p0],
-                          [qw*(1-pp),   (1-qw)*(1-pp), 0,       (1-qw)*pp,      qw*pp],
-                          [0,           0,             0,       0,              1]])
+        Tweak = np.array([[1, 0, 0, 0, 0], 
+                          [0, 1, 0, 0, 0],
+                          [0, 1-p0, 0, p0, 0],
+                          [0, 0, 0, 1, 0],
+                          [0, 0, 0, 0, 1]])
         Tstrong = np.array([[1,      0, 0, 0, 0],
                             [(1-pm), 0, 0, 0, pm],
                             [(1-p0), 0, 0, 0, p0],
@@ -45,6 +44,50 @@ def environment_belief_model(p0, qw, name):
     
     return MDP([Tnone, Tweak, Tstrong], input_name=name+'_u', output_name=name+'_b', output_fcn=output_fcn)
 
+def environment_belief_model2(p0, levels, name):
+
+    pmm = levels[0]
+    pm = levels[1]
+    pp = levels[2]
+    ppp = levels[3]
+
+    if p0 == 0:
+        # no dynamics
+        return MDP([np.array([1])], input_fcn = lambda n: 0, output_fcn = lambda s: 0)
+    elif p0 == 1:
+        # no dynamics
+        return MDP([np.array([1])], input_fcn = lambda n: 0, output_fcn = lambda s: 1)
+    else:
+        Tnone = np.eye(7);
+
+        Tweak = np.array([[1, 0, 0, 0, 0, 0, 0],
+                          [0, 1, 0, 0, 0, 0, 0],
+                          [0, 0, 1, 0, 0, 0, 0],
+                          [0, 0, (1-p0), 0, p0, 0, 0],
+                          [0, 0, 0, 0, 1, 0, 0],
+                          [0, 0, 0, 0, 0, 1, 0],
+                          [0, 0, 0, 0, 0, 0, 1]])
+
+        Tstrong = np.array([[1, 0, 0, 0, 0, 0, 0],
+                          [0, 1, 0, 0, 0, 0, 0],
+                          [0, (1-pm), 0, 0, 0, pm, 0],
+                          [0, (1-p0), 0, 0, 0, p0, 0],
+                          [0, (1-pp), 0, 0, 0, pp, 0],
+                          [0, 0, 0, 0, 0, 1, 0],
+                          [0, 0, 0, 0, 0, 0, 1]])
+
+        Texact = np.array([[1, 0, 0, 0, 0, 0, 0],
+                          [(1-pmm), 0, 0, 0, 0, 0, pmm],
+                          [(1-pm), 0, 0, 0, 0, 0, pm],
+                          [(1-p0), 0, 0, 0, 0, 0, p0],
+                          [(1-pp), 0, 0, 0, 0, 0, pp],
+                          [(1-ppp), 0, 0, 0, 0, 0, ppp],
+                          [0, 0, 0, 0, 0, 0, 1]])
+
+        def output_fcn(s):
+            return [0, pmm, pm, p0, pp, ppp, 1][s]
+    
+    return MDP([Tnone, Tweak, Tstrong], input_name=name+'_u', output_name=name+'_b', output_fcn=output_fcn)
 
 # ROVER-ENVIRONMENT connection
 def get_conn_rov_env(regs):
@@ -53,8 +96,10 @@ def get_conn_rov_env(regs):
         i = 0
         for (name, info) in regs.iteritems():
             poly = info[0]
-            if np.all(poly.A.dot(xr) < poly.b + 2):
-                ret[i] = 2    # strong measurement
+            if is_adjacent(poly, xr, 1) and name[0] == 'r':
+                ret[i] = 2    # strong measurement of risk region
+            elif is_adjacent(poly, xr, 0):
+                ret[i] = 2    # strong measurement of target region
             i += 1
         return set([tuple(ret)])
     return conn_rov_env
@@ -65,9 +110,9 @@ def get_conn_copt_env(regs, copter_sight):
         ret = [0 for i in range(len(regs))]
         i = 0
         for (name, info) in regs.iteritems():
-            if is_adjacent(info[0], xr[0:2], 0) and xr[2] < 2.5:
+            if is_adjacent(info[0], xr[0:2], 0) and xr[2] <= 2.6:
                 ret[i] = 2    # strong measurement
-            elif is_adjacent(info[0], xr[0:2], copter_sight) and xr[2] > 2.5:
+            elif is_adjacent(info[0], xr[0:2], copter_sight) and xr[2] > 2.6:
                 ret[i] = 1    # weak measurement
             i += 1
             
@@ -136,10 +181,13 @@ class RoverPolicy:
         self.s_ab = s_ab
         u_ab, val = self.ltlpol((s_ab, s_map), self.t)
 
+        if u_ab == 0:
+            self.t += 1
+
         return self.rover_abstr.interface(u_ab, s_ab, x_rov), val
     
     def finished(self):
-        return self.ltlpol.finished()
+        return self.ltlpol.finished() or self.t > len(self.ltlpol.val)
     
     def reset(self):
         self.ltlpol.reset()
@@ -168,12 +216,15 @@ class CopterPolicy:
             self.ft = True
             u_ab = 0
             val = self.val_list[-1][s_ab, s_map]
+
         else:
             self.s_ab = s_ab
 
             val = self.val_list[self.t][s_ab, s_map]
             u_ab = self.pol_list[self.t][s_ab, s_map]
-
+            if u_ab == 0:
+                # stay in cell
+                self.t += 1 
 
         return self.copter_abstr.interface(u_ab, s_ab, x_cop), val
     

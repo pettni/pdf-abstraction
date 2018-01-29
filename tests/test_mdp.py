@@ -224,3 +224,38 @@ def test_reach_finitetime():
 	np.testing.assert_almost_equal(plist[1][0], 0)
 	np.testing.assert_almost_equal(plist[2][0], 1)
 
+def test_reach_constrained():
+	T0 = np.array([[0, 0.5, 0.5], [0, 1, 0], [0, 0, 1]])
+
+	mdp = MDP([T0])
+
+	Vacc = np.array([0, 1, 1])
+	Vcon = np.array([0, 1, 0])
+
+	vlist, plist = mdp.solve_reach_constrained(Vacc, Vcon, 0.4, 4)
+
+	np.testing.assert_almost_equal(vlist[0], [1, 1, 0])
+
+	vlist, plist = mdp.solve_reach_constrained(Vacc, Vcon, 0.6, 4)
+
+	np.testing.assert_almost_equal(vlist[0], [0, 1, 0])
+
+
+def test_reach_constrained2():
+	T0 = np.array([[0, 0.98, 0, 0, 0.01, 0.01], [0, 0, 0.98, 0, 0.01, 0.01], [0, 0, 0, 0.98, 0.01, 0.01], [0, 0, 0, 0.98, 0.01, 0.01], [0,0,0,0,1,0], [0,0,0,0,0,1]])
+	T1 = np.array([[0, 0.5, 0, 0, 0.5, 0], [0, 0, 0.5, 0, 0.5, 0], [0, 0, 0, 0, 1, 0], [0, 0, 0, 0.99, 0.01, 0], [0,0,0,0,1, 0], [0,0,0,0,0,1]])
+
+	mdp = MDP([T1, T0])
+
+	Vacc = np.array([0, 0, 0, 1, 1, 0])
+	Vcon = np.array([0, 0, 0, 1, 0, 0])
+
+	vlist, plist = mdp.solve_reach_constrained(Vacc, Vcon, 0.94, 4)
+
+	np.testing.assert_array_less([0.95, 0.95, 0.95, 0.999, -0.0001, -0.0001], vlist[0])
+
+	vlist, plist = mdp.solve_reach_constrained(Vacc, Vcon, 0.95, 4)
+
+	np.testing.assert_array_less(vlist[0], [0.01, 1.01, 1.01, 1.01, 0.01, 0.01])
+
+
