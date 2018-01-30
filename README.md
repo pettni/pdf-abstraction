@@ -3,12 +3,15 @@
 ## Installation
 
 Install package:
+
 	python setup.py install
 
 For development (create links to source code, no need to reinstall after making changes):
+
 	python setup.py develop
 
 Run tests:
+
 	nosetests
 
 ## Workflow
