@@ -9,11 +9,17 @@ rospy.wait_for_service('copter_waypoints')
 cop_waypts = rospy.ServiceProxy('copter_waypoints', Waypoint)
 rov_waypts = rospy.ServiceProxy('rover_waypoints', Waypoint)
 
+cop_init = np.array([-4.5, -1.5, 2])
+rov_init = np.array([-4.5, -0.5])
+
 # reset all
 rov_req = WaypointRequest()
 cop_req = WaypointRequest()
 rov_req.reset_map = True
 cop_req.reset_map = True
+rov_req.current.x = rov_init[0]
+rov_req.current.y = rov_init[1]
+
 rov_waypts(rov_req)
 cop_waypts(cop_req)
 
@@ -23,8 +29,9 @@ copter_finished = False
 value = 1.
 map_belief = None
 
-x_copter = np.array([-4.5, -1.5, 2]).reshape((1,3))
-x_rover = np.array([-4.5, -0.5]).reshape((1,2))
+x_copter = cop_init.reshape((1,3))
+x_rover = rov_init.reshape((1,2))
+vv = np.array([])
 
 # rover
 while not rover_finished and value > 0.85:
@@ -51,6 +58,8 @@ while not rover_finished and value > 0.85:
       x_del = 0
   x_rover = np.vstack([x_rover, x_curr + x_del])
 
+  vv = np.hstack([vv, value])
+
 print 'before exploration: value {}, map belief: {}'.format(value, map_belief)
 
 # copter
@@ -72,6 +81,8 @@ while not copter_finished:
   x_next[1] = cop_res.target.y
   x_next[2] = cop_res.target.z
 
+  value = cop_res.value
+
   copter_finished = cop_res.finished
   map_belief = cop_res.map_belief
 
@@ -81,11 +92,11 @@ while not copter_finished:
       x_del = 0
 
   x_copter = np.vstack([x_copter, x_curr + x_del])
+  vv = np.hstack([vv, value])
 
 print 'after exploration: value {}, map belief: {}'.format(value, map_belief)
 
 # rover again
-value = 1
 while not rover_finished and value > 0.85:
 
   x_curr = x_rover[-1, :].flatten()
@@ -109,6 +120,7 @@ while not rover_finished and value > 0.85:
   else:
       x_del = 0
   x_rover = np.vstack([x_rover, x_curr + x_del])
+  vv = np.hstack([vv, value])
 
 
 fig = plt.figure()
@@ -117,5 +129,10 @@ fig.add_axes(ax)
 
 ax.plot(x_copter[:, 0], x_copter[:, 1], color='blue', linewidth=2)
 ax.plot(x_rover[:, 0], x_rover[:, 1], color='red', linewidth=2)
+
+fig2 = plt.figure()
+ax2 = plt.Axes(fig2, [0.,0.,1.,1.])
+fig2.add_axes(ax2)
+ax2.plot(vv)
 
 plt.show()
