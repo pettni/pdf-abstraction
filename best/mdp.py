@@ -250,24 +250,26 @@ class MDP(object):
     it = 0
     start = time.time()
 
-    V = np.zeros(self.N_list, dtype=DTYPE)
+    V = np.fmax(V_accept, np.zeros(self.N_list, dtype=DTYPE))
 
     val_list = []
     pol_list = []
+
+    val_list.insert(0, V)
 
     while it < horizon:
       if verbose:
         print('iteration {}, time {}'.format(it, time.time()-start))
       
-      V_new_m = self.bellman(np.fmax(V, V_accept))
-      V_new = np.maximum(V_new_m.max(axis=0) - delta, 0)
+      V_new_m = self.bellman(V)
+      V_new = np.fmax(V_accept, np.maximum(V_new_m.max(axis=0) - delta, 0))
 
       if horizon < np.Inf and it < horizon-1:
         val_list.insert(0, V_new)
         pol_new = V_new_m.argmax(axis=0).astype(DTYPE_ACTION, copy=False)
         pol_list.insert(0, pol_new)
 
-      if np.amax(np.abs(V_new - V)) < prec:
+      if horizon == np.Inf and np.amax(np.abs(V_new - V)) < prec:
         break
       V = V_new
 

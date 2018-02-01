@@ -185,7 +185,11 @@ class RoverPolicy:
             self.t += 1
 
         return self.rover_abstr.interface(u_ab, s_ab, x_rov), val
-    
+
+    def get_value(self, x, s_map):
+        s_ab = self.rover_abstr.x_to_s(x)
+        return self.ltlpol.val[min(self.t, len(self.ltlpol.val)-1)][s_ab, s_map, self.ltlpol.dfsa_state]
+
     def finished(self):
         return self.ltlpol.finished() or self.t > len(self.ltlpol.val)
     
@@ -227,7 +231,7 @@ class CopterPolicy:
                 self.t += 1 
 
         return self.copter_abstr.interface(u_ab, s_ab, x_cop), val
-    
+
     def reset(self):
         self.ft = False
         self.t = 0
