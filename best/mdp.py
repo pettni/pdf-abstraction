@@ -67,8 +67,8 @@ class MDP(object):
       if not t.shape == (self.N, self.N):
         raise Exception('matrix not square')
 
-      if not np.all(np.abs(t.dot(np.ones([self.N,1])) - np.ones([self.N,1])) < 1e-5 ):
-        raise Exception('matrix not stochastic')
+      #if not np.all(np.abs(t.dot(np.ones([self.N,1])) - np.ones([self.N,1])) < 1e-5 ):
+      #  raise Exception('matrix not stochastic')
 
   def __str__(self):
     ret = 'MDP: {0} inputs "{2}" --> {1} outputs "{3}"' \
