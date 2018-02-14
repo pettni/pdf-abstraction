@@ -1,5 +1,21 @@
 # pdf-abstraction
 
+## Installation
+
+This package is developed for Python 2.7. Install it as follows:
+
+	python setup.py install
+
+For development (create links to source code, no need to reinstall after making changes):
+
+	python setup.py develop
+
+Run tests:
+
+	nosetests
+
+## Workflow
+
 Given a specification written as a syntactically co-safe LTL property and a POMDP model which is
 - a finite state partially observable Markov decision process, or
 - a LTI system with gaussian disturbances
