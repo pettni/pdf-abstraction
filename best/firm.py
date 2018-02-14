@@ -6,16 +6,17 @@ import scipy.sparse as sp
 
 class FIRM(object):
 
-  def __init__(self, x_low, x_up):
-    ''' Create a FIRM graph with n_nodes in [x_low, x_up] '''
-    np.random.seed(1)
+  def __init__(self, x_low, x_up, regs):
+    ''' Create a FIRM graph with n_nodes in [x_low, x_up]; informed sampling in regs '''
+    np.random.seed(12)
     self.x_low = x_low
     self.x_up = x_up
+    self.regs = regs
     self.nodes = []
     self.edges = {}
     self.T_list = None
-    self.sample_nodes(30)
-    self.make_edges(3)
+    self.sample_nodes(60)
+    self.make_edges(2)
 
   def abstract(self):
     ''' Construct T by treating index of neigh as action number '''
@@ -35,16 +36,24 @@ class FIRM(object):
     return MDP(self.T_list, output_name='xc', output_fcn=output_fcn)
 
   def sample_nodes(self, n_nodes, append=False):
-    ''' Generates n_nodes Nodes by randomly sampling in [x_low, x_up] '''
+    ''' Generate n_nodes Nodes by randomly sampling in [x_low, x_up] '''
     # TODO: Implement append to sample nodes incrementally
     if append == False:
-      self.nodes = np.zeros((n_nodes, len(self.x_low)))
+      self.nodes = np.zeros((n_nodes+len(self.regs), len(self.x_low)))
       self.edges = {} # clear previous edges
     for i in range(len(self.x_low)):
-      self.nodes[...,i] = self.x_low[i] + (self.x_up[i] - self.x_low[i])*np.random.rand(n_nodes).ravel()
+      self.nodes[0:n_nodes,i] = self.x_low[i] + (self.x_up[i] - self.x_low[i])*np.random.rand(n_nodes).ravel()
+    ''' Generate one node in each region '''
+    j=0
+    for key in self.regs:
+      x_low = self.regs[key][0].bounding_box[0].ravel()
+      x_up = self.regs[key][0].bounding_box[1].ravel()
+      for i in range(len(self.x_low)):
+        self.nodes[n_nodes+j,i] = x_low[i] + (x_up[i] - x_low[i])*np.random.rand(1).ravel()
+      j=j+1
 
   def make_edges(self, dist):
-    ''' Constructs edges for self.nodes within distance dist '''
+    ''' Construct edges for self.nodes within distance dist '''
     self.max_actions = 1 #'''used to construct T'''
     # Can make more efficient
     for i in range(self.nodes.shape[0]):
@@ -70,8 +79,7 @@ class FIRM(object):
       ax.plot(self.nodes[...,0], self.nodes[...,1], 'go')
       ax.set_xlim(self.x_low[0], self.x_up[0])
       ax.set_ylim(self.x_low[1], self.x_up[1])
-      #plt.show()
 
-firm = FIRM([-1,-1],[1,1])
+#firm = FIRM([-1,-1],[1,1])
 #firm.plot()
-firm.abstract()
+#firm.abstract()
