@@ -21,7 +21,7 @@ Run tests:
     - Get rid of dependence on ```Models/MDP.py``` and delete it, this will remove dependence on ```pymdptoolbox```
     - Integrate ```LTI_simrel``` into a new file ```best/simrel.py```
 
- 2. Write tests for abstractions simulation relations
+ 2. Write tests for simulation relations
 
  3. Implement uniform treatment of regions and abstractions via predicates
 
