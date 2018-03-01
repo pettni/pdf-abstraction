@@ -2,9 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="31e704a2-ef6c-40a2-8981-ee3dd6419582" name="Default" comment="">
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/Demo_file/NonConvexityPOMDP.ipynb" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Demo_file/LTI_kalman_varying.ipynb" afterPath="$PROJECT_DIR$/Demo_file/LTI_kalman_varying.ipynb" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/rss18/rover-copter.ipynb" afterPath="$PROJECT_DIR$/rss18/rover-copter.ipynb" />
     </list>
     <ignored path="$PROJECT_DIR$/.idea/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -36,55 +35,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="Testruns.ipynb" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Testruns.ipynb">
+      <file leaf-file-name="NonConvexityPOMDP.ipynb" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/Demo_file/NonConvexityPOMDP.ipynb">
           <provider selected="true" editor-type-id="ipnb-editor">
             <state>
-              <selected id="0" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="Case_study_adhs.ipynb" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Case_study_adhs.ipynb">
-          <provider selected="true" editor-type-id="ipnb-editor">
-            <state>
-              <selected id="29" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="Visualize.py" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/ApprxSimulation/Visualize.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1494">
-              <caret line="89" column="18" lean-forward="true" selection-start-line="89" selection-start-column="18" selection-end-line="89" selection-end-column="18" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="abstraction.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/best/abstraction.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="4230">
-              <caret line="244" column="0" lean-forward="false" selection-start-line="244" selection-start-column="0" selection-end-line="244" selection-end-column="0" />
-              <folding>
-                <element signature="e#0#18#0" expanded="true" />
-                <marker date="1517018514130" expanded="true" signature="292:645" ph="..." />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="mdp.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/best/mdp.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="8244">
-              <caret line="464" column="21" lean-forward="false" selection-start-line="464" selection-start-column="21" selection-end-line="464" selection-end-column="21" />
-              <folding>
-                <element signature="e#0#18#0" expanded="true" />
-              </folding>
+              <selected id="12" />
             </state>
           </provider>
         </entry>
@@ -93,51 +48,7 @@
         <entry file="file://$PROJECT_DIR$/Demo_file/LTI_kalman_varying.ipynb">
           <provider selected="true" editor-type-id="ipnb-editor">
             <state>
-              <selected id="0" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="LTI_Kalman_stationary.ipynb" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Demo_file/LTI_Kalman_stationary.ipynb">
-          <provider selected="true" editor-type-id="ipnb-editor">
-            <state>
-              <selected id="0" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="LTI_Gaus_scLTL.ipynb" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Demo_file/LTI_Gaus_scLTL.ipynb">
-          <provider selected="true" editor-type-id="ipnb-editor">
-            <state>
-              <selected id="0" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="Linear.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Models/Linear.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="4752">
-              <caret line="304" column="0" lean-forward="false" selection-start-line="304" selection-start-column="0" selection-end-line="305" selection-end-column="0" />
-              <folding>
-                <element signature="e#1642#2043#0" expanded="false" />
-                <element signature="e#2083#2557#0" expanded="false" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="MDP.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Models/MDP.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="2052">
-              <caret line="120" column="22" lean-forward="false" selection-start-line="120" selection-start-column="8" selection-end-line="120" selection-end-column="22" />
-              <folding>
-                <element signature="e#1620#1658#0" expanded="true" />
-                <marker date="1516061894975" expanded="true" signature="7112:7162" ph="..." />
-              </folding>
+              <selected id="30" />
             </state>
           </provider>
         </entry>
@@ -216,11 +127,13 @@
         <option value="$PROJECT_DIR$/ApprxSimulation/LTI_simrel.py" />
         <option value="$PROJECT_DIR$/Demo_file/LTI_Kalman_stationary.ipynb" />
         <option value="$PROJECT_DIR$/Demo_file/LTI_Gaus_scLTL.ipynb" />
-        <option value="$PROJECT_DIR$/Demo_file/LTI_kalman_varying.ipynb" />
         <option value="$PROJECT_DIR$/Models/MDP.py" />
         <option value="$PROJECT_DIR$/Case_study_adhs.ipynb" />
         <option value="$PROJECT_DIR$/rss18/rover-copter.ipynb" />
         <option value="$PROJECT_DIR$/ApprxSimulation/Visualize.py" />
+        <option value="$PROJECT_DIR$/examples/lti_map_abstraction.ipynb" />
+        <option value="$PROJECT_DIR$/Demo_file/LTI_kalman_varying.ipynb" />
+        <option value="$PROJECT_DIR$/Demo_file/NonConvexityPOMDP.ipynb" />
       </list>
     </option>
   </component>
@@ -230,10 +143,10 @@
     <detection-done>true</detection-done>
     <sorting>DEFINITION_ORDER</sorting>
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
+  <component name="ProjectFrameBounds">
     <option name="y" value="23" />
-    <option name="width" value="1440" />
-    <option name="height" value="813" />
+    <option name="width" value="788" />
+    <option name="height" value="877" />
   </component>
   <component name="ProjectView">
     <navigator currentView="ProjectPane" proportions="" version="1">
@@ -288,16 +201,6 @@
               <item name="pdf-abstraction" type="b2602c69:ProjectViewProjectNode" />
               <item name="pdf-abstraction" type="462c0819:PsiDirectoryNode" />
               <item name="Models" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="pdf-abstraction" type="b2602c69:ProjectViewProjectNode" />
-              <item name="pdf-abstraction" type="462c0819:PsiDirectoryNode" />
-              <item name="rss18" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="pdf-abstraction" type="b2602c69:ProjectViewProjectNode" />
-              <item name="pdf-abstraction" type="462c0819:PsiDirectoryNode" />
-              <item name="tests" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
@@ -446,30 +349,31 @@
     </history-entry>
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="23" width="1440" height="813" extended-state="6" />
+    <frame x="0" y="23" width="788" height="877" extended-state="0" />
+    <editor active="true" />
     <layout>
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.12988827" sideWeight="0.63018596" order="2" side_tool="false" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.31129476" sideWeight="0.49713877" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.29112834" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39583334" sideWeight="0.369814" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3297568" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.12988827" sideWeight="0.63018596" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.20868348" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.31473532" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.31129476" sideWeight="0.49713877" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
+      <window_info id="Data View" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.30678466" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Debug Logs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32921812" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
-      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39583334" sideWeight="0.369814" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
-      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.20868348" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Coverage" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="true" content_ui="tabs" />
       <window_info id="Execute Anonymous" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.28755364" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
       <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3297568" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.31473532" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
-      <window_info id="Data View" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.30678466" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Salesforce" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.12430168" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
     </layout>
     <layout-to-restore>
@@ -537,8 +441,39 @@
         <state relative-caret-position="4230">
           <caret line="244" column="0" lean-forward="false" selection-start-line="244" selection-start-column="0" selection-end-line="244" selection-end-column="0" />
           <folding>
-            <element signature="e#0#18#0" expanded="true" />
-            <marker date="1517018514130" expanded="true" signature="292:645" ph="..." />
+            <element signature="e#0#18#0" expanded="false" />
+            <marker date="1519882068018" expanded="true" signature="2350:2419" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="2350:2694" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="2442:2694" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="2808:6059" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="3589:3742" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="3889:3996" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="4550:5536" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="4628:5328" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="4829:5203" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="5019:5203" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="6081:6126" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="6161:6191" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="6214:6435" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="6470:7036" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="7075:7370" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="7401:8212" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="7699:7777" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="7803:7861" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="8233:8462" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="8374:8447" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="8493:8593" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="8629:8719" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="8743:9113" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="8946:9058" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="9147:9418" ph="&quot;&quot;&quot;...&quot;&quot;&quot;" />
+            <marker date="1519882068018" expanded="true" signature="9513:10019" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="9558:9752" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="9599:9750" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="9798:10019" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="9875:10017" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="10250:11064" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="10961:11062" ph="..." />
           </folding>
         </state>
       </provider>
@@ -548,7 +483,7 @@
         <state relative-caret-position="8244">
           <caret line="464" column="21" lean-forward="false" selection-start-line="464" selection-start-column="21" selection-end-line="464" selection-end-column="21" />
           <folding>
-            <element signature="e#0#18#0" expanded="true" />
+            <element signature="e#0#18#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -557,10 +492,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="4752">
           <caret line="304" column="0" lean-forward="false" selection-start-line="304" selection-start-column="0" selection-end-line="305" selection-end-column="0" />
-          <folding>
-            <element signature="e#1642#2043#0" expanded="false" />
-            <element signature="e#2083#2557#0" expanded="false" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -590,7 +522,7 @@
         <state relative-caret-position="2052">
           <caret line="120" column="22" lean-forward="false" selection-start-line="120" selection-start-column="8" selection-end-line="120" selection-end-column="22" />
           <folding>
-            <element signature="e#1620#1658#0" expanded="true" />
+            <element signature="e#1620#1658#0" expanded="false" />
             <marker date="1516061894975" expanded="true" signature="7112:7162" ph="..." />
           </folding>
         </state>
@@ -601,6 +533,134 @@
         <state relative-caret-position="1494">
           <caret line="89" column="18" lean-forward="true" selection-start-line="89" selection-start-column="18" selection-end-line="89" selection-end-column="18" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Case_study_adhs.ipynb">
+      <provider selected="true" editor-type-id="ipnb-editor">
+        <state>
+          <selected id="29" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/best/abstraction.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="4230">
+          <caret line="246" column="0" lean-forward="false" selection-start-line="246" selection-start-column="0" selection-end-line="246" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#18#0" expanded="false" />
+            <marker date="1519882068018" expanded="true" signature="2350:2419" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="2350:2694" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="2442:2694" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="2808:6059" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="3589:3742" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="3889:3996" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="4550:5536" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="4628:5328" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="4829:5203" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="5019:5203" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="6081:6126" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="6161:6191" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="6214:6435" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="6470:7036" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="7075:7370" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="7401:8212" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="7699:7777" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="7803:7861" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="8233:8462" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="8374:8447" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="8493:8593" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="8629:8719" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="8743:9113" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="8946:9058" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="9147:9418" ph="&quot;&quot;&quot;...&quot;&quot;&quot;" />
+            <marker date="1519882068018" expanded="true" signature="9513:10019" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="9558:9752" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="9599:9750" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="9798:10019" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="9875:10017" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="10250:11064" ph="..." />
+            <marker date="1519882068018" expanded="true" signature="10961:11062" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Demo_file/LTI_Kalman_stationary.ipynb">
+      <provider selected="true" editor-type-id="ipnb-editor">
+        <state>
+          <selected id="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Demo_file/LTI_Gaus_scLTL.ipynb">
+      <provider selected="true" editor-type-id="ipnb-editor">
+        <state>
+          <selected id="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Models/MDP.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2052">
+          <caret line="120" column="22" lean-forward="false" selection-start-line="120" selection-start-column="8" selection-end-line="120" selection-end-column="22" />
+          <folding>
+            <element signature="e#1620#1658#0" expanded="false" />
+            <marker date="1516061894975" expanded="true" signature="7112:7162" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Testruns.ipynb">
+      <provider selected="true" editor-type-id="ipnb-editor">
+        <state>
+          <selected id="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/ApprxSimulation/Visualize.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="444">
+          <caret line="75" column="0" lean-forward="true" selection-start-line="75" selection-start-column="0" selection-end-line="75" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/examples/lti_map_abstraction.ipynb">
+      <provider selected="true" editor-type-id="ipnb-editor">
+        <state>
+          <selected id="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Models/Linear.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="696">
+          <caret line="306" column="0" lean-forward="false" selection-start-line="306" selection-start-column="0" selection-end-line="307" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/best/mdp.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="696">
+          <caret line="463" column="21" lean-forward="false" selection-start-line="463" selection-start-column="21" selection-end-line="463" selection-end-column="21" />
+          <folding>
+            <element signature="e#0#18#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Demo_file/LTI_kalman_varying.ipynb">
+      <provider selected="true" editor-type-id="ipnb-editor">
+        <state>
+          <selected id="2" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Demo_file/NonConvexityPOMDP.ipynb">
+      <provider selected="true" editor-type-id="ipnb-editor">
+        <state>
+          <selected id="12" />
         </state>
       </provider>
     </entry>
