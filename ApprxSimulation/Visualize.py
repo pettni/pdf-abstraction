@@ -88,7 +88,7 @@ def ellips_cov(cov, nstd, ax, pos = (0,0)):
 def plot_rel(Meps, pos = None, number =20):
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    patch =patch_ellips(Meps, pos = None, number =number)
+    patch =patch_ellips(Meps, pos=None, number=number)
 
     ax.add_patch(patch)
     #
