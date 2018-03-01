@@ -18,9 +18,8 @@ Run tests:
 
  1. Move everything into ```best/``` and delete superfluous code
     - Move ```Linear.py``` to ```best/Linear.py```
-    - Get rid of dependence on ```Models/MDP.py```
+    - Get rid of dependence on ```Models/MDP.py``` and delete it, this will remove dependence on ```pymdptoolbox```
     - Integrate ```LTI_simrel``` into a new file ```best/simrel.py```
-    - Get rid of dependence on ```pymdptoolbox```
 
  2. Write tests for abstractions simulation relations
 
