@@ -27,9 +27,9 @@ Run tests:
 
  4. Add LTL converter for Buchi automata
  
-## New things that may be implemented in the future
+## On the horizon...
 
- 1. FIRM abstractions (Rohan)
+ 1. FIRM abstraction of a POMDP as an MDP (Rohan)
  
  2. Serial and parallell products with MDPs and POMDPs. Sequential point-based value iteration for such products. (Rohan, Petter)
  
