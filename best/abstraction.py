@@ -9,6 +9,8 @@ from best import *
 from best.mdp import MDP
 from ApprxSimulation.LTI_simrel import eps_err
 
+# TODO: clean up LTIAbstraction class to use functions in base class
+
 class Abstraction(object):
 
   def __init__(self, x_low, x_up, n_list):
@@ -67,7 +69,7 @@ class Abstraction(object):
     return midx_to_idx(map(np.int, midx), self.n_list)
 
   def interface(self, u_ab, s_ab, x):
-    '''return target point for given abstract control and action'''
+    '''return target point for given abstract action and state'''
     return self.s_to_x(self.T_list[u_ab].getrow(s_ab).indices[0])
 
   def plot(self, ax):

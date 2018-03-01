@@ -14,6 +14,18 @@ Run tests:
 
 	nosetests
 
+## List of TODOs
+
+ 1. Move everything into ```best/```
+    - Move ```Linear.py``` to ```best/Linear.py```. Get rid of dependence on ```Models/MDP.py```
+    - Integrate ```LTI_simrel``` into a new file ```best/simrel.py```
+
+ 2. Write tests for abstractions simulation relations
+
+ 3. Implement uniform treatment of regions and abstractions via predicates
+
+ 4. Add LTL converter for Buchi automata
+
 ## Workflow
 
 Given a specification written as a syntactically co-safe LTL property and a POMDP model which is

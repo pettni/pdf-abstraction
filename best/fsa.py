@@ -1,3 +1,5 @@
+# TODO: add credit for lomap
+
 import networkx as nx
 import re
 import subprocess as subp

@@ -17,6 +17,8 @@ import control
 from Models.MDP import Markov
 import numpy.testing as nptest
 
+# TODO: get rid of Markov dependence (migrate to best.mdp)
+
 class LTI:
     """Define a discrete-time linear time invariant system"""
 

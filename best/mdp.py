@@ -6,8 +6,8 @@ import time
 
 from best import *
 
-DTYPE = np.float32
-DTYPE_ACTION = np.uint8
+DTYPE = np.float32       # datatype in value iteration
+DTYPE_ACTION = np.uint8  # datatype in policy
 
 class MDP(object):
   """Markov Decision Process"""
@@ -19,8 +19,8 @@ class MDP(object):
     Input arguments:
       T:  List of M stochastic transition matrices of size N x N such that T[m][n,n'] = P(n' | n, m).
           M is the number of actions and N the number of states.
-      input:  input labeling function: U -> range(M) 
-      output: output labeling function: range(N) -> Y
+      input:  input label to input: U -> range(M) 
+      output: state to output: range(N) -> Y
       input_name: identifier for input state
       output_name: identifier for output state
 
@@ -31,11 +31,9 @@ class MDP(object):
       input  alphabet: U
     '''
 
-    # Inputs are action labels
     self.input_fcn = input_fcn
     self.input_name = input_name
 
-    # Outputs are state labels
     self.output_fcn = output_fcn
     self.output_name = output_name
 
@@ -78,13 +76,13 @@ class MDP(object):
   def __len__(self):
     return self.N
 
-  def prune(self, tresh = 1e-8):
-    # remove transitions with probability less than tresh and renormalize
+  def prune(self, thresh = 1e-8):
+    '''remove transitions with probability less than thresh and re-normalize'''
     for m in range(self.M):
       data = self.Tmat_csr[m].data
       indices = self.Tmat_csr[m].indices
       indptr = self.Tmat_csr[m].indptr
-      data[np.nonzero(data < tresh)] = 0
+      data[np.nonzero(data < thresh)] = 0
 
       new_mat = sp.csr_matrix((data, indices, indptr), shape=self.Tmat_csr[m].shape)
 
@@ -127,6 +125,7 @@ class MDP(object):
     return new_conn_list, new_det
 
   def product(self, new_mdp, connection):
+    '''construct a product mdp defined by connection'''
     if isinstance(new_mdp, ProductMDP):
       raise Exception('not implemented')
 
@@ -181,10 +180,10 @@ class MDP(object):
     '''compute V_{ux} = \sum_{x'} T_{uxx'} W_x' '''
     return np.stack([sparse_tensordot(self.T(m), W, 0) for m in range(self.M)])
 
-  def solve_reach_constrained(self, Vacc0, Vcon0, treshhold, horizon, verbose=False):
+  def solve_reach_constrained(self, Vacc0, Vcon0, thresh, horizon, verbose=False):
     '''
       Compute max  P(reach Vacc0)
-              s.t. P(reach Vcon0) >= treshold
+              s.t. P(reach Vcon0) >= thresh
     '''
     Vacc = np.zeros(self.N_list, dtype=DTYPE)
     Vcon = np.zeros(self.N_list, dtype=DTYPE)
@@ -205,7 +204,7 @@ class MDP(object):
       # Max action over those that satisfy constraint
       Vacc_new_m = self.bellman(np.fmax(Vacc, Vacc0.astype(DTYPE)))
 
-      Vcon_gr = Vcon_new_m >= treshhold  # to bool
+      Vcon_gr = Vcon_new_m >= thresh  # to bool
 
       Vacc = (Vacc_new_m * Vcon_gr).max(axis = 0)
 
@@ -378,7 +377,7 @@ class ParallelMDP(MDP):
 
 
 class ProductMDP(MDP):
-  """Non-deterministic Product Markov Decision Process"""
+  '''Serial product MDP (possible non-deterministic)'''
   def __init__(self, mdplist, conn_list, det_list):
 
     self.mdplist = mdplist
@@ -466,7 +465,7 @@ class ProductMDP(MDP):
     return mdplist[0].input(u)
 
   def product(self, new_mdp, connection):
-    ''' Attach a product mdp '''
+    '''attach new_mdp in serial using connection'''
     if isinstance(new_mdp, ProductMDP):
       raise Exception('not implemented')
 
@@ -494,7 +493,7 @@ class ProductMDP(MDP):
                        self.det_list + [new_det])
 
   def bellman(self, W):
-    ''' sequentially compute V_{ux} = \sum_{x'} T_{uxx'} W_{x'} for a serial MDP'''
+    '''sequentially compute V_{ux} = \sum_{x'} T_{uxx'} W_{x'} for a serial MDP'''
 
     for i in range(len(self.mdplist)-1, 0, -1):
 
@@ -517,7 +516,7 @@ class ProductMDP(MDP):
         W = Wq_list.min(axis=0)
 
       else: 
-        # connection is deterministic
+        # connection is deterministic--can optimize
         dummy = self.conn_list[i-1]
         while len(dummy.shape) < 1 + len(self.mdplist):
           # promote to higher dim to ensure broadcasting is done correctly

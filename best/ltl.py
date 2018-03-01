@@ -1,3 +1,5 @@
+# TODO: add credit to lomap
+
 import numpy as np
 import scipy.sparse as sp
 from itertools import product
@@ -65,7 +67,7 @@ def solve_ltl_cosafe(mdp, formula, connection, horizon=np.Inf, delta=0., verbose
 
 
 class LTL_Policy(object):
-  """control policy"""
+  '''control policy'''
   def __init__(self, proplist, dfsa_Tlist, dfsa_init, dfsa_final, pol, val):
     '''create a control policy object'''
     self.proplist = proplist
