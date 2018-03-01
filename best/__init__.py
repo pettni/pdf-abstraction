@@ -3,7 +3,6 @@
 from itertools import combinations
 from operator import mul
 import numpy as np
-# import tensorly as tl
 
 def subsets(collection):
   '''construct iterator over all subsets in collection'''
@@ -32,8 +31,8 @@ def unfold(tensor, mode):
   return np.reshape(np.moveaxis(tensor, mode, 0), (tensor.shape[mode], -1))
 
 def sparse_tensordot(a, b, dim):
-	# multiplication of sparse matrix a with tensor b along dimension dim:
-	# c(i1, ...ij, ..., in) = \sum_{ij'} a(ij,ij') b(i1, ..., ij', ..., in)
+	'''multiplication of sparse matrix a with tensor b along dimension dim:
+	   c(i1, ...ij, ..., in) = \sum_{ij'} a(ij,ij') b(i1, ..., ij', ..., in)'''
 
 	assert a.shape[1] == b.shape[dim]
 
@@ -43,14 +42,14 @@ def sparse_tensordot(a, b, dim):
 	return fold(a.dot(unfold(b, dim)), dim, new_shape)
 
 def idx_to_midx(idx, n_list):
-  # index k to multiindex (i1, \ldots, in)   where i0 <= j < n_list[j]
+  '''index k to multiindex (i1, \ldots, in)   where i0 <= j < n_list[j]'''
   assert idx >= 0
   assert idx < prod(n_list)
 
   return tuple(idx % prod(n_list[i:]) / prod(n_list[i + 1:]) for i in range(len(n_list)))
 
 def midx_to_idx(midx, n_list):
-  # multiindex (i1, \ldots, in) to index k
+  '''multiindex (i1, \ldots, in) to index k'''
   assert len(midx) == len(n_list)
   assert all(midx[i] < n_list[i] for i in range(len(midx)))
   assert all(midx[i] >= 0 for i in range(len(midx)))

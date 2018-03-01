@@ -14,29 +14,23 @@ Run tests:
 
 	nosetests
 
-## Workflow
+## List of TODOs
 
-Given a specification written as a syntactically co-safe LTL property and a POMDP model which is
-- a finite state partially observable Markov decision process, or
-- a LTI system with gaussian disturbances
-compute a policy with guaranteed probability that the property is satisfied.
+ 1. Move everything into ```best/``` and delete superfluous code
+    - Move ```Linear.py``` to ```best/Linear.py```
+    - Get rid of dependence on ```Models/MDP.py``` and delete it, this will remove dependence on ```pymdptoolbox```
+    - Integrate ```LTI_simrel``` into a new file ```best/simrel.py```
 
+ 2. Write tests for simulation relations
 
-1. Convert syntactically co-safe LTL property to DFA
-  * (code manually until cristi is ready)
+ 3. Implement uniform treatment of regions and abstractions via predicates
 
-2. Formal abstraction of POMDP to approximate belief space model
-*output:*
-  * MDP (Markov decision process)
-  * \delta = probabilistic deviation
-  * Lset = set valued labeling map
-  * R^{-1}(x) = set valued function containing all abstract states related to concrete state
+ 4. Add LTL converter for Buchi automata
+ 
+## On the horizon...
 
-3. Compute delta-robust game over cross product
-*output:*
-  * Value function for abstract model
-  * Policy for abstract model
-
-4. Implementation
-  * refine policy  based on Value function, relation, and abstract Policy
-  * simulate refined policy with concrete POMDP
+ 1. FIRM abstraction of a POMDP as an MDP (Rohan)
+ 
+ 2. Serial and parallell products with MDPs and POMDPs. Sequential point-based value iteration for such products. (Rohan, Petter)
+ 
+ 3. Barrier-function based abstractions (Petter)

@@ -49,7 +49,7 @@ def test_connection():
 def test_prune():
 	T0 = np.array([[0.5, 0.05, 0.45], [0, 1, 0], [0, 0.01, 0.99]])
 	mdp = MDP([T0])
-	mdp.prune(tresh=0.06)
+	mdp.prune(thresh=0.06)
 
 	TprunedA = np.array([[0.5/0.95, 0, 0.45/0.95], [0, 1, 0], [0, 0, 1]])
 
