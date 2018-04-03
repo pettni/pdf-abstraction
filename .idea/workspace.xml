@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="31e704a2-ef6c-40a2-8981-ee3dd6419582" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/Demo_file/NonConvexityPOMDP.ipynb" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="$PROJECT_DIR$/.idea/" />
@@ -149,7 +148,7 @@
     <option name="height" value="877" />
   </component>
   <component name="ProjectView">
-    <navigator currentView="ProjectPane" proportions="" version="1">
+    <navigator proportions="" version="1">
       <flattenPackages />
       <showMembers />
       <showModules />
@@ -162,51 +161,7 @@
       <manualOrder />
       <foldersAlwaysOnTop value="true" />
     </navigator>
-    <panes>
-      <pane id="Scratches" />
-      <pane id="Scope" />
-      <pane id="ProjectPane">
-        <subPane>
-          <expand>
-            <path>
-              <item name="pdf-abstraction" type="b2602c69:ProjectViewProjectNode" />
-              <item name="pdf-abstraction" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="pdf-abstraction" type="b2602c69:ProjectViewProjectNode" />
-              <item name="pdf-abstraction" type="462c0819:PsiDirectoryNode" />
-              <item name="ApprxSimulation" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="pdf-abstraction" type="b2602c69:ProjectViewProjectNode" />
-              <item name="pdf-abstraction" type="462c0819:PsiDirectoryNode" />
-              <item name="best" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="pdf-abstraction" type="b2602c69:ProjectViewProjectNode" />
-              <item name="pdf-abstraction" type="462c0819:PsiDirectoryNode" />
-              <item name="Demo_file" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="pdf-abstraction" type="b2602c69:ProjectViewProjectNode" />
-              <item name="pdf-abstraction" type="462c0819:PsiDirectoryNode" />
-              <item name="Doc" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="pdf-abstraction" type="b2602c69:ProjectViewProjectNode" />
-              <item name="pdf-abstraction" type="462c0819:PsiDirectoryNode" />
-              <item name="examples" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="pdf-abstraction" type="b2602c69:ProjectViewProjectNode" />
-              <item name="pdf-abstraction" type="462c0819:PsiDirectoryNode" />
-              <item name="Models" type="462c0819:PsiDirectoryNode" />
-            </path>
-          </expand>
-          <select />
-        </subPane>
-      </pane>
-    </panes>
+    <panes />
   </component>
   <component name="PropertiesComponent">
     <property name="WebServerToolWindowFactoryState" value="false" />
@@ -422,6 +377,20 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/Demo_file/NonConvexityPOMDP.ipynb">
+      <provider selected="true" editor-type-id="ipnb-editor">
+        <state>
+          <selected id="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Demo_file/LTI_kalman_varying.ipynb">
+      <provider selected="true" editor-type-id="ipnb-editor">
+        <state>
+          <selected id="0" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/Testruns.ipynb">
       <provider selected="true" editor-type-id="ipnb-editor">
         <state>
@@ -440,41 +409,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="4230">
           <caret line="244" column="0" lean-forward="false" selection-start-line="244" selection-start-column="0" selection-end-line="244" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#18#0" expanded="false" />
-            <marker date="1519882068018" expanded="true" signature="2350:2419" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="2350:2694" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="2442:2694" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="2808:6059" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="3589:3742" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="3889:3996" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="4550:5536" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="4628:5328" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="4829:5203" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="5019:5203" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="6081:6126" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="6161:6191" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="6214:6435" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="6470:7036" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="7075:7370" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="7401:8212" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="7699:7777" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="7803:7861" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="8233:8462" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="8374:8447" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="8493:8593" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="8629:8719" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="8743:9113" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="8946:9058" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="9147:9418" ph="&quot;&quot;&quot;...&quot;&quot;&quot;" />
-            <marker date="1519882068018" expanded="true" signature="9513:10019" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="9558:9752" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="9599:9750" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="9798:10019" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="9875:10017" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="10250:11064" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="10961:11062" ph="..." />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -482,9 +416,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="8244">
           <caret line="464" column="21" lean-forward="false" selection-start-line="464" selection-start-column="21" selection-end-line="464" selection-end-column="21" />
-          <folding>
-            <element signature="e#0#18#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -492,7 +423,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="4752">
           <caret line="304" column="0" lean-forward="false" selection-start-line="304" selection-start-column="0" selection-end-line="305" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -521,10 +451,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="2052">
           <caret line="120" column="22" lean-forward="false" selection-start-line="120" selection-start-column="8" selection-end-line="120" selection-end-column="22" />
-          <folding>
-            <element signature="e#1620#1658#0" expanded="false" />
-            <marker date="1516061894975" expanded="true" signature="7112:7162" ph="..." />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -532,7 +458,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1494">
           <caret line="89" column="18" lean-forward="true" selection-start-line="89" selection-start-column="18" selection-end-line="89" selection-end-column="18" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -547,41 +472,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="4230">
           <caret line="246" column="0" lean-forward="false" selection-start-line="246" selection-start-column="0" selection-end-line="246" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#18#0" expanded="false" />
-            <marker date="1519882068018" expanded="true" signature="2350:2419" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="2350:2694" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="2442:2694" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="2808:6059" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="3589:3742" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="3889:3996" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="4550:5536" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="4628:5328" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="4829:5203" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="5019:5203" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="6081:6126" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="6161:6191" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="6214:6435" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="6470:7036" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="7075:7370" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="7401:8212" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="7699:7777" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="7803:7861" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="8233:8462" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="8374:8447" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="8493:8593" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="8629:8719" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="8743:9113" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="8946:9058" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="9147:9418" ph="&quot;&quot;&quot;...&quot;&quot;&quot;" />
-            <marker date="1519882068018" expanded="true" signature="9513:10019" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="9558:9752" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="9599:9750" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="9798:10019" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="9875:10017" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="10250:11064" ph="..." />
-            <marker date="1519882068018" expanded="true" signature="10961:11062" ph="..." />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -603,10 +493,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="2052">
           <caret line="120" column="22" lean-forward="false" selection-start-line="120" selection-start-column="8" selection-end-line="120" selection-end-column="22" />
-          <folding>
-            <element signature="e#1620#1658#0" expanded="false" />
-            <marker date="1516061894975" expanded="true" signature="7112:7162" ph="..." />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -621,7 +507,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="444">
           <caret line="75" column="0" lean-forward="true" selection-start-line="75" selection-start-column="0" selection-end-line="75" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -636,7 +521,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="696">
           <caret line="306" column="0" lean-forward="false" selection-start-line="306" selection-start-column="0" selection-end-line="307" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -644,16 +528,13 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="696">
           <caret line="463" column="21" lean-forward="false" selection-start-line="463" selection-start-column="21" selection-end-line="463" selection-end-column="21" />
-          <folding>
-            <element signature="e#0#18#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Demo_file/LTI_kalman_varying.ipynb">
       <provider selected="true" editor-type-id="ipnb-editor">
         <state>
-          <selected id="2" />
+          <selected id="30" />
         </state>
       </provider>
     </entry>
