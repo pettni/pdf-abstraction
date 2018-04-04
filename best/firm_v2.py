@@ -44,9 +44,10 @@ class FIRM(object):
         self.edge_controllers = {}
         self.edge_output_prob = {}
         self.T_list = None
+        self.Tz_list = None
         self.sample_nodes(20)
-        self.make_edges(10)
-        self.n_particles = 4
+        self.make_edges(4)
+        self.n_particles = 1
 
     ''' Sample nodes in belief space and also generate node_controllers '''
     # n_nodes = number of nodes to sample in graph
@@ -179,8 +180,8 @@ class FIRM(object):
                           width=major, height=minor, angle=alpha)
             ell.set_facecolor('gray')
             ax.add_artist(ell)
-        plt.set_xlim(self.belief_space.x_low[0], self.belief_space.x_up[0])
-        plt.set_ylim(self.belief_space.x_low[1], self.belief_space.x_up[1])
+        ax.set_xlim(self.belief_space.x_low[0], self.belief_space.x_up[0])
+        ax.set_ylim(self.belief_space.x_low[1], self.belief_space.x_up[1])
         for (name, info) in self.regs.iteritems():
             hatch = False
             fill = True
@@ -269,8 +270,7 @@ class Edge_Controller(object):
     # belief_space, motion_model, obs_model: Refer to classes in models.py
     # Wx = quadratic cost matrix of state used in LQR
     # Wu = quadratic cost matrix of input used in LQR
-    def __init__(self, motion_model, obs_model, node_i, node_j, Wx, Wu,
-                 belief_space):
+    def __init__(self, motion_model, obs_model, node_i, node_j, Wx, Wu, belief_space):
         self.motion_model = motion_model
         self.obs_model = obs_model
         self.node_i = node_i
@@ -279,8 +279,7 @@ class Edge_Controller(object):
         self.Wu = Wu
         self.belief_space = belief_space
         self.ax = ax
-        [self.traj_d, self.u0] = self.motion_model.generate_desiredtraj_and_ffinput(
-            node_i, node_j)
+        [self.traj_d, self.u0] = self.motion_model.generate_desiredtraj_and_ffinput(node_i, node_j)
         self.N = len(self.traj_d)
         n_xdim = self.motion_model.getA(node_i).shape[1]
         n_udim = self.motion_model.getB(node_i).shape[1]

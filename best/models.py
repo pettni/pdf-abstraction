@@ -6,7 +6,7 @@ import math
 # Define Belief Space/State
 class Belief_Space(object):
 
-    def sameple_mean(self):
+    def sample_mean(self):
         raise NotImplementedError
 
     def distance(self, belief_state_1, belief_state_2):
@@ -81,6 +81,9 @@ class Motion_Model(object):
         raise NotImplementedError
 
     def generate_desiredtraj_and_ffinput(self, node_i, node_j):
+        raise NotImplementedError
+
+    def evolve(self, b, u, w):
         raise NotImplementedError
 
 
