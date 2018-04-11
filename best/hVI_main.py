@@ -96,8 +96,8 @@ def backup(i_b, i_v, i_q, val):
                     q_z_o = i_q
                 # gamma_o_e = np.matrix(np.matlib.repmat(O[i_o, :], len(b), 1)) * np.matrix(val[v_e][q_z_o].alpha_mat)
                 gamma_o_e = np.diag(O[i_o, :]) * np.matrix(val[v_e][q_z_o].alpha_mat)
-                if (i_v==0 and i_q == 0 and i_e==1 and b[0]==0 and i==2):
-                    import pdb; pdb.set_trace()
+                # if (i_v==0 and i_q == 0 and i_e==1 and b[0]==0 and i==2):
+                #     import pdb; pdb.set_trace()
                 index = np.argmax(gamma_o_e.T * b)
                 sum_o = sum_o + gamma_o_e[:, index]
             sum_z = sum_z + p_outputs[z] * sum_o
@@ -108,14 +108,16 @@ def backup(i_b, i_v, i_q, val):
 
 
 def plot_val(val):
+    v_names=['left','center','right']
+    q_names=['NoObsNoSample', 'Sample', 'Obs']
     for i_v in range(len(val)):
         for i_q in range(len(val[0])):
             fig = plt.figure(1)
             fig.add_subplot((len(val)), (len(val[0])), (i_v*len(val[0])+i_q))
             for i_alpha in range(val[i_v][i_q].alpha_mat.shape[1]):
                 plt.plot(val[i_v][i_q].alpha_mat[:2, i_alpha])
-                plt.title('Gamma(v='+str(i_v)+',q='+str(i_q)+')')
-                plt.xlabel('belief')
+                plt.title('Gamma(v='+v_names[i_v]+',q='+q_names[i_q]+')')
+                plt.xlabel('belief', horizontalalignment='right', x=1.0)
                 plt.ylabel('Value')
                 plt.ylim(-0.5, 1.5)
     plt.show()
