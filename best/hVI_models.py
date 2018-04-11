@@ -38,7 +38,7 @@ class Rn_Belief_Space(Belief_Space):
     def distance_mean(self, belief_state1, belief_state2):
         return LA.norm(belief_state1.mean - belief_state2.mean)
 
-    def new_state(self, mean, cov):
+    def new_state(self, mean, cov=None):
         return Rn_Belief_State(mean, cov)
 
 
