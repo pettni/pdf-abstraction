@@ -51,10 +51,10 @@ firm.plot(ax)
 # Create DFA
 formula = '! obs U sample'
 dfsa, dfsa_init, dfsa_final, proplist = formula_to_mdp(formula)
-print dfsa
-print dfsa_init
-print dfsa_final
-print proplist
+# print dfsa
+# print dfsa_init
+# print dfsa_final
+# print proplist
 
 # Hybrid Value Iteration
 val=[[Gamma([b0, b1, b2]) for i_q in range(dfsa.N)] for i_v in range(len(firm.nodes))]
@@ -103,7 +103,6 @@ def backup(i_b, i_v, i_q, val):
             sum_z = sum_z + p_outputs[z] * sum_o
         if max_alpha_b_e.T * np.matrix(b) < sum_z.T * np.matrix(b):
             max_alpha_b_e = sum_z
-    print max_alpha_b_e
     return max_alpha_b_e
 
 
