@@ -48,7 +48,7 @@ class FIRM(object):
         # self.sample_nodes(3)
         self.sample_nodes(3,[[-4,0.2],[0,-0.2],[4,0]])
         self.make_edges(6)
-        self.n_particles = 1
+        self.n_particles = 3
 
     ''' Sample nodes in belief space and also generate node_controllers '''
     # n_nodes = number of nodes to sample in graph
@@ -64,7 +64,7 @@ class FIRM(object):
             # Sample Mean
             if means:
                 if len(means) is not n_nodes:
-                    raise ValueError('means does not have n_nodes values')
+                   raise ValueError('means does not have n_nodes values')
                 node = self.belief_space.new_state(means[i])
             else:
                 node = self.belief_space.sample_new_state()
@@ -106,6 +106,8 @@ class FIRM(object):
             neigh = []
             edge_controllers = []
             for j in range(len(self.nodes)):
+                # if i == j:
+                #     continue
                 dist_nodes = self.belief_space.distance_mean(self.nodes[i], self.nodes[j])
                 if dist_nodes < dist:
                     neigh.append(j)
@@ -122,7 +124,7 @@ class FIRM(object):
             for edge_controller in edge_controllers:
                 p_out = OrderedDict([(key, 0) for key, value in self.regs.iteritems()])
                 for i in range(self.n_particles):
-                    traj_e = edge_controller.simulate_trajectory()
+                    traj_e = edge_controller.simulate_trajectory(edge_controller.node_i)
                     traj_n = self.node_controllers[self.nodes.index(edge_controller.node_j)].simulate_trajectory(traj_e[-1])
                     output = self.get_outputs(traj_e + traj_n)
                     p_out[output] = p_out[output] + 1
@@ -186,12 +188,13 @@ class FIRM(object):
                           width=major, height=minor, angle=alpha)
             ell.set_facecolor('gray')
             ax.add_artist(ell)
+            plt.text(np.ravel(self.nodes[i].mean)[0]-0.03, np.ravel(self.nodes[i].mean)[1]-0.03, str(i))
         ax.set_xlim(self.belief_space.x_low[0], self.belief_space.x_up[0])
         ax.set_ylim(self.belief_space.x_low[1], self.belief_space.x_up[1])
         for (name, info) in self.regs.iteritems():
             hatch = False
             fill = True
-            rf.plot_region(ax, info[0], name, 1, self.output_color[name], hatch=hatch, fill=fill)
+            rf.plot_region(ax, info[0], name, info[1], self.output_color[name], hatch=hatch, fill=fill)
         # plt.show()
 
     ''' Construct T by treating index of neigh as action number
@@ -304,8 +307,9 @@ class Edge_Controller(object):
                 break
 
     ''' Simulates trajectory starting from node_i to node_j '''
-    def simulate_trajectory(self):
-        traj = [self.node_i]
+    def simulate_trajectory(self, b0):
+        # traj = [self.node_i]
+        traj = [b0]
         for t in range(self.N-1):
             b = traj[-1]
             u = -self.L[t, :, :] * (b.mean - self.traj_d[t].mean) + self.u0[t]
