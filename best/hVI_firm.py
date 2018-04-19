@@ -18,7 +18,6 @@ List of pending improvements:
 '''
 
 class FIRM(object):
-
     # belief_space, motion_model, obs_model: Refer to classes in models.py
     # Wx = quadratic cost matrix of state used in LQR
     # Wu = quadratic cost matrix of input used in LQR
@@ -26,8 +25,7 @@ class FIRM(object):
     # regs_outputs = Mapping from regs info[2] to integer of output; e.g. regs_output = {'blue':0, 'green':1, 'red':2}
     # output_color = e.g. output_color = {-1:'black', 0:'blue', 1:'green', 2:'red'}
     # ax = handle for plotting stuff, can be generated as: fig = plt.figure(0); ax = fig.add_subplot(111, aspect='equal')
-    def __init__(self, belief_space, motion_model, obs_model, Wx, Wu, regs, output_color, ax):
-        np.random.seed(1)
+    def __init__(self, belief_space, motion_model, obs_model, Wx, Wu, regs, output_color, ax, sc):
         self.belief_space = belief_space
         self.motion_model = motion_model
         self.obs_model = obs_model
@@ -45,16 +43,21 @@ class FIRM(object):
         self.edge_output_prob = {}
         self.T_list = None
         self.Tz_list = None
-        # self.sample_nodes(3)
-        self.sample_nodes(3,[[-4,0.2],[0,-0.2],[4,0]])
-        self.make_edges(6)
-        self.n_particles = 3
+        if sc == 'toy':
+            self.sample_nodes(3, [[-4,0.2],[0,-0.2],[4,0]])
+            self.make_edges(5)
+        else:
+            self.sample_nodes(20)
+            self.make_edges(4)
+        self.n_particles = 1
 
     ''' Sample nodes in belief space and also generate node_controllers '''
     # n_nodes = number of nodes to sample in graph
     # append = False erases all previous nodes whereas True adds more nodes to existing graph
     def sample_nodes(self, n_nodes, means=[], append=False):
         # TODO: Implement append to sample nodes incrementally
+        if not means and n_nodes < len(self.regs):
+            raise ValueError('Number of FIRM samples cannot be less than n_regs')
         if append is False:
             self.nodes = []  # clear previous nodes/edges
             self.edges = {}
@@ -67,7 +70,10 @@ class FIRM(object):
                    raise ValueError('means does not have n_nodes values')
                 node = self.belief_space.new_state(means[i])
             else:
-                node = self.belief_space.sample_new_state()
+                if i < len(self.regs):
+                    node = self.belief_space.sample_new_state_in_reg(self.regs[self.regs.keys()[i]][0])
+                else:
+                    node = self.belief_space.sample_new_state()
             # Set Co-variance
             A = self.motion_model.getA(node)
             G = self.motion_model.getG(node)
@@ -129,7 +135,7 @@ class FIRM(object):
                     output = self.get_outputs(traj_e + traj_n)
                     p_out[output] = p_out[output] + 1
                     if self.ax is not None:
-                        self.plot_traj(traj_e+traj_n, self.output_color[output])
+                        self.plot_traj(traj_e + traj_n, self.output_color[output])
                 p_out = {key: val / self.n_particles for key, val in p_out.iteritems()}
                 output_prob_edges.append(p_out)
             self.edge_output_prob[node] = output_prob_edges
@@ -156,6 +162,8 @@ class FIRM(object):
         for i in range(len(traj)-1):
             x = [np.ravel(traj[i].mean)[0], np.ravel(traj[i+1].mean)[0]]
             y = [np.ravel(traj[i].mean)[1], np.ravel(traj[i+1].mean)[1]]
+            if color == 'white':
+                color = 'black'
             self.ax.plot(x, y, color, ms=20)
 
     ''' Plot the FIRM graph '''
@@ -219,7 +227,6 @@ class FIRM(object):
                               shape=(self.nodes.shape[0],
                                      self.nodes.shape[0])))
         output_fcn = lambda s: self.nodes[s]
-        import pdb; pdb.set_trace()
         return MDP(self.T_list, output_name='xc', output_fcn=output_fcn)
 
 

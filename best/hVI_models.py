@@ -6,9 +6,6 @@ import math
 # Define Belief Space/State
 class Belief_Space(object):
 
-    def sample_mean(self):
-        raise NotImplementedError
-
     def distance(self, belief_state_1, belief_state_2):
         raise NotImplementedError
 
@@ -29,6 +26,13 @@ class Rn_Belief_Space(Belief_Space):
         ''' Returns a belief state with random mean and zero covariance '''
         mean = [self.x_low[i] + (self.x_up[i] - self.x_low[i]) * np.random.rand()
                 for i in range(len(self.x_low))]
+        return Rn_Belief_State(mean)
+
+    def sample_new_state_in_reg(self, reg_polytope):
+        x_low = reg_polytope.bounding_box[0].ravel()
+        x_up = reg_polytope.bounding_box[1].ravel()
+        mean = [x_low[i] + (x_up[i] - x_low[i]) * 0.5
+                for i in range(len(x_low))]
         return Rn_Belief_State(mean)
 
     def distance(self, belief_state1, belief_state2):

@@ -18,11 +18,11 @@ class Gamma(object):
     '''
     def __init__(self, belief_points, alpha_mat=None):
         if alpha_mat:
-            self.alpha_mat = alpha_mat
+            self.alpha_mat = np.matrix(alpha_mat)
         else:
-            self.alpha_mat = np.zeros([len(belief_points[0]), len(belief_points)])
+            self.alpha_mat = np.matrix(np.zeros([len(belief_points[0]), len(belief_points)]))
         self.belief_points = belief_points
-        self.best_edge = np.zeros(len(belief_points), dtype=np.int8)  # policy
+        self.best_edge = -np.ones(len(belief_points), dtype=np.int8)  # policy
 
     def prune(self):
         print "TODO: implement prune alpha"
@@ -44,34 +44,36 @@ class Env(object):
         self.n_total_regs = len(regs)
         # construct the product state space 2^n_unknown_regs
         self.x_e = [i for i in range(2**self.n_unknown_regs)]
+        self.b_init = np.matrix(self.b_init).T
         self.b_prod_init = self.get_product_belief(self.b_init)
 
     ''' returns O matrix
         v_mean = mean value of a FIRM node '''
     def get_O(self, v_mean):
         false_rate_regs = [self.get_false_rate(val, v_mean) for key, val in self.regs.iteritems()]
-        O = np.ones([2**self.n_unknown_regs, 2**self.n_unknown_regs])
+        O = np.matrix(np.ones([2**self.n_unknown_regs, 2**self.n_unknown_regs]))
         for i_obs in range(len(self.x_e)):
             for i_x in range(len(self.x_e)):
                 for i_reg in range(self.n_unknown_regs):
                     if self.x_e[i_obs] & 2**i_reg == self.x_e[i_x] & 2**i_reg:
-                        O[i_obs][i_x] = O[i_obs][i_x] * (1-false_rate_regs[i_reg])
+                        O[i_obs, i_x] = O[i_obs, i_x] * (1-false_rate_regs[i_reg])
                     else:
-                        O[i_obs][i_x] = O[i_obs][i_x] * false_rate_regs[i_reg]
+                        O[i_obs, i_x] = O[i_obs, i_x] * false_rate_regs[i_reg]
         return O
 
     def get_b_o(self, v_mean, b, x_e_true):
-        print "TODO: sample based on true values"
-        O = env.get_O(v_mean)
-        p_o = O[:, self.x_e.index(x_e_true)]
+        O = self.get_O(v_mean)
+        p_o = np.ravel(O[:, np.argmax(x_e_true)]).tolist()
         n_rand = random.random()
         p_cum = 0
         for p in p_o:
             p_cum = p_cum + p
             if n_rand < p_cum:
                 i_o = p_o.index(p)
-        self.x_e[i_o]
-        b_ = np.diag(O[i_o, ])
+                break
+        o = self.x_e[i_o]
+        b_ = np.multiply(O[i_o, :].T, b)/(O[i_o, :] * b)
+        return (b_, o, i_o)
 
     ''' Returns the false rate
         reg = value for RSS dictionary regs
@@ -79,7 +81,6 @@ class Env(object):
     def get_false_rate(self, reg, v_mean):
         bb = pc.bounding_box(reg[0])
         center = [(bb[0][0]+bb[1][0])/2, (bb[0][1]+bb[1][1])/2]
-        # import pdb; pdb.set_trace()
         dist = LA.norm(center - v_mean)
         return self.get_false_rate_dist(dist)
 
@@ -98,9 +99,13 @@ class Env(object):
     ''' Returns the belief vector in product belief space given belief of
         each individual reg p(x_ei == 1)'''
     def get_product_belief(self, belief):
-        if len(belief) is not self.n_unknown_regs:
-            raise ValueError('Size of belief_list should be equal to n_unknown_regs')
-        b_prod = np.zeros([len(self.x_e), 1])
+        if type(belief) is list:
+            belief = np.matrix(belief)
+        if belief.shape[0] == 1:
+            belief = belief.T
+        if belief.shape[0] is not self.n_unknown_regs:
+            raise ValueError('Size of belief should be equal to n_unknown_regs')
+        b_prod = np.matrix(np.zeros([len(self.x_e), 1]))
         for i in range(len(self.x_e)):
             b_prod[i, 0] = 1
             for j in range(self.n_unknown_regs):
