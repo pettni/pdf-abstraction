@@ -14,13 +14,14 @@ from os import fork
 from joblib import Parallel, delayed
 import multiprocessing
 
+''' Configuration Parameters '''
+# sc = 'toy'
 sc = 'rss'
-# sc = 'rss'
 load = False  # Reads value function from pickle
-parr = False
+parr = True
 random.seed(10)
 np.random.seed(10)
-epsilon = 1e-4
+epsilon = 1e-8
 
 # Define Motion and Observation Model
 Wx = np.eye(2)
@@ -70,7 +71,7 @@ elif sc == 'rss':
     p3 = rf.vertex_to_poly(np.array([[2, -1.5], [3, -1], [5, -3], [5, -5], [4, -5]]))
     regs['r3'] = (p3, 1, 'obs')
     p4 = rf.vertex_to_poly(np.array([[1.2, 0], [2.2, 1], [2, -1.5], [3, -1]]))
-    regs['r4'] = (p4, 0.2, 'obs')
+    regs['r4'] = (p4, 0.5, 'obs')
     p5 = rf.vertex_to_poly(np.array([[2, -1.5], [2.5, -2.5], [1, -5], [-1, -5]]))
     regs['r5'] = (p5, 1, 'obs')
 
@@ -92,7 +93,7 @@ elif sc == 'rss':
     # Construct belief-MDP for env
     env = Env(regs)
     b_set = []
-    probs = [0.2, 0.5, 0.8]
+    probs = [0, 0.2, 0.5, 0.8, 1]
     # b_set = [env.get_product_belief([b1, b2, b3, b4, b5]) for b1 in probs for b2 in probs for b3 in probs for b4 in probs for b5 in probs]
     # x_e_true = env.get_product_belief([0, 0, 0, 0, 1])
     b_set = [env.get_product_belief([b1, b2, b3]) for b1 in probs for b2 in probs for b3 in probs]
@@ -109,7 +110,6 @@ firm = FIRM(r2_bs, motion_model, obs_model, Wx, Wu, regs, output_color, ax, sc)
 firm.compute_output_prob()
 firm.plot(ax)
 # firm.abstract()
-
 # Create DFA
 formula = '! obs U sample'
 dfsa, dfsa_init, dfsa_final, proplist = formula_to_mdp(formula)
@@ -144,12 +144,14 @@ def backup(i_b, i_v, i_q, val):
                         q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
                 if q_z_o == None:
                     q_z_o = i_q
-                if (i_v==10 and i_q==0 and i==1 and i_e==2):
-                    print "obs = " + str(i_o) + "q_z_o = " + str(q_z_o)
-                    # import pdb; pdb.set_trace()
                 gamma_o_e = np.diag(np.ravel(O[i_o, :])) * np.matrix(val[v_e][q_z_o].alpha_mat)
                 index = np.argmax(gamma_o_e.T * b)
                 sum_o = sum_o + gamma_o_e[:, index]
+                # if (i_v==8 and i_q==0 and (v_e==7) and i==3):
+                    # print "obs = " + str(i_o) + "q_z_o = " + str(q_z_o)
+                    # print sum_z.T * b
+                    # print max_alpha_b_e.T * np.matrix(b)
+                    # import pdb; pdb.set_trace()
             sum_z = sum_z + p_outputs[z] * sum_o
         if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (sum_z.T * np.matrix(b)):
             max_alpha_b_e = sum_z
@@ -221,6 +223,15 @@ else:
         pkl.dump(val, fh)
         fh.flush()
         fh.close()
+        print "Val(v5,q0)"
+        print val[5][0].alpha_mat
+        print val[5][0].best_edge
+        print "Val(v3,q0)"
+        print val[3][0].alpha_mat
+        print val[3][0].best_edge
+        print "Val(v7,q0)"
+        print val[7][0].alpha_mat
+        print val[7][0].best_edge
 if sc == 'toy':
     plot_val(val_new)
 
@@ -228,7 +239,7 @@ if sc == 'toy':
 ''' Execute the policy '''
 b = env.b_prod_init
 q = 0
-v = 10
+v = 15
 traj = []
 for t in range(50):
     print "val = " + str(max(val[v][q].alpha_mat.T * b))
@@ -262,5 +273,6 @@ for t in range(50):
     v = v_
     if q in dfsa_final:
         break
+import pdb; pdb.set_trace()
 firm.plot_traj(traj, 'blue')
 plt.show()
