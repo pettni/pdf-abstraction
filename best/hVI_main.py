@@ -13,16 +13,21 @@ import random
 from os import fork
 from joblib import Parallel, delayed
 import multiprocessing
+from itertools import product
+
+''' TODO:
+- Smarter expansion of belief set to make algorithm anytime
+'''
 
 ''' Configuration Parameters '''
-# sc = 'toy'
-sc = 'rss'
+sc = 'toy'  # Select Scenario 'toy' or 'rss'
 load = False  # Reads value function from pickle
-parr = True
+parr = True   # Uses different threads to speed up value iteration
 random.seed(10)
 np.random.seed(10)
-epsilon = 1e-8
+epsilon = 0  # Used to compare floats while updating policy
 
+''' Setup Motion and Observation Models '''
 # Define Motion and Observation Model
 Wx = np.eye(2)
 Wu = np.eye(2)
@@ -30,26 +35,24 @@ r2_bs = Rn_Belief_Space([-5, -5], [5, 5])
 motion_model = SI_Model(0.1)
 obs_model = Gaussian_Noise(2)
 
-''' TODO:
-- Smarter expansion of belief set to make algorithm anytime
-'''
-
 print "Setting Up Scenario"
 # Define Regions
+# Regs have the same format as RSS code. Regs that are added first have a higher priority
 #### Toy
 if sc == 'toy':
     regs = OrderedDict()
     p1 = rf.vertex_to_poly(np.array([[-3, -2], [-3, 2], [-1, 2], [-1, -2]]))
-    regs['r1'] = (p1, 0.5, 'obs')
+    regs['r1'] = (p1, 0.4, 'obs')
     p2 = rf.vertex_to_poly(np.array([[3, -2], [3, 2], [5, 2], [5, -2]]))
     regs['r2'] = (p2, 1.0, 'sample')
     output_color = {'r1':'red', 'r2':'green', 'null':'white'}
-    #Define Null regions with bounds of the space for null output with lowest priority
+    # Define Null regions with bounds of the space for null output with lowest priority
     p = rf.vertex_to_poly(np.array([[r2_bs.x_low[0], r2_bs.x_low[1]],
                                     [r2_bs.x_up[0], r2_bs.x_low[1]],
                                     [r2_bs.x_low[0], r2_bs.x_up[1]],
                                     [r2_bs.x_up[0], r2_bs.x_up[1]]]))
     regs['null'] = (p, 1.0, 'null')
+    # belief set used for PBVI
     b_set = []
     b_set.append(np.matrix([[0.5],[0.5]]))
     b_set.append(np.matrix([[0.2],[0.8]]))
@@ -71,16 +74,16 @@ elif sc == 'rss':
     p3 = rf.vertex_to_poly(np.array([[2, -1.5], [3, -1], [5, -3], [5, -5], [4, -5]]))
     regs['r3'] = (p3, 1, 'obs')
     p4 = rf.vertex_to_poly(np.array([[1.2, 0], [2.2, 1], [2, -1.5], [3, -1]]))
-    regs['r4'] = (p4, 0.5, 'obs')
+    regs['r4'] = (p4, 0.4, 'obs')
     p5 = rf.vertex_to_poly(np.array([[2, -1.5], [2.5, -2.5], [1, -5], [-1, -5]]))
     regs['r5'] = (p5, 1, 'obs')
 
     a1 = rf.vertex_to_poly(np.array([[4, -2], [5, -2], [5, -1], [4, -1]]))
-    regs['a1'] = (a1, 0.9, 'sample')
+    regs['a1'] = (a1, 0.7, 'sample')
     a2 = rf.vertex_to_poly(np.array([[2, -4], [3, -4], [3, -5], [2, -5]]))
     regs['a2'] = (a2, 0.0, 'sample')
     a3 = rf.vertex_to_poly(np.array([[-2, 0], [-2, 1], [-1, 1], [-1, 0]]))
-    regs['a3'] = (a3, 0.1, 'sample')
+    regs['a3'] = (a3, 0.3, 'sample')
 
     output_color = {'r1':'red', 'r2':'red', 'r3':'red', 'r4':'orange', 'r5':'orange',
                 'a1':'green', 'a2':'green', 'a3':'green', 'null':'white'}
@@ -92,12 +95,15 @@ elif sc == 'rss':
     regs['null'] = (p, 1.0, 'null')
     # Construct belief-MDP for env
     env = Env(regs)
+    # belief set used for PBVI
     b_set = []
     probs = [0, 0.2, 0.5, 0.8, 1]
-    # b_set = [env.get_product_belief([b1, b2, b3, b4, b5]) for b1 in probs for b2 in probs for b3 in probs for b4 in probs for b5 in probs]
-    # x_e_true = env.get_product_belief([0, 0, 0, 0, 1])
-    b_set = [env.get_product_belief([b1, b2, b3]) for b1 in probs for b2 in probs for b3 in probs]
-    x_e_true = env.get_product_belief([0, 1, 0])
+    probs_list = [probs for i in range(env.n_unknown_regs)]
+    b_set = [env.get_product_belief(list(i)) for i in product(*probs_list)]
+    # True state of the regs used to simulate trajectories after policy is generated
+    x_e_true = env.get_product_belief([round(val[1]) for key, val in env.regs.iteritems()])
+    # b_set_test = [env.get_product_belief([b1, b2, b3]) for b1 in probs for b2 in probs for b3 in probs]
+    # x_e_true_test = env.get_product_belief([0, 1, 0])
 else:
     raise ValueError('Invalid Environment')
 
@@ -109,11 +115,9 @@ ax = fig.add_subplot(111, aspect='equal')
 firm = FIRM(r2_bs, motion_model, obs_model, Wx, Wu, regs, output_color, ax, sc)
 firm.compute_output_prob()
 firm.plot(ax)
-# firm.abstract()
 # Create DFA
 formula = '! obs U sample'
 dfsa, dfsa_init, dfsa_final, proplist = formula_to_mdp(formula)
-
 
 def backup(i_b, i_v, i_q, val):
     b = val[i_v][i_q].belief_points[i_b]
@@ -133,7 +137,7 @@ def backup(i_b, i_v, i_q, val):
             sum_o = np.zeros([2**env.n_unknown_regs, 1])
             for i_o in range(len(O)):
                 q_z_o = None
-                # if we are in obstacle region and we observe an obstacle/sample
+                # if we are in an obstacle region and we observe an obstacle/sample
                 if regs[z][1]==1:
                     # if regs[z][2]=='obs' or regs[z][2]=='sample':
                     if regs[z][2]=='obs' or regs[z][2]=='sample' and regs[z][0].contains(firm.nodes[v_e].mean):
@@ -223,15 +227,15 @@ else:
         pkl.dump(val, fh)
         fh.flush()
         fh.close()
-        print "Val(v5,q0)"
-        print val[5][0].alpha_mat
-        print val[5][0].best_edge
-        print "Val(v3,q0)"
-        print val[3][0].alpha_mat
-        print val[3][0].best_edge
-        print "Val(v7,q0)"
-        print val[7][0].alpha_mat
-        print val[7][0].best_edge
+        # print "Val(v5,q0)"
+        # print val[5][0].alpha_mat
+        # print val[5][0].best_edge
+        # print "Val(v3,q0)"
+        # print val[3][0].alpha_mat
+        # print val[3][0].best_edge
+        # print "Val(v7,q0)"
+        # print val[7][0].alpha_mat
+        # print val[7][0].best_edge
 if sc == 'toy':
     plot_val(val_new)
 
@@ -239,7 +243,8 @@ if sc == 'toy':
 ''' Execute the policy '''
 b = env.b_prod_init
 q = 0
-v = 15
+# v = 15
+v = 0
 traj = []
 for t in range(50):
     print "val = " + str(max(val[v][q].alpha_mat.T * b))
