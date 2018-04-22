@@ -278,6 +278,5 @@ for t in range(50):
     v = v_
     if q in dfsa_final:
         break
-import pdb; pdb.set_trace()
 firm.plot_traj(traj, 'blue')
 plt.show()

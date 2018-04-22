@@ -12,8 +12,8 @@ from collections import OrderedDict
 
 '''
 List of pending improvements:
-- Update omniwheel model
-- Improve collision checking strategy
+- Update to omniwheel model
+- Improve collision checking/output generation strategy
 - Verify LQG implementation
 '''
 

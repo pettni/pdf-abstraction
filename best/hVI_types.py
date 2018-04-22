@@ -49,8 +49,8 @@ class Env(object):
 
     ''' returns O matrix
         v_mean = mean value of a FIRM node '''
-    def get_O(self, v_mean):
-        false_rate_regs = [self.get_false_rate(val, v_mean) for key, val in self.regs.iteritems()]
+    def get_O(self, v_mean, reg=None):
+        false_rate_regs = [self.get_false_rate(val, v_mean) if key is not reg else 0.0 for key, val in self.regs.iteritems()]
         O = np.matrix(np.ones([2**self.n_unknown_regs, 2**self.n_unknown_regs]))
         for i_obs in range(len(self.x_e)):
             for i_x in range(len(self.x_e)):

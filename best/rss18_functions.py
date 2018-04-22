@@ -2,6 +2,7 @@ import numpy as np
 from best.mdp import MDP
 import matplotlib.patches as patches
 import polytope as pc
+import matplotlib.pyplot as plt
 
 
 def vertex_to_poly(V):
@@ -12,7 +13,6 @@ def plot_region(ax, poly, name, prob, color='red', alpha=0.5, hatch=False, fill=
     ax.add_patch(patches.Polygon(pc.extreme(poly), color=color, alpha=alpha, hatch=hatch, fill=fill))
     _, xc = pc.cheby_ball(poly)
     ax.text(xc[0]-0.4, xc[1]-0.43, '${}_{}$\n$p={}$'.format(name[0].upper(), name[1], prob))
-
 
 def environment_belief_model(p0, levels, name):
     # Create map belief MDP with prior p0 and qw quality of weak measurements
@@ -41,7 +41,7 @@ def environment_belief_model(p0, levels, name):
 
         def output_fcn(s):
             return [0, pm, p0, pp, 1][s]
-    
+
     return MDP([Tnone, Tweak, Tstrong], input_name=name+'_u', output_name=name+'_b', output_fcn=output_fcn)
 
 def environment_belief_model2(p0, levels, name):
