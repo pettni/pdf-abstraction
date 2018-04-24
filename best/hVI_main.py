@@ -23,9 +23,9 @@ from itertools import product
 sc = 'toy'  # Select Scenario 'toy' or 'rss'
 load = False  # Reads value function from pickle
 parr = True   # Uses different threads to speed up value iteration
-random.seed(10)
-np.random.seed(10)
-epsilon = 0  # Used to compare floats while updating policy
+random.seed(12)
+np.random.seed(12)
+epsilon = 1e-8  # Used to compare floats while updating policy
 
 ''' Setup Motion and Observation Models '''
 # Define Motion and Observation Model
@@ -41,10 +41,10 @@ print "Setting Up Scenario"
 #### Toy
 if sc == 'toy':
     regs = OrderedDict()
-    p1 = rf.vertex_to_poly(np.array([[-3, -2], [-3, 2], [-1, 2], [-1, -2]]))
-    regs['r1'] = (p1, 0.4, 'obs')
     p2 = rf.vertex_to_poly(np.array([[3, -2], [3, 2], [5, 2], [5, -2]]))
     regs['r2'] = (p2, 1.0, 'sample')
+    p1 = rf.vertex_to_poly(np.array([[-2, -2], [-2, 2], [1, 2], [1, -2]]))
+    regs['r1'] = (p1, 0.4, 'obs')
     output_color = {'r1':'red', 'r2':'green', 'null':'white'}
     # Define Null regions with bounds of the space for null output with lowest priority
     p = rf.vertex_to_poly(np.array([[r2_bs.x_low[0], r2_bs.x_low[1]],
@@ -115,6 +115,7 @@ ax = fig.add_subplot(111, aspect='equal')
 firm = FIRM(r2_bs, motion_model, obs_model, Wx, Wu, regs, output_color, ax, sc)
 firm.compute_output_prob()
 firm.plot(ax)
+
 # Create DFA
 formula = '! obs U sample'
 dfsa, dfsa_init, dfsa_final, proplist = formula_to_mdp(formula)
@@ -165,18 +166,21 @@ def backup(i_b, i_v, i_q, val):
 
 def plot_val(val):
     # v_names=['left','center','right']
-    # q_names=['NoObsNoSample', 'Sample', 'Obs']
+    q_names=['NoObsNoSample', 'Sample', 'Obs']
     for i_v in range(len(val)):
         for i_q in range(len(val[0])):
             fig = plt.figure(1)
             fig.add_subplot((len(val)), (len(val[0])), (i_v*len(val[0])+i_q))
             for i_alpha in range(val[i_v][i_q].alpha_mat.shape[1]):
                 plt.plot(val[i_v][i_q].alpha_mat[:2, i_alpha])
+                plt.plot(val[i_v][i_q].belief_points[i_alpha][1],
+                         val[i_v][i_q].alpha_mat[:, i_alpha].T*val[i_v][i_q].belief_points[i_alpha],
+                         'ro')
                 plt.text(val[i_v][i_q].belief_points[i_alpha][1],
                          val[i_v][i_q].alpha_mat[:, i_alpha].T*val[i_v][i_q].belief_points[i_alpha]+0.1,
                          str(val[i_v][i_q].best_edge[i_alpha]))
                 # plt.title('Gamma(v='+v_names[i_v]+',q='+q_names[i_q]+')')
-                plt.title('Gamma(v='+str(i_v)+',q='+str(i_q)+')')
+                plt.title('Gamma(v='+str(i_v)+',q='+q_names[i_q]+')')
                 plt.xlabel('belief', horizontalalignment='right', x=1.0)
                 plt.ylabel('Value')
                 plt.ylim(-0.5, 1.5)
@@ -243,8 +247,8 @@ if sc == 'toy':
 ''' Execute the policy '''
 b = env.b_prod_init
 q = 0
-# v = 15
-v = 0
+v = 2
+# v = 0
 traj = []
 for t in range(50):
     print "val = " + str(max(val[v][q].alpha_mat.T * b))

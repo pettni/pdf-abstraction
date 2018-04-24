@@ -47,7 +47,7 @@ class FIRM(object):
             self.sample_nodes(3, [[-4,0.2],[0,-0.2],[4,0]])
             self.make_edges(5)
         else:
-            self.sample_nodes(20)
+            self.sample_nodes(15)
             self.make_edges(4)
         self.n_particles = 1
 
@@ -64,16 +64,26 @@ class FIRM(object):
             self.node_controllers = []
             self.edge_controllers = {}
         for i in range(n_nodes):
+            # if i == 4:
+            #     import pdb; pdb.set_trace()
             # Sample Mean
             if means:
                 if len(means) is not n_nodes:
                    raise ValueError('means does not have n_nodes values')
                 node = self.belief_space.new_state(means[i])
             else:
-                if i < len(self.regs):
+                if i < len(self.regs) and (self.regs[self.regs.keys()[i]][2] is not 'obs'):
                     node = self.belief_space.sample_new_state_in_reg(self.regs[self.regs.keys()[i]][0])
                 else:
-                    node = self.belief_space.sample_new_state()
+                    # Implemented rejection sampling to avoid nodes in obs
+                    resample = True
+                    while resample:
+                        resample = False
+                        node = self.belief_space.sample_new_state()
+                        for key, value in self.regs.iteritems():
+                            if value[2] is 'obs' and value[0].contains(node.mean):
+                                resample = True
+
             # Set Co-variance
             A = self.motion_model.getA(node)
             G = self.motion_model.getG(node)
@@ -196,13 +206,17 @@ class FIRM(object):
                           width=major, height=minor, angle=alpha)
             ell.set_facecolor('gray')
             ax.add_artist(ell)
-            plt.text(np.ravel(self.nodes[i].mean)[0]-0.03, np.ravel(self.nodes[i].mean)[1]-0.03, str(i))
+            if i < 10:
+                plt.text(np.ravel(self.nodes[i].mean)[0]-0.04, np.ravel(self.nodes[i].mean)[1]-0.05, str(i), color='white')
+            else:
+                plt.text(np.ravel(self.nodes[i].mean)[0]-0.09, np.ravel(self.nodes[i].mean)[1]-0.05, str(i), color='white')
         ax.set_xlim(self.belief_space.x_low[0], self.belief_space.x_up[0])
         ax.set_ylim(self.belief_space.x_low[1], self.belief_space.x_up[1])
         for (name, info) in self.regs.iteritems():
             hatch = False
             fill = True
-            rf.plot_region(ax, info[0], name, info[1], self.output_color[name], hatch=hatch, fill=fill)
+            if name is not 'null':
+                rf.plot_region(ax, info[0], name, info[1], self.output_color[name], hatch=hatch, fill=fill)
         # plt.show()
 
     ''' Construct T by treating index of neigh as action number
