@@ -90,7 +90,7 @@ class Env(object):
         thresh1 = 1
         thresh2 = 5
         if dist < thresh1:
-            return 0.0
+            return 0.2
         elif dist < thresh2:
             return (0.0 * (thresh2 - (dist-thresh1)) + 0.5 * (dist - thresh1))/(thresh2-thresh1)
         else:

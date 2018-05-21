@@ -20,9 +20,10 @@ from itertools import product
 '''
 
 ''' Configuration Parameters '''
-sc = 'toy'  # Select Scenario 'toy' or 'rss'
+sc = 'rss'  # Select Scenario 'toy' or 'rss'
 load = False  # Reads value function from pickle
-parr = True   # Uses different threads to speed up value iteration
+parr = False   # Uses different threads to speed up value iteration
+obs_action = True
 random.seed(12)
 np.random.seed(12)
 epsilon = 1e-8  # Used to compare floats while updating policy
@@ -74,14 +75,14 @@ elif sc == 'rss':
     p3 = rf.vertex_to_poly(np.array([[2, -1.5], [3, -1], [5, -3], [5, -5], [4, -5]]))
     regs['r3'] = (p3, 1, 'obs')
     p4 = rf.vertex_to_poly(np.array([[1.2, 0], [2.2, 1], [2, -1.5], [3, -1]]))
-    regs['r4'] = (p4, 0.4, 'obs')
+    regs['r4'] = (p4, 0, 'obs')
     p5 = rf.vertex_to_poly(np.array([[2, -1.5], [2.5, -2.5], [1, -5], [-1, -5]]))
-    regs['r5'] = (p5, 1, 'obs')
+    regs['r5'] = (p5, 0, 'obs')
 
     a1 = rf.vertex_to_poly(np.array([[4, -2], [5, -2], [5, -1], [4, -1]]))
     regs['a1'] = (a1, 0.7, 'sample')
     a2 = rf.vertex_to_poly(np.array([[2, -4], [3, -4], [3, -5], [2, -5]]))
-    regs['a2'] = (a2, 0.0, 'sample')
+    regs['a2'] = (a2, 0.4, 'sample')
     a3 = rf.vertex_to_poly(np.array([[-2, 0], [-2, 1], [-1, 1], [-1, 0]]))
     regs['a3'] = (a3, 0.3, 'sample')
 
@@ -211,21 +212,25 @@ else:
     print "Running Value Iteration"
     val_new = copy.deepcopy(val)
     for i in range(10):
-        print i
+        print "Iteration = " + str(i)
         for i_v in range(len(firm.nodes)):
             for i_q in range(dfsa.N):
-                # Run backup for each belief point in parallel
-                if parr:
-                    results = Parallel(n_jobs=n_cores)(delayed(backup)(i_b, i_v, i_q, val)
+                # Don't backup states which are in obs or goal
+                # if True:
+                if (sc == 'rss' or sc == 'toy') and i_q == 0:
+                    print "Backing up i_v = " + str(i_v) + " of " + str(len(firm.nodes))
+                    # Run backup for each belief point in parallel
+                    if parr:
+                        results = Parallel(n_jobs=n_cores)(delayed(backup)(i_b, i_v, i_q, val)
                                                        for i_b in range(len(val[i_v][i_q].belief_points)))
-                    for i_b in range(len(val[i_v][i_q].belief_points)):
-                        val_new[i_v][i_q].alpha_mat[:, i_b] = results[i_b][0]
-                        val_new[i_v][i_q].best_edge[i_b] = results[i_b][1]
-                else:
-                    for i_b in range(len(val[i_v][i_q].belief_points)):
-                        alpha_new, best_e = backup(i_b, i_v, i_q, val)
-                        val_new[i_v][i_q].alpha_mat[:, i_b] = alpha_new
-                        val_new[i_v][i_q].best_edge[i_b] = best_e
+                        for i_b in range(len(val[i_v][i_q].belief_points)):
+                            val_new[i_v][i_q].alpha_mat[:, i_b] = results[i_b][0]
+                            val_new[i_v][i_q].best_edge[i_b] = results[i_b][1]
+                    else:
+                        for i_b in range(len(val[i_v][i_q].belief_points)):
+                            alpha_new, best_e = backup(i_b, i_v, i_q, val)
+                            val_new[i_v][i_q].alpha_mat[:, i_b] = alpha_new
+                            val_new[i_v][i_q].best_edge[i_b] = best_e
         val = copy.deepcopy(val_new)
         fh = open('val_' + sc + '_seed10_par_newoutput.pkl', 'wb')
         pkl.dump(val, fh)
