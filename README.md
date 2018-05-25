@@ -14,6 +14,10 @@ Run tests:
 
 	nosetests
 
+## Install Depenencies
+
+    pip install cvxopt, cvxpy==0.4.1, polytope
+
 ## List of TODOs
 
  1. Move everything into ```best/``` and delete superfluous code
@@ -25,8 +29,10 @@ Run tests:
 
  3. Implement uniform treatment of regions and abstractions via predicates
 
- 4. Add LTL converter for Buchi automata
+ 4. Add LTL converter for Buchi/RAbin automata
  
+ 5. Update to use version 1.0 of `cvxpy`
+
 ## On the horizon...
 
  1. FIRM abstraction of a POMDP as an MDP (Rohan)
