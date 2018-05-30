@@ -1,5 +1,5 @@
 from best.mdp import MDP
-from models import Gaussian_Noise, SI_Model, Rn_Belief_Space, Rn_Belief_State
+from hVI_models import Gaussian_Noise, SI_Model, Rn_Belief_Space, Rn_Belief_State
 import best.rss18_functions as rf
 
 import numpy as np
