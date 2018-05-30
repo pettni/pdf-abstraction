@@ -97,7 +97,7 @@ class Env(object):
         return O
 
     def get_b_o_prod(self, v_mean, b, x_e_true):
-        O = self.get_O(v_mean)
+        O = self.get_O_prod(v_mean)
         p_o = np.ravel(O[:, np.argmax(x_e_true)]).tolist()
         n_rand = random.random()
         p_cum = 0
