@@ -3,6 +3,7 @@ from hVI_firm import FIRM
 from hVI_models import Rn_Belief_Space, SI_Model, Gaussian_Noise
 from hVI_types import Env, Gamma
 import best.rss18_functions as rf
+from hVI_config import sc, load, parr, obs_action, epsilon, rand_seed
 
 import numpy as np
 from collections import OrderedDict
@@ -14,7 +15,7 @@ from os import fork
 from joblib import Parallel, delayed
 import multiprocessing
 from itertools import product
-from hVI_config import sc, load, parr, obs_action, epsilon, rand_seed
+import time
 
 ''' TODO:
 - Smarter expansion of belief set to make algorithm anytime
@@ -39,9 +40,9 @@ print "Setting Up Scenario"
 if sc == 'toy':
     regs = OrderedDict()
     p2 = rf.vertex_to_poly(np.array([[3, -2], [3, 2], [5, 2], [5, -2]]))
-    regs['r2'] = (p2, 1.0, 'sample')
+    regs['r2'] = (p2, 1.0, 'sample', 0)
     p1 = rf.vertex_to_poly(np.array([[-2, -2], [-2, 2], [1, 2], [1, -2]]))
-    regs['r1'] = (p1, 0.4, 'obs')
+    regs['r1'] = (p1, 0.4, 'obs', 0)
     output_color = {'r1':'red', 'r2':'green', 'null':'white'}
     # Define Null regions with bounds of the space for null output with lowest priority
     p = rf.vertex_to_poly(np.array([[r2_bs.x_low[0], r2_bs.x_low[1]],
@@ -73,16 +74,16 @@ elif sc == 'rss':
     p3 = rf.vertex_to_poly(np.array([[2, -1.5], [3, -1], [5, -3], [5, -5], [4, -5]]))
     regs['r3'] = (p3, 1, 'obs')
     p4 = rf.vertex_to_poly(np.array([[1.2, 0], [2.2, 1], [2, -1.5], [3, -1]]))
-    regs['r4'] = (p4, 0, 'obs')
+    regs['r4'] = (p4, 0, 'obs', 0)
     p5 = rf.vertex_to_poly(np.array([[2, -1.5], [2.5, -2.5], [1, -5], [-1, -5]]))
-    regs['r5'] = (p5, 0, 'obs')
+    regs['r5'] = (p5, 0, 'obs', 0)
 
     a1 = rf.vertex_to_poly(np.array([[4, -2], [5, -2], [5, -1], [4, -1]]))
-    regs['a1'] = (a1, 0.7, 'sample')
+    regs['a1'] = (a1, 0.7, 'sample', 0)
     a2 = rf.vertex_to_poly(np.array([[2, -4], [3, -4], [3, -5], [2, -5]]))
-    regs['a2'] = (a2, 0.4, 'sample')
+    regs['a2'] = (a2, 0.4, 'sample', 1)
     a3 = rf.vertex_to_poly(np.array([[-2, 0], [-2, 1], [-1, 1], [-1, 0]]))
-    regs['a3'] = (a3, 0.3, 'sample')
+    regs['a3'] = (a3, 0.3, 'sample', 0)
 
     output_color = {'r1':'red', 'r2':'red', 'r3':'red', 'r4':'orange', 'r5':'orange',
                 'a1':'green', 'a2':'green', 'a3':'green', 'null':'white'}
@@ -101,7 +102,7 @@ elif sc == 'rss':
         b_reg_set = [env.get_reg_belief(list(i)) for i in product(*probs_list)]
     b_prod_set = [env.get_product_belief(list(i)) for i in product(*probs_list)]
     # True state of the regs used to simulate trajectories after policy is generated
-    x_e_true = env.get_product_belief([round(val[1]) for key, val in env.regs.iteritems()])
+    x_e_true = env.get_product_belief([val[3] for key, val in env.regs.iteritems()])
     # b_set_test = [env.get_product_belief([b1, b2, b3]) for b1 in probs for b2 in probs for b3 in probs]
     # x_e_true_test = env.get_product_belief([0, 1, 0])
 else:
@@ -179,29 +180,38 @@ def backup_with_obs_action(i_b, i_v, i_q, val):
         for z, info in firm.regs.iteritems():
             if p_outputs[z] == 0:
                 continue
-            q_z = None
-            # if we are in an obstacle region and we observe an obstacle/sample
-            if regs[z][1]==1:
-                # if regs[z][2]=='obs' or regs[z][2]=='sample':
-                if regs[z][2]=='obs' or regs[z][2]=='sample' and regs[z][0].contains(firm.nodes[v_e].mean):
-                    q_z = np.argmax(dfsa.t(proplist[regs[z][2]])[i_q, :])
-            elif regs[z][1]>0:
-                # if (regs[z][2]=='obs' or regs[z][2]=='sample') and (env.x_e[i_o] & 2**env.reg_index[z] == 2**env.reg_index[z]):
-                if (regs[z][2]=='obs' or regs[z][2]=='sample') and (env.x_e[i_o] & 2**env.reg_index[z] == 2**env.reg_index[z]) and regs[z][0].contains(firm.nodes[v_e].mean):
-                    q_z = np.argmax(dfsa.t(proplist[regs[z][2]])[i_q, :])
-            if q_z is None:
-                q_z = i_q
-            gamma_e = np.matrix(val[v_e][q_z].alpha_mat)
-            index = np.argmax(gamma_e.t * b)
-            sum_z = sum_z + p_outputs[z] * gamma_e[:, index]
+            # If we get a null output from an edge or region is known then don't sum over obs
+            if regs[z][2] is 'null' or regs[z][1]==1 or regs[z][1]==0:
+                if (regs[z][2]=='obs' or regs[z][2]=='sample') and regs[z][1]==1:
+                    q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
+                elif regs[z][2] is 'null' or regs[z][1]==0:
+                    q_z_o = i_q
+                gamma_e = np.matrix(val[v_e][q_z_o].alpha_mat)
+                index = np.argmax(gamma_e.T * b)
+                sum_o = gamma_e[:, index]
+            else:
+                sum_o = 0
+                O = env.get_O_reg_prob(z)
+                for i_o in range(2):
+                    q_z_o = None
+                    # if we pass through an unknown obstacle/sample region and also observe obstacle/sample
+                    if regs[z][1]>0:
+                        if (regs[z][2]=='obs' or regs[z][2]=='sample') and (i_o is 1):
+                            q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
+                    if q_z_o is None:
+                        q_z_o = i_q
+                    gamma_e = np.diag(np.ravel(O[i_o, :])) * np.matrix(val[v_e][q_z_o].alpha_mat)
+                    index = np.argmax(gamma_e.T * b)
+                    sum_o = sum_o + gamma_e[:, index]
+            sum_z = sum_z + p_outputs[z] * sum_o
         if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (sum_z.T * np.matrix(b)):
             max_alpha_b_e = sum_z
             best_e = firm.edges[i_v][i_e]
     # Foreach obs action
-    for key, val in regs.iteritems():
+    for key, info in env.regs.iteritems():
         p_outputs = firm.edge_output_prob[i_v][i_e]
         v_e = firm.edges[i_v][i_e]
-        O = env.get_O_reg_prob(firm.nodes[v_e].mean, key)
+        O = env.get_O_reg_prob(key, firm.nodes[v_e].mean)
         sum_o = np.zeros([2**env.n_unknown_regs, 1])
         for i_o in range(2):
             gamma_o_v = np.diag(np.ravel(O[i_o, :])) * np.matrix(val[v_e][i_q].alpha_mat)
@@ -209,7 +219,7 @@ def backup_with_obs_action(i_b, i_v, i_q, val):
             sum_o = sum_o + gamma_o_v[:, index]
         if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (sum_o.T * np.matrix(b)):
             max_alpha_b_e = sum_o
-            best_e = firm.edges[i_v][i_e]
+            best_e = -1*env.regs.keys().index(key)
     return (max_alpha_b_e, best_e)
 
 def plot_val(val):
@@ -260,6 +270,7 @@ else:
                     val[i_v][i_q].alpha_mat[:, i_b] = 0  #np.zeros([n_regs, 1])
     n_cores = multiprocessing.cpu_count() - 1
     print "Running Value Iteration"
+    t_start = time.time()
     val_new = copy.deepcopy(val)
     for i in range(10):
         print "Iteration = " + str(i)
@@ -278,14 +289,20 @@ else:
                             val_new[i_v][i_q].best_edge[i_b] = results[i_b][1]
                     else:
                         for i_b in range(len(val[i_v][i_q].b_prod_points)):
-                            alpha_new, best_e = backup(i_b, i_v, i_q, val)
+                            if obs_action is True:
+                                alpha_new, best_e = backup_with_obs_action(i_b, i_v, i_q, val)
+                            else:
+                                alpha_new, best_e = backup(i_b, i_v, i_q, val)
                             val_new[i_v][i_q].alpha_mat[:, i_b] = alpha_new
                             val_new[i_v][i_q].best_edge[i_b] = best_e
         val = copy.deepcopy(val_new)
-        fh = open('val_' + sc + '_seed10_par_newoutput.pkl', 'wb')
-        pkl.dump(val, fh)
-        fh.flush()
-        fh.close()
+    t_end = time.time()
+    print t_end-t_start
+
+    fh = open('val_' + sc + '_seed10_par_newoutput.pkl', 'wb')
+    pkl.dump(val, fh)
+    fh.flush()
+    fh.close()
         # print "Val(v5,q0)"
         # print val[5][0].alpha_mat
         # print val[5][0].best_edge
@@ -298,7 +315,6 @@ else:
 if sc == 'toy':
     plot_val(val_new)
 
-
 ''' Execute the policy '''
 b = env.b_prod_init
 q = 0
@@ -310,6 +326,12 @@ for t in range(50):
     # Get best edge
     i_best_alpha = np.argmax(val_new[v][q].alpha_mat.T * b)
     best_e = val_new[v][q].best_edge[i_best_alpha]
+    if obs_action is True and best_e < 0:
+        reg_key = env.regs.keys()[-1*best_e]
+        (b_, o, i_o) = env.get_b_o_reg(b, env.regs[reg_key][3], reg_key, firm.nodes[v].mean)
+        b = b_
+        print "Observing " + str(best_e) + " at vertex" + str(v) + " q = " + str(q) + " b_ = " + str(b_)
+        continue
     # Simulate trajectory under edges
     edge_controller = firm.edge_controllers[v][firm.edges[v].index(best_e)]
     traj_e = edge_controller.simulate_trajectory(edge_controller.node_i)
@@ -319,18 +341,38 @@ for t in range(50):
     traj = traj + traj_i
     # Get q', v', q' and loop
     z = firm.get_outputs(traj_e + traj_n)
-    (b_, o, i_o) = env.get_b_o_prod(traj_n[-1].mean, b, x_e_true)
     v_ = best_e
-    q_= None
-    if regs[z][1]==1:
-        if regs[z][2]=='obs' or regs[z][2]=='sample' and regs[z][0].contains(firm.nodes[v_].mean):
-             q_ = np.argmax(dfsa.T(proplist[regs[z][2]])[q, :])
- # and regs[z][0].contains(firm.nodes[v_].mean)
-    elif regs[z][1]>0:
-        if (regs[z][2]=='obs' or regs[z][2]=='sample') and (env.x_e[i_o] & 2**env.reg_index[z] == 2**env.reg_index[z]) and regs[z][0].contains(firm.nodes[v_].mean):
-             q_ = np.argmax(dfsa.T(proplist[regs[z][2]])[q, :])
-    if q_ == None:
-        q_ = q
+    if obs_action is False:
+        (b_, o, i_o) = env.get_b_o_prod(b, regs[z][3], z, traj_n[-1].mean)
+        q_= None
+        if regs[z][1]==1:
+            if regs[z][2]=='obs' or regs[z][2]=='sample' and regs[z][0].contains(firm.nodes[v_].mean):
+                q_ = np.argmax(dfsa.T(proplist[regs[z][2]])[q, :])
+    # and regs[z][0].contains(firm.nodes[v_].mean)
+        elif regs[z][1]>0:
+            if (regs[z][2]=='obs' or regs[z][2]=='sample') and (env.x_e[i_o] & 2**env.reg_index[z] == 2**env.reg_index[z]) and regs[z][0].contains(firm.nodes[v_].mean):
+                q_ = np.argmax(dfsa.T(proplist[regs[z][2]])[q, :])
+        if q_ == None:
+            q_ = q
+    else:
+        if regs[z][2] is 'null':
+            b_ = b
+            q_ = q
+        elif regs[z][2] is 'obs' or regs[z][2] is 'sample':
+            q_ = None
+            # if region is known
+            if regs[z][1]==1 or regs[z][1]==0:
+                if regs[z][1]==1:
+                    q_ = np.argmax(dfsa.T(proplist[regs[z][2]])[q, :])
+                    b_ = b
+            else:
+                (b_, o, i_o) = env.get_b_o_reg(b, env.regs[z][3], z)
+                # if true label is true then do transition in DFA
+                if regs[z][3] is 1:
+                    q_ = np.argmax(dfsa.T(proplist[regs[z][2]])[q, :])
+            if q_ is None:
+                q_ = q
+                b_ = b
     print "going from vertex " + str(v) + " to vertex " + str(v_) + " q = " + str(q) + " b = " + str(b)
     b = b_
     q = q_
