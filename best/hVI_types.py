@@ -129,7 +129,7 @@ class Env(object):
         x_e_true = true label of region (prod space)
         returns (updated belief, simulated observation, index of simulated observation)'''
     def get_b_o_prod(self, v_mean, b, x_e_true):
-        O = self.get_O(v_mean)
+        O = self.get_O_prod(v_mean)
         p_o = np.ravel(O[:, self.x_e.index(x_e_true)]).tolist()
         n_rand = random.random()
         p_cum = 0
