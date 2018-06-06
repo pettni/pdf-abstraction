@@ -76,12 +76,12 @@ elif sc == 'rss':
     p4 = rf.vertex_to_poly(np.array([[1.2, 0], [2.2, 1], [2, -1.5], [3, -1]]))
     regs['r4'] = (p4, 0, 'obs', 0)
     p5 = rf.vertex_to_poly(np.array([[2, -1.5], [2.5, -2.5], [1, -5], [-1, -5]]))
-    regs['r5'] = (p5, 0, 'obs', 0)
+    regs['r5'] = (p5, 1, 'obs', 1)
 
     a1 = rf.vertex_to_poly(np.array([[4, -2], [5, -2], [5, -1], [4, -1]]))
-    regs['a1'] = (a1, 0.7, 'sample', 0)
+    regs['a1'] = (a1, 0.7, 'sample', 1)
     a2 = rf.vertex_to_poly(np.array([[2, -4], [3, -4], [3, -5], [2, -5]]))
-    regs['a2'] = (a2, 0.4, 'sample', 1)
+    regs['a2'] = (a2, 0.4, 'sample', 0)
     a3 = rf.vertex_to_poly(np.array([[-2, 0], [-2, 1], [-1, 1], [-1, 0]]))
     regs['a3'] = (a3, 0.3, 'sample', 0)
 
