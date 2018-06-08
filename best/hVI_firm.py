@@ -38,9 +38,9 @@ class FIRM(object):
         self.ax = ax
         self.nodes = []
         self.node_controllers = []
-        self.edges = {} # key=node_id and value=list of node_ids of neighbors
-        self.edge_controllers = {}
-        self.edge_output_prob = {}
+        self.edges = OrderedDict()  # key=node_id and value=list of node_ids of neighbors
+        self.edge_controllers = OrderedDict()
+        self.edge_output_prob = OrderedDict()
         self.T_list = None
         self.Tz_list = None
         if sc == 'toy':
@@ -60,9 +60,9 @@ class FIRM(object):
             raise ValueError('Number of FIRM samples cannot be less than n_regs')
         if append is False:
             self.nodes = []  # clear previous nodes/edges
-            self.edges = {}
+            self.edges = OrderedDict()
             self.node_controllers = []
-            self.edge_controllers = {}
+            self.edge_controllers =OrderedDict()
         for i in range(n_nodes):
             # if i == 4:
             #     import pdb; pdb.set_trace()

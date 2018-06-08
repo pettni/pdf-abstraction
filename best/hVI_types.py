@@ -38,8 +38,8 @@ class Env(object):
     _reg = in lower dimensional space (prob of label = 1)
     _prod = in product space '''
     def __init__(self, regs):
-        self.reg_index = {}  # saves the position of the region in observation vector
-        self.regs = {} # stores only unknown regs
+        self.reg_index = OrderedDict()  # saves the position of the region in observation vector
+        self.regs = OrderedDict()  # stores only unknown regs
         self.b_reg_init = []
         # add only unknown regions (discard regs with probability 0 or 1)
         for key, value in regs.iteritems():
@@ -76,11 +76,12 @@ class Env(object):
             false_rate = 0
         else:
             false_rate = self.get_false_rate(self.regs[reg_key], v_mean)
+        i_reg = self.regs.keys().index(reg_key)
         O = np.matrix(np.zeros([2, 2**self.n_unknown_regs]))
         # TODO: Validate that x_e is ordered by index of reg
         i_obs = self.regs.keys().index(reg_key)
         for i_x in range(len(self.x_e)):
-            if self.x_e[i_x] & 2**i_obs == 2**i_obs:
+            if self.x_e[i_x] & 2**i_reg == 2**i_reg:
                 O[0, i_x] = false_rate
                 O[1, i_x] = 1-false_rate
             else:
@@ -111,9 +112,10 @@ class Env(object):
             raise ValueError("x_true_reg should be 0 or 1")
         if v_mean is None:
             O_reg = np.eye(2)
+            O_prod = self.get_O_reg_prob(reg_key)
         else:
             O_reg = self.get_O_reg(v_mean, reg_key)
-        O_prod = self.get_O_reg_prob(reg_key, v_mean)
+            O_prod = self.get_O_reg_prob(reg_key, v_mean)
         p_o = O_reg[x_true_reg, x_true_reg]  # probability of getting true label
         n_rand = random.random()
         if n_rand < p_o:

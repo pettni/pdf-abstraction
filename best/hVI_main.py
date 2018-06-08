@@ -39,10 +39,10 @@ print "Setting Up Scenario"
 #### Toy
 if sc == 'toy':
     regs = OrderedDict()
-    p2 = rf.vertex_to_poly(np.array([[3, -2], [3, 2], [5, 2], [5, -2]]))
-    regs['r2'] = (p2, 1.0, 'sample', 0)
     p1 = rf.vertex_to_poly(np.array([[-2, -2], [-2, 2], [1, 2], [1, -2]]))
     regs['r1'] = (p1, 0.4, 'obs', 0)
+    p2 = rf.vertex_to_poly(np.array([[3, -2], [3, 2], [5, 2], [5, -2]]))
+    regs['r2'] = (p2, 1.0, 'sample', 1)
     output_color = {'r1':'red', 'r2':'green', 'null':'white'}
     # Define Null regions with bounds of the space for null output with lowest priority
     p = rf.vertex_to_poly(np.array([[r2_bs.x_low[0], r2_bs.x_low[1]],
@@ -74,16 +74,16 @@ elif sc == 'rss':
     p3 = rf.vertex_to_poly(np.array([[2, -1.5], [3, -1], [5, -3], [5, -5], [4, -5]]))
     regs['r3'] = (p3, 1, 'obs')
     p4 = rf.vertex_to_poly(np.array([[1.2, 0], [2.2, 1], [2, -1.5], [3, -1]]))
-    regs['r4'] = (p4, 0, 'obs', 0)
+    regs['r4'] = (p4, 0.5, 'obs', 0)
     p5 = rf.vertex_to_poly(np.array([[2, -1.5], [2.5, -2.5], [1, -5], [-1, -5]]))
-    regs['r5'] = (p5, 1, 'obs', 1)
+    regs['r5'] = (p5, 0, 'obs', 0)
 
     a1 = rf.vertex_to_poly(np.array([[4, -2], [5, -2], [5, -1], [4, -1]]))
-    regs['a1'] = (a1, 0.7, 'sample', 1)
+    regs['a1'] = (a1, 0.9, 'sample', 1)
     a2 = rf.vertex_to_poly(np.array([[2, -4], [3, -4], [3, -5], [2, -5]]))
-    regs['a2'] = (a2, 0.4, 'sample', 0)
+    regs['a2'] = (a2, 0.8, 'sample', 0)
     a3 = rf.vertex_to_poly(np.array([[-2, 0], [-2, 1], [-1, 1], [-1, 0]]))
-    regs['a3'] = (a3, 0.3, 'sample', 0)
+    regs['a3'] = (a3, 0.0, 'sample', 0)
 
     output_color = {'r1':'red', 'r2':'red', 'r3':'red', 'r4':'orange', 'r5':'orange',
                 'a1':'green', 'a2':'green', 'a3':'green', 'null':'white'}
@@ -127,7 +127,7 @@ def backup(i_b, i_v, i_q, val):
         return (np.ones([len(b), 1]), firm.edges[i_v][0]) # return 0th edge caz it doesn't matter
     index_alpha_init = np.argmax(val[i_v][i_q].alpha_mat.T * b)  # set max alpha to current max
     max_alpha_b_e = val[i_v][i_q].alpha_mat[:, index_alpha_init]
-    best_e = val[i_v][i_q].best_edge[i_b]
+    best_e = val[i_v][i_q].best_edge[index_alpha_init]
     for i_e in range(len(firm.edges[i_v])):
         p_outputs = firm.edge_output_prob[i_v][i_e]
         v_e = firm.edges[i_v][i_e]
@@ -171,7 +171,7 @@ def backup_with_obs_action(i_b, i_v, i_q, val):
         return (np.ones([len(b), 1]), firm.edges[i_v][0]) # return 0th edge caz it doesn't matter
     index_alpha_init = np.argmax(val[i_v][i_q].alpha_mat.T * b)  # set max alpha to current max
     max_alpha_b_e = val[i_v][i_q].alpha_mat[:, index_alpha_init]
-    best_e = val[i_v][i_q].best_edge[i_b]
+    best_e = val[i_v][i_q].best_edge[index_alpha_init]
     # Foreach edge action
     for i_e in range(len(firm.edges[i_v])):
         p_outputs = firm.edge_output_prob[i_v][i_e]
@@ -180,6 +180,11 @@ def backup_with_obs_action(i_b, i_v, i_q, val):
         for z, info in firm.regs.iteritems():
             if p_outputs[z] == 0:
                 continue
+            # if (i_v==0 and i_q==0 and i_b==31 and i==7):
+                # print "obs = " + str(i_o) + "q_z_o = " + str(q_z_o)
+                # print sum_z.T * b
+                # print max_alpha_b_e.T * np.matrix(b)
+                # import pdb; pdb.set_trace()
             # If we get a null output from an edge or region is known then don't sum over obs
             if regs[z][2] is 'null' or regs[z][1]==1 or regs[z][1]==0:
                 if (regs[z][2]=='obs' or regs[z][2]=='sample') and regs[z][1]==1:
@@ -210,16 +215,15 @@ def backup_with_obs_action(i_b, i_v, i_q, val):
     # Foreach obs action
     for key, info in env.regs.iteritems():
         p_outputs = firm.edge_output_prob[i_v][i_e]
-        v_e = firm.edges[i_v][i_e]
-        O = env.get_O_reg_prob(key, firm.nodes[v_e].mean)
+        O = env.get_O_reg_prob(key, firm.nodes[i_v].mean)
         sum_o = np.zeros([2**env.n_unknown_regs, 1])
         for i_o in range(2):
-            gamma_o_v = np.diag(np.ravel(O[i_o, :])) * np.matrix(val[v_e][i_q].alpha_mat)
+            gamma_o_v = np.diag(np.ravel(O[i_o, :])) * np.matrix(val[i_v][i_q].alpha_mat)
             index = np.argmax(gamma_o_v.T * b)
             sum_o = sum_o + gamma_o_v[:, index]
         if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (sum_o.T * np.matrix(b)):
             max_alpha_b_e = sum_o
-            best_e = -1*env.regs.keys().index(key)
+            best_e = -1*(env.regs.keys().index(key)+1)  # region 0 will map to edge -1
     return (max_alpha_b_e, best_e)
 
 def plot_val(val):
@@ -317,17 +321,19 @@ if sc == 'toy':
 
 ''' Execute the policy '''
 b = env.b_prod_init
+print b
 q = 0
 v = 2
 # v = 0
 traj = []
 for t in range(50):
+    # import pdb; pdb.set_trace()
     print "val = " + str(max(val[v][q].alpha_mat.T * b))
     # Get best edge
     i_best_alpha = np.argmax(val_new[v][q].alpha_mat.T * b)
     best_e = val_new[v][q].best_edge[i_best_alpha]
     if obs_action is True and best_e < 0:
-        reg_key = env.regs.keys()[-1*best_e]
+        reg_key = env.regs.keys()[-1*(best_e-1)]
         (b_, o, i_o) = env.get_b_o_reg(b, env.regs[reg_key][3], reg_key, firm.nodes[v].mean)
         b = b_
         print "Observing " + str(best_e) + " at vertex" + str(v) + " q = " + str(q) + " b_ = " + str(b_)
@@ -360,6 +366,7 @@ for t in range(50):
             q_ = q
         elif regs[z][2] is 'obs' or regs[z][2] is 'sample':
             q_ = None
+            b_ = None
             # if region is known
             if regs[z][1]==1 or regs[z][1]==0:
                 if regs[z][1]==1:
@@ -372,6 +379,7 @@ for t in range(50):
                     q_ = np.argmax(dfsa.T(proplist[regs[z][2]])[q, :])
             if q_ is None:
                 q_ = q
+            if b_ is None:
                 b_ = b
     print "going from vertex " + str(v) + " to vertex " + str(v_) + " q = " + str(q) + " b = " + str(b)
     b = b_
