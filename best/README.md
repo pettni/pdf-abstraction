@@ -24,3 +24,8 @@ Contains classes for environment and Gamma set used represent value function
 ## To Execute
 
 `python hVI_main.py`
+
+## To change scenario
+You can set the scenario in hVI_config to 'toy' or 'rss' 
+Regions can be modified by editing the following in hVI_main:
+`regs[<key>] = (polytope, initial_belief, output_label, true_state)`
