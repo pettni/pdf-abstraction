@@ -3,6 +3,7 @@
 ## TODO pomdp branch
 
  - Competing types of value iteration: sparse tables (for MDPs), mtBDD?, VDC, DQN, pbVI?
+ - Interface to work with OpenAI baseline (gym environment)
  - Switch to Python 3
  - Separate abstraction and firm code 
 
