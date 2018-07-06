@@ -9,6 +9,11 @@
 
 ## Installation
 
+Install necessary packages
+
+  sudo apt install graphviz-dev 
+  pip install numpy scipy networkx matplotlib jupyter pygraphviz nose
+
 This package is developed for Python 2.7. Install it as follows:
 
 	python setup.py install
