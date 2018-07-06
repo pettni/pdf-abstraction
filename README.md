@@ -1,5 +1,11 @@
 # pdf-abstraction
 
+## TODO pomdp branch
+
+ - Competing types of value iteration: sparse tables (for MDPs), mtBDD?, VDC, DQN, pbVI?
+ - Switch to Python 3
+ - Separate abstraction and firm code 
+
 ## Installation
 
 This package is developed for Python 2.7. Install it as follows:
@@ -13,30 +19,3 @@ For development (create links to source code, no need to reinstall after making 
 Run tests:
 
 	nosetests
-
-## Workflow
-
-Given a specification written as a syntactically co-safe LTL property and a POMDP model which is
-- a finite state partially observable Markov decision process, or
-- a LTI system with gaussian disturbances
-compute a policy with guaranteed probability that the property is satisfied.
-
-
-1. Convert syntactically co-safe LTL property to DFA
-  * (code manually until cristi is ready)
-
-2. Formal abstraction of POMDP to approximate belief space model
-*output:*
-  * MDP (Markov decision process)
-  * \delta = probabilistic deviation
-  * Lset = set valued labeling map
-  * R^{-1}(x) = set valued function containing all abstract states related to concrete state
-
-3. Compute delta-robust game over cross product
-*output:*
-  * Value function for abstract model
-  * Policy for abstract model
-
-4. Implementation
-  * refine policy  based on Value function, relation, and abstract Policy
-  * simulate refined policy with concrete POMDP
