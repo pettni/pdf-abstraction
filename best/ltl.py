@@ -3,9 +3,9 @@ import scipy.sparse as sp
 from itertools import product
 
 from best.fsa import Fsa
-from best.mdp import MDP, ProductMDP
+from best.pomdp import POMDP, POMDPNetwork
 
-def formula_to_mdp(formula):
+def formula_to_pomdp(formula):
   '''convert a co-safe LTL formula to a DFSA represented as a   
   special case of an MPD'''
   
@@ -21,15 +21,24 @@ def formula_to_mdp(formula):
   M = len(inputs)
   assert(inputs == set(range(M)))
 
-  T = [np.zeros((N, N)) for m in range(M)]
+  T = dict(zip(product(*[range(2) for k in range(len(fsa.props))]),
+               [np.zeros((N, N)) for k in range(M)] ))
+
+  input_names = sorted(fsa.props.keys(), key = lambda key: -fsa.props[key])
 
   for (s1, s2, attr) in fsa.g.edges(data=True):
     for u in attr['input']:
-      T[u][dict_fromstate[s1], dict_fromstate[s2]] = 1
+      # get binary representation
+      m_tuple = tuple(map(int, tuple(format(u, '0{}b'.format(len(fsa.props))))))
 
+      # check that input_names are in correct order
+      test_props = set([input_names[i] for i in range(len(input_names))
+                       if m_tuple[i]])
+      assert u == fsa.bitmap_of_props(test_props)
 
-  mdp = MDP(T, input_name='ap', input_fcn=fsa.bitmap_of_props,
-            output_name='mu')
+      T[m_tuple][dict_fromstate[s1], dict_fromstate[s2]] = 1
+
+  mdp = POMDP(T, input_names=input_names, state_name='mu')
 
   init_states = set(map(lambda state: dict_fromstate[state], [state for (state, key) in fsa.init.items() if key == 1]))
   final_states = set(map(lambda state: dict_fromstate[state], fsa.final))
@@ -37,13 +46,13 @@ def formula_to_mdp(formula):
   return mdp, init_states, final_states, fsa.props
 
 
-def solve_ltl_cosafe(mdp, formula, connection, horizon=np.Inf, delta=0., verbose=False):
+def solve_ltl_cosafe(network, formula, connection, horizon=np.Inf, delta=0., verbose=False):
   '''synthesize a policy that maximizes the probability of
      satisfaction of formula
      Inputs:
-      - mdp: a MDP or ProductMDP with output alphabet Y
+      - network: a POMDPNetwork 
       - formula: a syntactically cosafe LTL formula over AP
-      - connection: mapping Y -> 2^2^AP
+      - connection: mapping from network outputs -> 2^2^AP
 
      Example: If AP = {'s1', 's2'}, then connection(x) should be a 
      value in 2^2^{'s1', 's2'} 
@@ -52,6 +61,8 @@ def solve_ltl_cosafe(mdp, formula, connection, horizon=np.Inf, delta=0., verbose
       - pol: a Policy maximizing the probability of enforcing formula''' 
 
   dfsa, dfsa_init, dfsa_final, proplist = formula_to_mdp(formula)
+
+  network
 
   prod_mdp = mdp.product(dfsa, connection)
 
@@ -95,7 +106,7 @@ class LTL_Policy(object):
   def __call__(self, syst_state, t=0):
     '''get input from policy'''
     if t >= len(self.val)-1:
-      print 'Warning: t={} larger than horizon {}. Setting t={}'.format(t, len(self.val)-1, len(self.val)-2)
+      print('Warning: t={} larger than horizon {}. Setting t={}'.format(t, len(self.val)-1, len(self.val)-2))
       t = len(self.val)-2
     idx = tuple(syst_state) + (self.dfsa_state,)
     return self.pol[t][idx], self.val[t][idx]

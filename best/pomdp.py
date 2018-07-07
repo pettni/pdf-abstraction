@@ -131,6 +131,12 @@ class POMDP:
     else:
       return self._Zmat_csr[m_tuple]
 
+  def evolve(self, state, m_tuple):
+    '''draw a successor for (state, m_tuple)'''
+    succ_prob = np.asarray(self.T(m_tuple).getrow(state).todense()).ravel()
+    return np.random.choice(range(self.N), 1, p=succ_prob)[0]
+
+
   def check(self):
     for m_tuple in self._Tmat_csr.keys():
       if not self.T(m_tuple).shape == (self.N, self.N):
@@ -168,7 +174,7 @@ class POMDP:
 class POMDPNetwork:
 
   def __init__(self):
-    self.graph = nx.DiGraph()
+    self.graph = nx.MultiDiGraph()
 
   def __str__(self):
     po = '' if self.observable else 'PO'
@@ -213,6 +219,9 @@ class POMDPNetwork:
   @property
   def observable(self):
     return all(pomdp.observable for pomdp in self.graph.nodes())
+
+  def output(self, states):
+    return tuple(pomdp.output(state) for (pomdp, state) in zip(self.graph.nodes(), states))
 
   def add_pomdp(self, pomdp):
 
@@ -327,6 +336,48 @@ class POMDPNetwork:
     except StopIteration as e:
       raise e
 
+
+  def top_down_iter(self):
+    '''walk forward over network'''
+
+    for pomdp in self.graph.nodes():
+      self.graph.node[pomdp]['passed'] = False
+
+    try:
+      while True:
+        next_pomdp = next(pomdp for pomdp in self.graph.nodes()
+                          if self.graph.node[pomdp]['passed'] == False and
+                          all(self.graph.node[successor]['passed'] == False for
+                              successor in self.graph.successors(pomdp)
+                             )
+                         )
+        self.graph.node[next_pomdp]['passed'] = True
+        yield next_pomdp
+
+    except StopIteration as e:
+      raise e
+
+
+  def evolve(self, state, inputs):
+
+    all_inputs = dict(zip(self.input_names, inputs))
+
+    for pomdp in self.top_down_iter():
+
+      # index of current state
+      idx = self.state_names.index(pomdp.state_name)
+
+      # find inputs to current pomdp and evolve
+      pomdp_input_tuple = tuple(all_inputs[input_name] for input_name in pomdp.input_names)
+      state[idx] = pomdp.evolve(state[idx], pomdp_input_tuple) 
+
+      # add any inputs that are a function of updated state
+      for _, _, attr in self.graph.out_edges(pomdp, data=True):
+
+        inputs = np.nonzero(attr['conn_mat'][state[idx]])
+        all_inputs[attr['input']] = np.random.choice(inputs[0])
+
+    return state
 
   # OpenAI baselines fcns
 

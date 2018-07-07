@@ -22,12 +22,12 @@ def test_connection():
 
   V1 = np.zeros([2,2])
   V1[0,1] = 1
-  vals1, _ = solve_reach(network, V1)
+  vals1 = solve_reach(network, V1)
   np.testing.assert_almost_equal(vals1[0], [[0, 1], [0, 0]])
 
   V2 = np.zeros([2,2])
   V2[0,0] = 1
-  vals2, _ = solve_reach(network, V2)
+  vals2 = solve_reach(network, V2)
   np.testing.assert_almost_equal(vals2[0], [[1, 1], [1, 1]])
 
 
@@ -41,8 +41,8 @@ def test_reach():
   V_acc = np.zeros([3])
   V_acc[2] = 1
 
-  v_list, _ = solve_reach(network, V_acc)
-  print(v_list)
+  v_list = solve_reach(network, V_acc)
+
   np.testing.assert_almost_equal(v_list[0], [0.5, 0, 1], decimal=4)
 
 
@@ -70,7 +70,7 @@ def test_mdp_dfsa():
   V_acc = np.zeros([3,2])
   V_acc[:,1] = 1
 
-  v_list, _ = solve_reach(network, V_acc)
+  v_list = solve_reach(network, V_acc)
 
   np.testing.assert_almost_equal(v_list[0], 
                    [[0.5, 1], [0, 1], [1, 1]],
@@ -102,7 +102,7 @@ def test_mdp_dfsa_nondet():
   V_acc = np.zeros([3,2])
   V_acc[:,1] = 1
 
-  v_list, _ = solve_reach(network, V_acc)
+  v_list = solve_reach(network, V_acc)
 
   np.testing.assert_almost_equal(v_list[0],
                    [[0.5, 1], [0, 1], [1, 1]],
@@ -121,12 +121,47 @@ def test_reach_finitetime():
   V_acc = np.zeros([3])
   V_acc[2] = 1
 
-  vlist, plist = solve_reach(network, V_acc, horizon=3)
+  vlist = solve_reach(network, V_acc, horizon=3)
 
   np.testing.assert_almost_equal(vlist[0][0], 0.1 + 0.9*0.1 + 0.9**2*0.5)
   np.testing.assert_almost_equal(vlist[1][0], 0.1 + 0.9*0.5)
   np.testing.assert_almost_equal(vlist[2][0], 0.5)
 
-  # np.testing.assert_almost_equal(plist[0][0], 0)
-  # np.testing.assert_almost_equal(plist[1][0], 0)
-  # np.testing.assert_almost_equal(plist[2][0], 1)
+
+def test_evolve():
+  '''test non-deterministic connection'''
+  T0 = np.array([[0, 1, 0], [0, 0, 1], [0, 0, 1]])
+  T1 = np.array([[1, 0, 0], [1, 0, 0], [0, 1, 0]])
+
+  mdp1 = POMDP({(0,): T0, (1,): T1}, input_names=['u1'], state_name='x1')
+  mdp2 = POMDP({(0,): T0, (1,): T1}, input_names=['u2'], state_name='x2')
+
+  network = POMDPNetwork()
+  network.add_pomdp(mdp1)
+
+  sp = network.evolve([0], (0,))
+  np.testing.assert_equal(sp, [1])
+
+  network.add_pomdp(mdp2)
+
+  sp = network.evolve([1,1], (0,1))
+  np.testing.assert_equal(sp, [2, 0])
+
+  network.add_connection(mdp1, 'x1', mdp2, 'u2', lambda x1: set([0, 1]))
+
+  n0 = 0
+  n2 = 0
+  for i in range(1000):
+    sp = network.evolve([1,1], (0,))
+
+    np.testing.assert_equal(sp[0], 2)
+
+    if sp[1] == 0:
+      n0 += 1
+
+    if sp[1] == 2:
+      n2 += 1
+
+  np.testing.assert_equal(n0 + n2, 1000)
+
+  np.testing.assert_array_less(abs(n0 -n2), 100)

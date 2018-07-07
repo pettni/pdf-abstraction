@@ -1,11 +1,53 @@
+'''Module for table value iteration'''
+
 import time
 import numpy as np
-from best import DTYPE
+from best import DTYPE, DTYPE_ACTION
+
+def network_bellman(network, W, slice_names, verbose=False):
+  '''calculate Q function via one Bellman step
+     Q(u_free, x) = \sum_x' T(x' | x, u_free) W(x')  '''
+
+  # Iterate bottom up 
+  for pomdp in network.bottom_up_iter():
+
+    # Do backup over current state
+    if verbose:
+      print("slices {}, bellman backup over {}".format(slice_names, pomdp.state_name))
+    
+    W = pomdp.bellman_(W, slice_names.index(pomdp.state_name))
+    slice_names = list(pomdp.input_names) + slice_names
+
+    # Resolve connections (non-free actions)
+    for _, _, attr in network.graph.in_edges(pomdp, data=True):
+      if attr['input'] in slice_names:
+
+        if verbose: 
+          print('slices {}, resolving {} -> {}'
+                .format(slice_names, attr['output'], attr['input']))
+
+        dim_x = slice_names.index(attr['output'])
+        dim_u = slice_names.index(attr['input'])
+        conn_mat = attr['conn_mat'].transpose() # conn_mat is [x,u] but we need [u,x] 
+
+        # reshape to same dim as W
+        new_shape = np.ones(len(W.shape), dtype=np.uint32)
+        new_shape[dim_u] = conn_mat.shape[0]
+        new_shape[dim_x] = conn_mat.shape[1]
+
+        conn_mat = conn_mat.reshape(new_shape)
+
+        W = np.maximum(1-conn_mat, W).min(axis=dim_u)
+
+        slice_names.remove(attr['input'])
+
+  return W, slice_names
 
 
 def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5, verbose=False):
   '''solve reachability problem
   Inputs:
+  - network: a POMDPNetwork
   - accept: function defining target set
   - horizon: reachability horizon (standard is infinite-horizon)
   - delta: failure probability in each step
@@ -13,7 +55,7 @@ def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5, verbose=Fal
 
   Outputs::
   - val_list: array [V0 V1 .. VT] of value functions
-  - pol_list: array [P0 P1 .. PT] of value functions
+  - pol_list: array [P0 P1 .. PT] of policy functions
 
   The infinite-horizon problem has a stationary value function and policy. In this
   case the return arguments have length 1, i.e. val_list = [V0], pol_list = [P0].
@@ -27,82 +69,28 @@ def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5, verbose=Fal
   V = np.fmax(V_accept, np.zeros(network.N, dtype=DTYPE))
 
   val_list = []
-  pol_list = []
   val_list.insert(0, V)
 
-  slice_names = network.state_names
-  assert(len(slice_names) == len(V.shape))
+  slice_names = list(network.state_names)
 
   while it < horizon:
-
-    V_new = V
 
     if verbose:
       print('iteration {}, time {}'.format(it, time.time()-start))
 
-    # Iterate bottom up 
-    for pomdp in network.bottom_up_iter():
+    # Calculate Q(u_free, x)
+    Q, slice_names = network_bellman(network, V, slice_names, verbose)
 
-      # Do backup over current state
-      if verbose:
-        print("slices {}, bellman backup over {}".format(slice_names, pomdp.state_name))
-      
-      V_new = pomdp.bellman_(V_new, slice_names.index(pomdp.state_name))
-
-      print(V_new)
-
-      slice_names = pomdp.input_names + slice_names
-      assert(len(slice_names) == len(V_new.shape))
-
-      # Resolve connections (get rid of unfree actions)
-      for _, _, attr in network.graph.in_edges(pomdp, data=True):
-        if attr['input'] in slice_names:
-
-          if verbose: 
-            print('slices {}, resolving {} -> {}'
-                  .format(slice_names, attr['output'], attr['input']))
-
-          dim_x = slice_names.index(attr['output'])
-          dim_u = slice_names.index(attr['input'])
-          conn_mat = attr['conn_mat'].transpose()
-
-          # reshape to same dim as V_new
-          new_shape = np.ones(len(V_new.shape), dtype=np.uint32)
-          new_shape[dim_u] = conn_mat.shape[0]
-          new_shape[dim_x] = conn_mat.shape[1]
-
-          conn_mat = conn_mat.reshape(new_shape)
-          print(new_shape)
-          print('connmat', conn_mat)
-
-          V_new = np.maximum(1-conn_mat, V_new).min(axis=dim_u)
-
-          slice_names = tuple(name for name in slice_names if name != attr['input'])
-          assert(len(slice_names) == len(V_new.shape))
-
-      print(V_new)
-
-      # Max over free actions
-      free_actions = (name for name in pomdp.input_names if name in network.input_names)
-
-      for free_action in free_actions:
-
-        if verbose:
-          print("slices {}, max over {}".format(slice_names, free_action))
-        
-        V_new = V_new.max(axis=slice_names.index(free_action))
-        
-        slice_names = tuple(name for name in slice_names if name != free_action)
-        assert(len(slice_names) == len(V_new.shape))
-
-      print(V_new)
+    # Max over free actions
+    for free_action in network.input_names:    
+      Q = Q.max(axis=slice_names.index(free_action))
+      slice_names.remove(free_action)
 
     # Max over accept set
-    V_new = np.fmax(V_accept, np.maximum(V_new - delta, 0))
+    V_new = np.fmax(V_accept, np.maximum(Q - delta, 0))
 
     if horizon < np.Inf and it < horizon-1:
       val_list.insert(0, V_new)
-      pol_list.insert(0, None)
 
     if horizon == np.Inf and np.amax(np.abs(V_new - V)) < prec:
       break
@@ -111,8 +99,24 @@ def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5, verbose=Fal
     it += 1
 
   val_list.insert(0, V_new)
-  pol_list.insert(0, None)
 
   print('finished after {}s and {} iterations'.format(time.time()-start, it))
 
-  return val_list, pol_list
+  return val_list
+
+
+def get_input(network, x, W):
+  '''compute argmax_{u_free} E[W(x') | x, u_free] '''
+
+  slice_names = list(network.state_names)
+  assert(len(slice_names) == len(W.shape))
+
+  # TODO: speed up by doing Bellman for a single initial state
+  Q, slice_names = network_bellman(network, W, slice_names)
+
+  slice_obj = (Ellipsis,) + tuple(x)
+
+  val = np.max(Q[slice_obj])
+  u_flat = np.argmax(Q[slice_obj])
+
+  return np.unravel_index(u_flat, network.M), val
