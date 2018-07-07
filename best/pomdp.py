@@ -8,7 +8,7 @@ from best.utils import *
 from best import DTYPE
 
 class POMDP:
-  """Partially Observable Markov Decision Process"""
+  """(Partially Observable) Markov Decision Process"""
   def __init__(self,
                T, 
                Z=[],
@@ -30,8 +30,8 @@ class POMDP:
       input_fcns:  input resolution functions: input_functions[i] : U_i -> range(M_i) 
       output_fcn: output labeling function: range(O) -> Y
       input_names: identifier for inputs
-      state_name: identifier for states
-      output_name: identifier for outputs
+      state_name: identifier for state
+      output_name: identifier for output
 
     Alphabets:
       inputs: range(M)
@@ -53,9 +53,18 @@ class POMDP:
     self._Tmat_csr = {}
     self._Tmat_coo = {}
 
-    for m_tuple in T.keys():
-      self._Tmat_csr[m_tuple] = sp.csr_matrix(T[m_tuple], dtype=DTYPE)
-      self._Tmat_coo[m_tuple] = sp.coo_matrix(T[m_tuple], dtype=DTYPE)
+    # Convert to dict if necessary
+    if type(T) != dict:
+      T = dict(zip(range(len(T)), T))
+
+    for key in T.keys():
+      if type(key) != tuple:
+        m_tuple = (key,)
+      else:
+        m_tuple = key
+
+      self._Tmat_csr[m_tuple] = sp.csr_matrix(T[key], dtype=DTYPE)
+      self._Tmat_coo[m_tuple] = sp.coo_matrix(T[key], dtype=DTYPE)
 
     if Z == []:
       self._Zmat_csr = []
@@ -67,19 +76,27 @@ class POMDP:
       self._Zmat_csr = {}
       self._Zmat_coo = {}
 
-      for m_tuple in Z.keys():
-        self._Zmat_csr[m_tuple] = sp.csr_matrix(Z[m_tuple], dtype=DTYPE)
-        self._Zmat_coo[m_tuple] = sp.coo_matrix(Z[m_tuple], dtype=DTYPE)
+      if type(Z) != dict:
+        Z = dict(zip(range(len(Z)), Z))
+
+      for key in Z.keys():
+        if type(key) != tuple:
+          m_tuple = (key,)
+        else:
+          m_tuple = key
+
+        self._Zmat_csr[m_tuple] = sp.csr_matrix(Z[key], dtype=DTYPE)
+        self._Zmat_coo[m_tuple] = sp.coo_matrix(Z[key], dtype=DTYPE)
 
     self.check()
 
   @property
-  def N(self):
-    return next(iter(self._Tmat_csr.values())).shape[1]
-
-  @property
   def M(self):
     return tuple(1 + np.amax([np.array(m_tuple) for m_tuple in self._Tmat_coo.keys()], axis=0))
+
+  @property
+  def N(self):
+    return next(iter(self._Tmat_csr.values())).shape[1]
 
   @property
   def O(self):
@@ -123,7 +140,7 @@ class POMDP:
     return self._Tmat_csr[m_tuple]
 
   def Z(self, m_tuple):
-    '''transition matrix for action tuple m_tuple'''
+    '''output matrix for action tuple m_tuple'''
     if self._Zmat_csr == []:
       return sp.identity(self.N, dtype=DTYPE, format='csr')
     if type(self._Zmat_csr) is not dict:
@@ -131,19 +148,13 @@ class POMDP:
     else:
       return self._Zmat_csr[m_tuple]
 
-  def evolve(self, state, m_tuple):
-    '''draw a successor for (state, m_tuple)'''
-    succ_prob = np.asarray(self.T(m_tuple).getrow(state).todense()).ravel()
-    return np.random.choice(range(self.N), 1, p=succ_prob)[0]
-
-
   def check(self):
     for m_tuple in self._Tmat_csr.keys():
       if not self.T(m_tuple).shape == (self.N, self.N):
-        raise Exception('matrix not square')
+        raise Exception('T matrix not N x N')
 
       if not self.Z(m_tuple).shape == (self.N, self.O):
-        raise Exception('matrix not of size N x O')
+        raise Exception('Z matrix not N x O')
 
     if self.observable and self.output_name != self.state_name:
       raise Exception('MDP can not have distinct output name')
@@ -161,20 +172,28 @@ class POMDP:
           .format(po, self.M, self.input_names, self.N, self.state_name, self.O, self.output_name)
     return ret
 
-  def bellman_(self, W, d):
-    '''compute V(u1, ... um, x1, .., xd, .., xn) = sum_{xd'} P(xd' | xd, u) W(x1, .., xd', .., xn) '''
+  def bellman(self, W, d):
+    '''calculate Q function via one Bellman step
+       Q(u, x) = \sum_x' T(x' | x, u) W(x')  '''
 
-    ret = np.zeros(self.M + W.shape, dtype=DTYPE)
+    Q = np.zeros(self.M + W.shape, dtype=DTYPE)
     for m_tuple in product(*[list(range(k)) for k in self.M]):
-      ret[m_tuple] = sparse_tensordot(self.T(m_tuple), W, d)
+      Q[m_tuple] = sparse_tensordot(self.T(m_tuple), W, d)
 
-    return ret
+    return Q
+
+  def evolve(self, state, m_tuple):
+    '''draw a successor for (state, m_tuple)'''
+    succ_prob = np.asarray(self.T(m_tuple).getrow(state).todense()).ravel()
+    return np.random.choice(range(self.N), 1, p=succ_prob)[0]
 
 
 class POMDPNetwork:
 
-  def __init__(self):
+  def __init__(self, node_list=[]):
     self.graph = nx.MultiDiGraph()
+    for node in node_list:
+      self.add_pomdp(node)
 
   def __str__(self):
     po = '' if self.observable else 'PO'
@@ -196,7 +215,7 @@ class POMDPNetwork:
     if len(in_s):
       _, sizes = zip(*in_s)
       return tuple(sizes)
-    return ()
+    return tuple()
 
   @property
   def input_names(self):
@@ -205,7 +224,7 @@ class POMDPNetwork:
     if len(in_s):
       inputs, _ = zip(*self.input_size())
       return tuple(inputs)
-    return ()
+    return tuple()
 
   @property
   def state_names(self):
@@ -220,8 +239,8 @@ class POMDPNetwork:
   def observable(self):
     return all(pomdp.observable for pomdp in self.graph.nodes())
 
-  def output(self, states):
-    return tuple(pomdp.output(state) for (pomdp, state) in zip(self.graph.nodes(), states))
+  def output(self, o_tuple):
+    return tuple(pomdp.output(o) for (pomdp, o) in zip(self.graph.nodes(), o_tuple))
 
   def add_pomdp(self, pomdp):
 
@@ -236,10 +255,13 @@ class POMDPNetwork:
 
     self.graph.add_node(pomdp)
 
-  def add_connection(self, pomdp1, output, pomdp2, input, conn_fcn):
+  def add_connection(self, output, input, conn_fcn):
 
-    if input not in pomdp2.input_names or input not in self.input_names or output not in [pomdp1.output_name]:
+    if input not in self.input_names:
       raise Exception('invalid connection')
+
+    pomdp1 = next(pomdp for pomdp in self.graph.nodes() if output == pomdp.output_name)
+    pomdp2 = next(pomdp for pomdp in self.graph.nodes() if input in pomdp.input_names)
 
     nO = pomdp1.O  # number of outputs
     m = pomdp2.input_names.index(input) # input dimension
@@ -275,7 +297,6 @@ class POMDPNetwork:
     all_inputs_size = [(input, Mi) for pomdp in self.graph.nodes() for (input, Mi) in zip(pomdp.input_names, pomdp.M)]
     connected_inputs = [attr['input'] for _, _, attr in self.graph.edges(data=True)]
     return [input_size for input_size in all_inputs_size if input_size[0] not in connected_inputs]
-
 
   def plot(self):
     # add dummy nodes for drawing
@@ -336,7 +357,6 @@ class POMDPNetwork:
     except StopIteration as e:
       raise e
 
-
   def top_down_iter(self):
     '''walk forward over network'''
 
@@ -356,7 +376,6 @@ class POMDPNetwork:
 
     except StopIteration as e:
       raise e
-
 
   def evolve(self, state, inputs):
 

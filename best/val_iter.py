@@ -6,7 +6,7 @@ from best import DTYPE, DTYPE_ACTION
 
 def network_bellman(network, W, slice_names, verbose=False):
   '''calculate Q function via one Bellman step
-     Q(u_free, x) = \sum_x' T(x' | x, u_free) W(x')  '''
+     Q(u_free, x) = E[ W(x') | x, u_free]'''
 
   # Iterate bottom up 
   for pomdp in network.bottom_up_iter():
@@ -15,7 +15,7 @@ def network_bellman(network, W, slice_names, verbose=False):
     if verbose:
       print("slices {}, bellman backup over {}".format(slice_names, pomdp.state_name))
     
-    W = pomdp.bellman_(W, slice_names.index(pomdp.state_name))
+    W = pomdp.bellman(W, slice_names.index(pomdp.state_name))
     slice_names = list(pomdp.input_names) + slice_names
 
     # Resolve connections (non-free actions)
@@ -55,10 +55,9 @@ def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5, verbose=Fal
 
   Outputs::
   - val_list: array [V0 V1 .. VT] of value functions
-  - pol_list: array [P0 P1 .. PT] of policy functions
 
   The infinite-horizon problem has a stationary value function and policy. In this
-  case the return arguments have length 1, i.e. val_list = [V0], pol_list = [P0].
+  case the return arguments have length 1, i.e. val_list = [V0 VT]
   '''
 
   V_accept = accept.astype(DTYPE, copy=False)

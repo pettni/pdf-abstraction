@@ -1,24 +1,26 @@
+import numpy as np
+
 from best.pomdp import POMDP, POMDPNetwork
 from best.val_iter import solve_reach
+from best.ltl import formula_to_pomdp
 
-import numpy as np
 
 def test_connection():
 
   T0 = np.array([[0, 1], [1, 0]])
   T1 = np.array([[1, 0], [0, 1]])
-  mdp1 = POMDP({(0,): T0, (1,): T1}, input_names=['u'], state_name='zout')
+  mdp1 = POMDP([T0, T1], input_names=['u'], state_name='zout')
 
   T0 = np.array([[1, 0], [1, 0]])
   T1 = np.array([[0, 1], [0, 1]])
 
-  mdp2 = POMDP({(0,): T0, (1,): T1}, input_names=['zin'], state_name='y')
+  mdp2 = POMDP([T0, T1], input_names=['zin'], state_name='y')
 
   network = POMDPNetwork()
   network.add_pomdp(mdp1)
   network.add_pomdp(mdp2)
 
-  network.add_connection(mdp1, 'zout', mdp2, 'zin', lambda n1: set([n1]))
+  network.add_connection('zout', 'zin', lambda n1: set([n1]))
 
   V1 = np.zeros([2,2])
   V1[0,1] = 1
@@ -33,7 +35,7 @@ def test_connection():
 
 def test_reach():
   T0 = np.array([[0.5, 0.25, 0.25], [0, 1, 0], [0, 0, 1]])
-  mdp = POMDP({(0,): T0})
+  mdp = POMDP([T0])
   
   network = POMDPNetwork()
   network.add_pomdp(mdp)
@@ -55,7 +57,7 @@ def test_mdp_dfsa():
       return 0
 
   T0 = np.array([[0.5, 0.25, 0.25], [0, 1, 0], [0, 0, 1]])
-  mdp = POMDP({(0,): T0}, output_fcn=output, input_names=['mdp_in'], state_name='mdp_out')
+  mdp = POMDP([T0], output_fcn=output, input_names=['mdp_in'], state_name='mdp_out')
 
   T1 = np.array([[1, 0], [0, 1]])
   T2 = np.array([[0, 1], [0, 1]])
@@ -65,7 +67,7 @@ def test_mdp_dfsa():
   network.add_pomdp(mdp)
   network.add_pomdp(fsa)
 
-  network.add_connection(mdp, 'mdp_out', fsa, 'fsa_in', lambda n1: set([n1]))
+  network.add_connection('mdp_out', 'fsa_in', lambda n1: set([n1]))
 
   V_acc = np.zeros([3,2])
   V_acc[:,1] = 1
@@ -87,7 +89,7 @@ def test_mdp_dfsa_nondet():
       return set([0])
 
   T0 = np.array([[0.5, 0.25, 0.25], [0, 1, 0], [0, 0, 1]])
-  mdp = POMDP({(0,): T0}, input_names=['mdp_in'], state_name='mdp_out')
+  mdp = POMDP([T0], input_names=['mdp_in'], state_name='mdp_out')
 
   T1 = np.array([[1, 0], [0, 1]])
   T2 = np.array([[0, 1], [0, 1]])
@@ -97,7 +99,7 @@ def test_mdp_dfsa_nondet():
   network.add_pomdp(mdp)
   network.add_pomdp(fsa)
 
-  network.add_connection(mdp, 'mdp_out', fsa, 'fsa_in', connection)
+  network.add_connection('mdp_out', 'fsa_in', connection)
 
   V_acc = np.zeros([3,2])
   V_acc[:,1] = 1
@@ -113,7 +115,7 @@ def test_reach_finitetime():
   T0 = np.array([[0.9, 0, 0.1], [0, 1, 0], [0, 0, 1]])
   T1 = np.array([[0, 0.5, 0.5], [0, 1, 0], [0, 0, 1]])
 
-  mdp = POMDP({(0,): T0, (1,): T1})
+  mdp = POMDP([T0, T1])
 
   network = POMDPNetwork()
   network.add_pomdp(mdp)
@@ -133,8 +135,8 @@ def test_evolve():
   T0 = np.array([[0, 1, 0], [0, 0, 1], [0, 0, 1]])
   T1 = np.array([[1, 0, 0], [1, 0, 0], [0, 1, 0]])
 
-  mdp1 = POMDP({(0,): T0, (1,): T1}, input_names=['u1'], state_name='x1')
-  mdp2 = POMDP({(0,): T0, (1,): T1}, input_names=['u2'], state_name='x2')
+  mdp1 = POMDP([T0, T1], input_names=['u1'], state_name='x1')
+  mdp2 = POMDP([T0, T1], input_names=['u2'], state_name='x2')
 
   network = POMDPNetwork()
   network.add_pomdp(mdp1)
@@ -147,7 +149,7 @@ def test_evolve():
   sp = network.evolve([1,1], (0,1))
   np.testing.assert_equal(sp, [2, 0])
 
-  network.add_connection(mdp1, 'x1', mdp2, 'u2', lambda x1: set([0, 1]))
+  network.add_connection('x1', 'u2', lambda x1: set([0, 1]))
 
   n0 = 0
   n2 = 0
@@ -165,3 +167,26 @@ def test_evolve():
   np.testing.assert_equal(n0 + n2, 1000)
 
   np.testing.assert_array_less(abs(n0 -n2), 100)
+
+
+def test_ltl_synth():
+
+  T1 = np.array([[0.25, 0.25, 0.25, 0.25], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+  T2 = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0], [0.9, 0, 0, 0.1]])
+
+  system = POMDP([T1, T2], state_name='x')
+
+  formula = '( ( F s1 ) & ( F s2 ) )'
+  dfsa, init, final, _ = formula_to_pomdp(formula)
+
+  network = POMDPNetwork([system, dfsa])
+  network.add_connection('x', 's1', lambda x: set([1]) if x==1 else set([0]))
+  network.add_connection('x', 's2', lambda x: set([1]) if x==3 else set([0]))
+
+  Vacc = np.zeros(network.N)
+  Vacc[:, list(final)[0]] = 1
+
+  vlist = solve_reach(network, Vacc)
+
+  np.testing.assert_almost_equal(vlist[0][:,0], [0.5, 0, 0, 0.5],
+                                 decimal=4)
