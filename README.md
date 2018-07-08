@@ -2,12 +2,12 @@
 
 ## Installation
 
-Install necessary packages
+This package is developed for Python 3.6. Install necessary packages
 
     sudo apt install graphviz-dev 
-    pip install -r requirements.txt
-
-This package is developed for Python 2.7. Install it as follows:
+    pip install -r requirements.txt 
+    
+Install the ``best`` package as follows:
 
     python setup.py install
 
