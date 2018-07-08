@@ -19,19 +19,22 @@ Run tests:
 
   nosetests
 
-## TODO pomdp branch
+## POMDP branch
 
+### Accomplished
+
+ - Novel POMDP class
+ - New connection structure (graph instead of recursive parallel/serial)
+ - Switched to Python 3
+
+### TODO
+
+ - Convert old examples (lti, ADHS, RSS18) to new format
  - Competing types of value iteration: 
     * [x] sparse tables (for MDPs)
     * [ ] mtBDD? (for MDPs)
     * [ ] VDC
-    * [ ] DQN
-    * [ ] pbVI?
- - Allow many-to-one connections
- - Automatic attachment of LTL automaton given AP definitions
- - LTL policy
- - Interface to work with OpenAI baseline (gym environment)
- - Switch to Python 3
- - Separate out abstraction and firm code 
+    * [ ] DQN via openai.baseline
+    * [ ] pbVI by converting Rohan's code?
 
 

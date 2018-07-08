@@ -7,3 +7,5 @@ networkx
 nose
 jupyter
 pygraphviz
+cvxpy
+polytope
