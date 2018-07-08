@@ -4,20 +4,20 @@
 
 Install necessary packages
 
-  sudo apt install graphviz-dev 
-  pip install -r requirements.txt
+    sudo apt install graphviz-dev 
+    pip install -r requirements.txt
 
 This package is developed for Python 2.7. Install it as follows:
 
-  python setup.py install
+    python setup.py install
 
 For development (create links to source code, no need to reinstall after making changes):
 
-  python setup.py develop
+    python setup.py develop
 
 Run tests:
 
-  nosetests
+    nosetests
 
 ## POMDP branch
 
