@@ -5,40 +5,6 @@ import numpy as np
 from best import DTYPE, DTYPE_ACTION, DTYPE_OUTPUT
 from best.logic.translate import formula_to_pomdp
 
-def network_bellman(network, W):
-  '''calculate Q function via one Bellman step
-     Q(u_free, x) = E[ W(x') | x, u_free]'''
-
-  slice_names = list(network.state_names)
-
-  # Iterate bottom up 
-  for pomdp in network.bottom_up_iter():
-
-    # Do backup over current state
-    W = pomdp.bellman(W, slice_names.index(pomdp.state_name))
-    slice_names = list(pomdp.input_names) + slice_names
-
-    # Resolve connections (non-free actions)
-    for _, _, attr in network.graph.in_edges(pomdp, data=True):
-
-      dim_x = slice_names.index(attr['output'])
-      dim_u = slice_names.index(attr['input'])
-      conn_mat = attr['conn_mat'].transpose() # conn_mat is [x,u] but we need [u,x] 
-
-      # reshape to same dim as W
-      new_shape = np.ones(len(W.shape), dtype=np.uint32)
-      new_shape[dim_u] = conn_mat.shape[0]
-      new_shape[dim_x] = conn_mat.shape[1]
-
-      conn_mat = conn_mat.reshape(new_shape)
-
-      W = np.maximum(1-conn_mat, W).min(axis=dim_u)
-
-      slice_names.remove(attr['input'])
-
-  return W
-
-
 def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5):
   '''solve reachability problem
   Inputs:
@@ -71,7 +37,7 @@ def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5):
     print('iteration {}, time {}'.format(it, time.time()-start))
 
     # Calculate Q(u_free, x)
-    Q = network_bellman(network, V).reshape((-1,) + network.N)
+    Q = network.bellman(V).reshape((-1,) + network.N)
 
     # Max over free actions
     P_new = np.unravel_index(Q.argmax(axis=0).astype(DTYPE_ACTION, copy=False), network.M)
@@ -123,7 +89,7 @@ def solve_ltl_cosafe(network, formula, ap_definitions, delta=0., horizon=np.Inf)
 
   val, pol = solve_reach(network, Vacc, delta=delta, horizon=horizon)
   
-  network.graph.remove_node(dfsa)
+  network.remove_pomdp(dfsa)
   return LTL_Policy(dfsa.input_names, dfsa._Tmat_csr, list(dfsa_init)[0], dfsa_final, val, pol)
 
 

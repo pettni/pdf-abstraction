@@ -18,7 +18,7 @@ def test_connection():
   network.add_pomdp(mdp1)
   network.add_pomdp(mdp2)
 
-  network.add_connection('zout', 'zin', lambda n1: set([n1]))
+  network.add_connection(['zout'], 'zin', lambda n1: set([n1]))
 
   V1 = np.zeros([2,2])
   V1[0,1] = 1
@@ -55,7 +55,7 @@ def test_mdp_dfsa():
       return 0
 
   T0 = np.array([[0.5, 0.25, 0.25], [0, 1, 0], [0, 0, 1]])
-  mdp = POMDP([T0], output_fcn=output, input_names=['mdp_in'], state_name='mdp_out')
+  mdp = POMDP([T0], output_transform=output, input_names=['mdp_in'], state_name='mdp_out')
 
   T1 = np.array([[1, 0], [0, 1]])
   T2 = np.array([[0, 1], [0, 1]])
@@ -65,7 +65,7 @@ def test_mdp_dfsa():
   network.add_pomdp(mdp)
   network.add_pomdp(fsa)
 
-  network.add_connection('mdp_out', 'fsa_in', lambda n1: set([n1]))
+  network.add_connection(['mdp_out'], 'fsa_in', lambda n1: set([n1]))
 
   V_acc = np.zeros([3,2])
   V_acc[:,1] = 1
@@ -97,7 +97,7 @@ def test_mdp_dfsa_nondet():
   network.add_pomdp(mdp)
   network.add_pomdp(fsa)
 
-  network.add_connection('mdp_out', 'fsa_in', connection)
+  network.add_connection(['mdp_out'], 'fsa_in', connection)
 
   V_acc = np.zeros([3,2])
   V_acc[:,1] = 1
@@ -138,8 +138,8 @@ def test_ltl_synth():
 
   formula = '( ( F s1 ) & ( F s2 ) )'
 
-  ap_defs = [('x', 's1', lambda x: (int(x==1),)),
-             ('x', 's2', lambda x: (int(x==3),))]
+  ap_defs = [(['x'], 's1', lambda x: set([int(x==1)])),
+             (['x'], 's2', lambda x: set([int(x==3)]))]
 
   pol = solve_ltl_cosafe(network, formula, ap_defs)
 

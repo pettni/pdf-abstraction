@@ -21,7 +21,7 @@ def test_evolve():
   sp, _ = network.evolve([1,1], (0,1))
   np.testing.assert_equal(sp, [2, 0])
 
-  network.add_connection('x1', 'u2', lambda x1: set([0, 1]))
+  network.add_connection(['x1'], 'u2', lambda x1: set([0, 1]))
 
   n0 = 0
   n2 = 0

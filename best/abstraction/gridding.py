@@ -48,9 +48,9 @@ class Abstraction(object):
 
     self.T_list = T_list
 
-    output_fcn = lambda s: self.x_low + self.eta_list/2 + self.eta_list * np.unravel_index(s, self.n_list)
+    output_transform = lambda s: self.x_low + self.eta_list/2 + self.eta_list * np.unravel_index(s, self.n_list)
 
-    return POMDP(T_list, input_names=['u'], state_name='xc', output_fcn=output_fcn)
+    return POMDP(T_list, input_names=['u'], state_name='s', output_transform=output_transform, output_name='(s,xc)')
 
   @property
   def N(self):
@@ -166,7 +166,7 @@ class LTIAbstraction(Abstraction):
     self.sedge = sedge
 
     self.mdp = POMDP(transition_list, input_names=['u_d'], state_name='s', 
-                     output_fcn=lambda s: (s, self.s_to_x(s)))
+                     output_transform=lambda s: (s, self.s_to_x(s)), output_name='(s,xc)')
 
     self.M = M_min
     self.K = K_min

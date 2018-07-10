@@ -43,7 +43,7 @@ def test_tranformation():
     x = xx[:,i].reshape((2,1))
     s_ab = abstr.closest_abstract(x)
 
-    x_out = abstr.mdp.output(s_ab)
+    x_out = abstr.mdp.transform_output(s_ab)
 
     np.testing.assert_equal(x_out[0], s_ab )
     np.testing.assert_array_less( np.abs(x_out[1] - x), d/2 * (1 + 1e-5) )

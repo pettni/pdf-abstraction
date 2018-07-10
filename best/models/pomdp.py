@@ -3,6 +3,7 @@ from networkx.drawing.nx_agraph import graphviz_layout
 import numpy as np
 import scipy.sparse as sp
 from itertools import product
+from collections import OrderedDict
 
 from best.utils import *
 from best import DTYPE, DTYPE_OUTPUT
@@ -15,8 +16,7 @@ class POMDP:
                input_names=['u'], 
                state_name='x', 
                output_name=None,
-               input_fcns=None,
-               output_fcn=None):
+               output_transform=None):
     '''
     Create a POMDP
 
@@ -43,11 +43,9 @@ class POMDP:
     '''
     
     self._input_names = input_names
-    self._state_name = state_name
+    self._state_name  = state_name
     self._output_name = output_name
-
-    self._input_fcns = input_fcns
-    self._output_fcn = output_fcn
+    self._output_transform = output_transform
 
     # Transition matrices for each axis
     self._Tmat_csr = {}
@@ -116,7 +114,7 @@ class POMDP:
 
   @property
   def output_name(self):
-    if self.observable:
+    if self.observable and self._output_name is None:
       return self._state_name
     else:
       return self._output_name
@@ -125,15 +123,21 @@ class POMDP:
   def observable(self):
     return self._Zmat_csr == []
 
-  def output(self, o):
-    if self._output_fcn is None:
-      return o
-    return self._output_fcn(o)
+  @property
+  def nnz(self):
+    '''total number of stored transitions'''
+    return sum(Tm.getnnz() for _, Tm in self._Tmat_csr.items())
 
-  def input(self, u, m):
-    if self._input_fcns is None:
-      return u
-    return self._input_fcns[m](u)
+  @property
+  def sparsity(self):
+    '''percentage of transitions'''
+    return float(self.nnz) / (self.N**2 * sum(self.M))
+
+  def transform_output(self, o):
+    '''return transformed output'''
+    if self._output_transform is None:
+      return o
+    return self._output_transform(o)
 
   def T(self, m_tuple):
     '''transition matrix for action tuple m_tuple'''
@@ -156,9 +160,6 @@ class POMDP:
       if not self.Z(m_tuple).shape == (self.N, self.O):
         raise Exception('Z matrix not N x O')
 
-    if self.observable and self.output_name != self.state_name:
-      raise Exception('MDP can not have distinct output name')
-
     if len(self.M) != len(self.input_names):
       raise Exception('Input names does not equal inputs')
 
@@ -171,6 +172,22 @@ class POMDP:
     ret = '{0}MDP: {1} inputs {2} --> {3} states {4} --> {5} outputs {6}' \
           .format(po, self.M, self.input_names, self.N, self.state_name, self.O, self.output_name)
     return ret
+
+  def prune(self, thresh=1e-8):
+    '''remove transitions with probability less than thresh and re-normalize'''
+    for key_m, Tm in self._Tmat_csr.items():
+      data = Tm.data
+      indices = Tm.indices
+      indptr = Tm.indptr
+      data[np.nonzero(data < thresh)] = 0
+
+      new_mat = sp.csr_matrix((data, indices, indptr), shape=Tm.shape)
+
+      # diagonal matrix with row sums
+      norms = new_mat.dot( np.ones(new_mat.shape[1]) )
+      norms_mat = sp.coo_matrix((1/norms, (range(new_mat.shape[1]), range(new_mat.shape[1])))) 
+
+      self._Tmat_csr[key_m] = norms_mat.dot(new_mat)
 
   def bellman(self, W, d):
     '''calculate Q function via one Bellman step
@@ -193,10 +210,13 @@ class POMDP:
 
 class POMDPNetwork:
 
-  def __init__(self, node_list=[]):
-    self.graph = nx.MultiDiGraph()
-    for node in node_list:
-      self.add_pomdp(node)
+  def __init__(self, pomdp_list=[]):
+
+    self.pomdps = OrderedDict()  # POMDP state name -> POMDP
+    self.connections = []        # (outputs, input, conn_matrix, deterministic)
+
+    for pomdp in pomdp_list:
+      self.add_pomdp(pomdp)
 
   def __str__(self):
     po = '' if self.observable else 'PO'
@@ -206,11 +226,11 @@ class POMDPNetwork:
 
   @property
   def N(self):
-    return tuple(pomdp.N for pomdp in self.graph.nodes())
+    return tuple(pomdp.N for pomdp in self.pomdps.values())
 
   @property
   def O(self):
-    return tuple(pomdp.O for pomdp in self.graph.nodes())
+    return tuple(pomdp.O for pomdp in self.pomdps.values())
 
   @property
   def M(self):
@@ -231,19 +251,24 @@ class POMDPNetwork:
 
   @property
   def state_names(self):
-    return tuple(pomdp.state_name for pomdp in self.graph.nodes())
+    return tuple(pomdp.state_name for pomdp in self.pomdps.values())
 
   @property
   def output_names(self):
     '''return list of global outputs'''
-    return tuple(pomdp.output_name for pomdp in self.graph.nodes())
+    return tuple(pomdp.output_name for pomdp in self.pomdps.values())
 
   @property
   def observable(self):
-    return all(pomdp.observable for pomdp in self.graph.nodes())
+    return all(pomdp.observable for  pomdp in self.pomdps.values())
 
-  def output(self, o_tuple):
-    return tuple(pomdp.output(o) for (pomdp, o) in zip(self.graph.nodes(), o_tuple))
+  def transform_output(self, o_tuple):
+    return tuple(pomdp.transform_output(o) for (pomdp, o) in zip(self.pomdps.values(), o_tuple))
+
+  def __input_size(self):
+    all_inputs_size = [(input, Mi) for pomdp in self.pomdps.values() for (input, Mi) in zip(pomdp.input_names, pomdp.M)]
+    connected_inputs = [input for _, input, _, _ in self.connections]
+    return [input_size for input_size in all_inputs_size if input_size[0] not in connected_inputs]
 
   def add_pomdp(self, pomdp):
 
@@ -256,157 +281,213 @@ class POMDPNetwork:
     if pomdp.state_name in self.state_names:
       raise Exception('state name collision')
 
-    self.graph.add_node(pomdp)
+    self.pomdps[pomdp.state_name] = pomdp
 
-  def add_connection(self, output, input, conn_fcn=None):
+  def remove_pomdp(self, pomdp):
+    self.pomdps.pop(pomdp.state_name, None)
+
+  def get_node_with_output(self, output):
+    for name, pomdp in self.pomdps.items():
+      if pomdp.output_name == output:
+        return name
+    raise Exception('No POMDP with output', output)
+
+  def get_node_with_input(self, input):
+    for name, pomdp in self.pomdps.items():
+      if input in pomdp.input_names:
+        return name
+    raise Exception('No POMDP with input', input)
+
+
+  def add_connection(self, outputs, input, conn_fcn=None):
+
+    if not type(outputs) is list:
+      raise Exception('output must be list')
 
     if input not in self.input_names:
       raise Exception('invalid connection')
 
-    pomdp1 = next(pomdp for pomdp in self.graph.nodes() if output == pomdp.output_name)
-    pomdp2 = next(pomdp for pomdp in self.graph.nodes() if input in pomdp.input_names)
+    # TODO: sort outputs as in overall network
+    assert(outputs == sorted(outputs, key=lambda o: self.output_names.index(o)))
 
-    nO = pomdp1.O  # number of outputs
-    m = pomdp2.input_names.index(input) # input dimension
-    nM = pomdp2.M[m] # number of inputs
+    in_name = self.get_node_with_input(input)
+    out_names = [self.get_node_with_output(output) for output in outputs]
 
-    if conn_fcn is None:
-      if nO != nM:
-        raise Exception('no connection given and identity connection is invalid')
-      conn_matrix = np.eye(nO, dtype=bool)
-      deterministic = True
-    else:
-      # compute bool connection matrix
-      conn_matrix = np.zeros([nO, nM], dtype=bool)
-      deterministic = True
+    in_pomdp = self.pomdps[in_name]
+    nO_list = tuple(self.pomdps[out_name].O for out_name in out_names) # number of outputs
+    m = in_pomdp.input_names.index(input)       # input dimension
+    nM = in_pomdp.M[m]                          # number of inputs
 
-      for o in range(nO):
+    # compute bool connection matrix (input x output_list)
+    conn_matrix = np.zeros((nM,) + nO_list, dtype=bool)
+    deterministic = True
 
-        u_list = conn_fcn(pomdp1.output(o))
-        if len(u_list) == 0:
-          raise Exception('connection empty for output {}'.format(pomdp1.output_name(o)))
+    for o_tuple in product(*[range(nO) for nO in nO_list]):
+      # for each possible output
 
-        if len(u_list) > 1:
-          deterministic = False
+      u_list = conn_fcn(*[self.pomdps[out_name].transform_output(o) 
+                          for o, out_name in zip(o_tuple, out_names) ])
 
-        for u in u_list:
-          inp = pomdp2.input(u, m)
-          if inp < 0 or inp >= nM:
-            raise Exception('connection invalid for output {}'.format(pomdp1.output_name(o)))
+      if not type(u_list) == set:
+        raise Exception('connection map must return set')
 
-          conn_matrix[o, inp] = 1
+      if len(u_list) == 0:
+        raise Exception('connection empty for output {}'.format(o_tuple))
 
-    self.graph.add_edge(pomdp1, pomdp2, output=output, input=input, 
-                        conn_mat=conn_matrix, deterministic=deterministic)
+      if len(u_list) > 1:
+        deterministic = False
 
-    if len(list(nx.simple_cycles(self.graph))) > 0:
+      for u in u_list:
+        if u < 0 or u >= nM:
+          raise Exception('connection invalid for output {}'.format(o_tuple))
+        conn_matrix[(u,) + o_tuple] = True
+
+    self.connections.append((outputs, input, conn_matrix, deterministic))
+
+    if len(list(nx.simple_cycles(self.construct_graph()))) > 0:
       raise Exception('connection graph can not have cycles')
 
-  def __input_size(self):
-    all_inputs_size = [(input, Mi) for pomdp in self.graph.nodes() for (input, Mi) in zip(pomdp.input_names, pomdp.M)]
-    connected_inputs = [attr['input'] for _, _, attr in self.graph.edges(data=True)]
-    return [input_size for input_size in all_inputs_size if input_size[0] not in connected_inputs]
+  def construct_graph(self):
+    G = nx.MultiDiGraph()
+
+    G.add_node('in')
+
+    for pomdp in self.pomdps.values():
+      G.add_node(pomdp.state_name)
+
+    for input_name in self.input_names:
+      G.add_edge('in', self.get_node_with_input(input_name), input=input_name, output='')
+
+    for outputs, input, _, _ in self.connections:
+      for output in outputs:
+        s0 = self.get_node_with_output(output)
+        s1 = self.get_node_with_input(input)
+        G.add_edge( s0, s1, input=input, output=output )
+    return G
 
   def plot(self):
-    # add dummy nodes for drawing
+    G = self.construct_graph()
 
-    inputs_pomdp = []
-    outputs_pomdp = []
+    pos = graphviz_layout(G, prog='dot')
+  
+    edge_labels = {(n1, n2) : '{}'.format(attr['input'])
+                   for n1, n2, attr in G.edges(data=True)}
 
-    node_labels = {pomdp: pomdp.state_name for pomdp in self.graph.nodes()}
-    node_labels_dummy = {'source': 'in'}
+    nx.draw_networkx(G, pos=pos, with_labels=True)
+    nx.draw_networkx_edge_labels(G, pos=pos, edge_labels=edge_labels)
 
-    node_labels.update(node_labels_dummy)
+  def predecessors(self, node):
+    all_outputs = set([])
+    for outputs, input, _, _ in self.connections:
+      if input in self.pomdps[node].input_names:
+        all_outputs |= set(outputs)
+    return [self.get_node_with_output(output) for output in all_outputs]
 
-    for pomdp in self.graph.nodes():
-      for input_name in pomdp.input_names:
-        if input_name in self.input_names:
-          inputs_pomdp.append((input_name, pomdp))
-      if pomdp.output_name in self.output_names:
-        outputs_pomdp.append((pomdp.output_name, pomdp))
+  def successors(self, node):
+    all_inputs = [input for outputs, input, _, _ in self.connections if self.pomdps[node].output_name in outputs]
+    return [self.get_node_with_input(input) for input in all_inputs]
 
-    self.graph.add_nodes_from(['source'])
-
-    for input_name, pomdp in inputs_pomdp:
-      self.graph.add_edge('source', pomdp, input=input_name, output='')
-
-    pos = graphviz_layout(self.graph, prog='dot')
-
-    nx.draw_networkx(self.graph, pos=pos, with_labels=True, labels=node_labels)
-
-    edge_labels = {(pomdp1, pomdp2) : '{}'.format(attr['input'])
-                   for pomdp1, pomdp2, attr in self.graph.edges(data=True)}
-
-    nx.draw_networkx_edge_labels(self.graph, pos=pos, edge_labels=edge_labels)
-
-    self.graph.remove_node('source')
-
-  def bottom_up_iter(self):
+  def backwards_iter(self):
     '''walk backwards over network'''
-
-    for pomdp in self.graph.nodes():
-      self.graph.node[pomdp]['passed'] = False
+    mark = {n: False for n in self.pomdps.keys()}
+    cond = lambda n: not mark[n] and all(mark[sc] for sc in self.successors(n))
 
     try:
       while True:
-        next_pomdp = next(pomdp for pomdp in self.graph.nodes()
-                          if self.graph.node[pomdp]['passed'] == False and
-                          all(self.graph.node[successor]['passed'] == True for
-                              successor in self.graph.successors(pomdp)
-                             )
-                         )
-        self.graph.node[next_pomdp]['passed'] = True
-        yield next_pomdp
+        next_n = next(n for n in self.pomdps.keys() if cond(n))
+        mark[next_n] = True
+        yield next_n, self.pomdps[next_n]
 
     except StopIteration as e:
-      raise e
+      return
 
-  def top_down_iter(self):
+  def forward_iter(self):
     '''walk forward over network'''
-
-    for pomdp in self.graph.nodes():
-      self.graph.node[pomdp]['passed'] = False
+    mark = {n: False for n in self.pomdps.keys()}
+    cond = lambda n: not mark[n] and all(mark[pd] for pd in self.predecessors(n))
 
     try:
       while True:
-        next_pomdp = next(pomdp for pomdp in self.graph.nodes()
-                          if self.graph.node[pomdp]['passed'] == False and
-                          all(self.graph.node[successor]['passed'] == True for
-                              successor in self.graph.predecessors(pomdp)
-                             )
-                         )
-        self.graph.node[next_pomdp]['passed'] = True
-        yield next_pomdp
-
+        next_n = next(n for n in self.pomdps.keys() if cond(n))
+        mark[next_n] = True
+        yield next_n, self.pomdps[next_n]
     except StopIteration as e:
-      raise e
+      return
+
+  def bellman(self, W):
+    '''calculate dense Q function via one Bellman step
+       Q(u_free, x) = E[ W(x') | x, u_free]'''
+
+    slice_names = list(self.state_names)
+
+    # Iterate bottom up 
+    for name, pomdp in self.backwards_iter():
+
+      # Do backup over current state
+      W = pomdp.bellman(W, slice_names.index(name))
+      slice_names = list(pomdp.input_names) + slice_names
+
+      # Resolve connections (non-free actions)
+      for outputs, input, conn_mat, deterministic in self.connections:
+
+        if input not in pomdp.input_names:
+          continue
+
+        dim_u = slice_names.index(input)
+        
+        # reshape to same dim as W
+        new_shape = np.ones(len(W.shape), dtype=np.uint32)
+        new_shape[dim_u] = conn_mat.shape[0]
+
+        for i, output in enumerate(outputs):
+          state = self.get_node_with_output(output)
+          new_shape[slice_names.index(state)] = conn_mat.shape[1+i]
+
+        # cast to higher dim
+        conn_mat = conn_mat.reshape(new_shape)
+
+        W = np.maximum(1-conn_mat, W).min(axis=dim_u)
+        slice_names.remove(input)
+
+    # reshuffle so inputs appear in order
+    order = tuple(slice_names.index(u) for u in self.input_names) + \
+            tuple(range(len(self.M), len(self.M) + len(self.N)))
+    return W.transpose(order)
 
   def evolve(self, state, inputs):
 
     all_inputs = dict(zip(self.input_names, inputs))
-    output = np.zeros([len(self.O)], dtype=DTYPE_OUTPUT)
+    all_states = dict()
+    all_outputs = dict()
 
-    for pomdp in self.top_down_iter():
+    for name, pomdp in self.forward_iter():
 
       # index of current state
-      idx = self.state_names.index(pomdp.state_name)
+      idx = self.state_names.index(name)
 
       # find inputs to current pomdp and evolve
       pomdp_input_tuple = tuple(all_inputs[input_name] for input_name in pomdp.input_names)
-      
-      state[idx], output[idx] = pomdp.evolve_observe(state[idx], pomdp_input_tuple)
+      new_state, new_output = pomdp.evolve_observe(state[idx], pomdp_input_tuple)
 
-      # add any inputs that are a function of output
-      for _, _, attr in self.graph.out_edges(pomdp, data=True):
-        inputs = np.nonzero(attr['conn_mat'][output[idx]])
-        all_inputs[attr['input']] = np.random.choice(inputs[0])
+      all_outputs[pomdp.output_name] = new_output
+      all_states[pomdp.state_name] = new_state
 
-    return state, self.output(output)
+      # add any intermediate input that is a function calculated outputs
+      for outputs, input, conn_mat, _ in self.connections:
+        if all([output in all_outputs.keys() for output in outputs]) and input not in all_inputs.keys():
+          conn_output = tuple(all_outputs[output] for output in outputs)
+          possible_input_values = np.nonzero(conn_mat[ (Ellipsis,) + conn_output ])
+          all_inputs[input] = np.random.choice(possible_input_values[0])
+
+    return [all_states[state] for state in self.state_names], \
+           self.transform_output([all_outputs[output] for output in self.output_names])
+
+
 
   # OpenAI baselines fcns
-
   def step(self, inputs):
     pass
 
   def reset(self):
     pass
+

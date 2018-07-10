@@ -9,3 +9,4 @@ jupyter
 pygraphviz
 cvxpy
 polytope
+control
