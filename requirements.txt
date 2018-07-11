@@ -1,6 +1,5 @@
 # use with `pip install -r requirements.txt`
 
-matplotlib
 numpy
 scipy
 networkx
@@ -10,3 +9,6 @@ pygraphviz
 cvxpy
 polytope
 control
+matplotlib
+matplotlib2tikz
+

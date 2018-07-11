@@ -1,5 +1,6 @@
 '''Module for table value iteration'''
 import time
+import copy
 import numpy as np
 
 from best import DTYPE, DTYPE_ACTION, DTYPE_OUTPUT
@@ -63,13 +64,13 @@ def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5):
   return val_list, pol_list
 
 
-def solve_ltl_cosafe(network, formula, ap_definitions, delta=0., horizon=np.Inf):
+def solve_ltl_cosafe(network, formula, predicates, delta=0., horizon=np.Inf):
   '''synthesize a policy that maximizes the probability of
      satisfaction of formula
      Inputs:
       - network: a POMDPNetwork 
       - formula: a syntactically cosafe LTL formula over AP
-      - ap_definitions: list of triples ('output', 'ap', output -> 2^{0,1}) defining atomic propositions
+      - predicates: list of triples ('output', 'ap', output -> 2^{0,1}) defining atomic propositions
                         if an atomic proposition depends on several outputs, add an intermediate logic gate
 
      Example: If AP = {'s1', 's2'}, then connection(x) should be a 
@@ -80,16 +81,17 @@ def solve_ltl_cosafe(network, formula, ap_definitions, delta=0., horizon=np.Inf)
 
   dfsa, dfsa_init, dfsa_final = formula_to_pomdp(formula)
 
-  network.add_pomdp(dfsa)
-  for output, ap, conn in ap_definitions:
-    network.add_connection(output, ap, conn)
+  network_copy = copy.deepcopy(network)
 
-  Vacc = np.zeros(network.N)
+  network_copy.add_pomdp(dfsa)
+  for output, ap, conn in predicates:
+    network_copy.add_connection(output, ap, conn)
+
+  Vacc = np.zeros(network_copy.N)
   Vacc[...,list(dfsa_final)[0]] = 1
 
-  val, pol = solve_reach(network, Vacc, delta=delta, horizon=horizon)
+  val, pol = solve_reach(network_copy, Vacc, delta=delta, horizon=horizon)
   
-  network.remove_pomdp(dfsa)
   return LTL_Policy(dfsa.input_names, dfsa._Tmat_csr, list(dfsa_init)[0], dfsa_final, val, pol)
 
 

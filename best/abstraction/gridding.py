@@ -20,7 +20,38 @@ class Abstraction(object):
     self.x_up = np.array(x_up, dtype=np.double).flatten()
     self.n_list = n_list
     self.eta_list = (self.x_up - self.x_low)/np.array(self.n_list)
-    self.T_list = None
+
+    self.abstract()
+
+  @property
+  def N(self):
+    return prod(self.n_list)
+
+  def s_to_x(self, s):
+    '''center of cell s'''
+    return self.x_low + self.eta_list/2 + self.eta_list * np.unravel_index(s, self.n_list)
+
+  def x_to_s(self, x):
+    '''closest abstract state to x'''
+    if not np.all(x.flatten() < self.x_up) and np.all(x.flatten() > self.x_low):
+        raise Exception('x outside abstraction domain')
+    midx = (np.array(x).flatten() - self.x_low)/self.eta_list
+    return np.ravel_multi_index( tuple(map(np.int, midx)), self.n_list)
+
+  def polytopic_predicate(self, x, poly):
+    '''evaluate a polytopic predicate at x'''
+    return {x in poly}
+
+  def interface(self, u_ab, s_ab, x):
+    '''return target point for given abstract control and action'''
+    return self.s_to_x( self.pomdp.evolve(s_ab, u_ab) )
+
+  def plot(self, ax):
+    xy_t = np.array([self.s_to_x(s) for s in range(prod(self.n_list))])
+
+    ax.scatter(xy_t[:,0], xy_t[:,1], label='Finite states', color='k', s=10, marker="o")
+    ax.set_xlim(self.x_low[0], self.x_up[0])
+    ax.set_ylim(self.x_low[1], self.x_up[1])
 
   def abstract(self):
 
@@ -46,63 +77,29 @@ class Abstraction(object):
       T_pl = sp.coo_matrix((vals, (n0, npl)), shape=(self.N, self.N))
       T_list.append(T_pl)
 
-    self.T_list = T_list
-
     output_transform = lambda s: self.x_low + self.eta_list/2 + self.eta_list * np.unravel_index(s, self.n_list)
 
-    return POMDP(T_list, input_names=['u'], state_name='s', output_transform=output_transform, output_name='(s,xc)')
+    self.pomdp = POMDP(T_list, input_names=['u'], state_name='s', output_transform=output_transform, output_name='(s,xc)')
 
-  @property
-  def N(self):
-    return prod(self.n_list)
-
-  def s_to_x(self, s):
-    '''center of cell s'''
-    return self.x_low + self.eta_list/2 + self.eta_list * np.unravel_index(s, self.n_list)
-
-  def x_to_s(self, x):
-    '''closest abstract state to x'''
-    if not np.all(x.flatten() < self.x_up) and np.all(x.flatten() > self.x_low):
-        raise Exception('x outside abstraction domain')
-    midx = (np.array(x).flatten() - self.x_low)/self.eta_list
-    return np.ravel_multi_index( tuple(map(np.int, midx)), self.n_list)
-
-  def interface(self, u_ab, s_ab, x):
-    '''return target point for given abstract control and action'''
-    return self.s_to_x(self.T_list[u_ab].getrow(s_ab).indices[0])
-
-  def plot(self, ax):
-    xy_t = np.array([self.s_to_x(s) for s in range(prod(self.n_list))])
-
-    ax.scatter(xy_t[:,0], xy_t[:,1], label='Finite states', color='k', s=10, marker="o")
-    ax.set_xlim(self.x_low[0], self.x_up[0])
-    ax.set_ylim(self.x_low[1], self.x_up[1])
 
 class LTIAbstraction(Abstraction):
 
-  def __init__(self, lti_syst_orig, d, un=3, verbose = True, Accuracy=True):
+  def __init__(self, lti_syst, d, un=3, Accuracy=True):
 
     self.s_finite = None
 
     # Diagonalize
-    lti_syst = lti_syst_orig.normalize()
+    lti_syst = lti_syst.normalize()
     self.T2x = lti_syst.T2x
 
-    ## Unpack LTI
     d = d.flatten()
-    A = lti_syst.a
-    B = lti_syst.b
-    C = lti_syst.c
-    U = lti_syst.setU()
 
-    # check that Bw is a diagonal
-    assert np.sum(np.absolute(lti_syst.W)) - np.trace(np.absolute(lti_syst.W)) == 0
+    # check that W is a diagonal
+    if not np.all(lti_syst.W == np.diag(np.diagonal(lti_syst.W))):
+      raise Exception('system noise must be diagonal')
+    
     vars = np.diag(lti_syst.W)
 
-    X = lti_syst.setX()
-    n = lti_syst.dim
-
-    rad = np.linalg.norm(d, 2)
     lx, ux = pc.bounding_box(lti_syst.X)  # lower and upperbounds over all dimensions
     remainx = np.remainder((ux-lx).flatten(),d.flatten())
     remainx = np.array([d.flatten()[i]-r if r!=0 else 0 for i,r in enumerate(remainx) ]).flatten()
@@ -140,11 +137,11 @@ class LTIAbstraction(Abstraction):
     for u_index, u in enumerate(itertools.product(*urep)):
       P = tuple()
       for s, sstate in enumerate(itertools.product(*srep)):
-        mean = np.dot(A, np.array(sstate).reshape(-1, 1)) + np.dot(B, np.array(u).reshape(-1, 1))  # Ax
+        mean = np.dot(lti_syst.a, np.array(sstate).reshape(-1, 1)) + np.dot(lti_syst.b, np.array(u).reshape(-1, 1))  # Ax
 
         # compute probability in each dimension
         Pi = tuple()
-        for i in range(n):
+        for i in range(lti_syst.dim):
           if vars[i]>np.finfo(np.float32).eps:
             Pi += (np.diff(norm.cdf(sedge[i], mean[i], vars[i] ** .5)).reshape(-1),)  # probabilities for different dimensions
           else:
@@ -162,8 +159,6 @@ class LTIAbstraction(Abstraction):
       transition_list[u_index] = p_local
 
     self.srep = srep
-    self.urep = urep
-    self.sedge = sedge
 
     self.mdp = POMDP(transition_list, input_names=['u_d'], state_name='s', 
                      output_transform=lambda s: (s, self.s_to_x(s)), output_name='(s,xc)')
@@ -172,13 +167,13 @@ class LTIAbstraction(Abstraction):
     self.K = K_min
     self.eps = eps_min
 
-    self.K_refine = np.zeros((len(self.urep), len(self.srep)))
+    self.K_refine = np.zeros((len(urep), len(self.srep)))
 
-    self.output_cst = dict([(s, sstate) for s, sstate in enumerate(itertools.product(*srep))])
     self.input_cst = dict([(u, uvalue) for u, uvalue in enumerate(itertools.product(*urep))])
 
   def __len__(self):
     return prod(len(sr) for sr in self.srep)
+
 
   def set_regions(self, regions):
     self.ap_regions = regions
@@ -250,14 +245,6 @@ class LTIAbstraction(Abstraction):
     s_range = np.arange(self.mdp.N-1) # minus to remove dummy state
     return s_range[error<=self.eps**2], self.s_finite[error<=self.eps**2]
 
-  def aps(self, x):
-    '''return atomic propositions at concrete state x (original coordinates)'''
-    aps = tuple()
-    for input_i in self.ap_regions.keys():
-      if self.ap_regions[input_i].contains(x):
-        aps += (input_i,)
-    return aps
-
   def transform_o_d(self, x):
     '''transform from original to diagonal coordinates'''
     return np.linalg.inv(self.T2x).dot(x)
@@ -278,22 +265,56 @@ class LTIAbstraction(Abstraction):
                           for i in range(len(sn_list)))).reshape(-1,1)
     return self.transform_d_o(x_diag)
 
+  def polytopic_predicate(self, x, poly):
+    '''determine whether an abstract state s is inside/outside a polytopic region poly.
+       returns subset of {False, True}'''
+
+    if (self.eps is None) or (self.eps == 0):
+      # no epsilon error
+      return super(LTIAbstraction, self).polytopic_predicate(x, poly)
+
+    else:
+      # must account for epsilon
+      u, s, v = np.linalg.svd(self.M)
+      Minvhalf = np.linalg.inv(v).dot(np.diag(np.power(s, -.5)))
+      Minhalf = np.diag(np.power(s, .5)).dot(v)
+
+      ret = set()
+
+      A = poly.A.dot(self.T2x).dot(Minvhalf)
+      b = poly.b
+
+      scaling = np.zeros((A.shape[0],A.shape[0]))
+      for index in range(A.shape[0]):
+        scaling[index,index] = np.linalg.norm(A[index,:])**-1
+
+      A = scaling.dot(A).dot(Minhalf)
+      b_in = scaling.dot(b) + self.eps
+      b_nin = scaling.dot(b) - self.eps
+
+      if np.all( A.dot(x) <= b_in ):
+        ret |= set([True])  # might be inside
+
+      if not np.all( A.dot(x) <= b_nin ):
+        ret |= set([False])  # might be outside
+
+      return ret
+
+
   def map_dfa_inputs(self):
     '''for dict regions {'region': polytope}, compute dicts in_regions and nin_regions where
-      in_regions['region'][s] = 1 if abstract state s may be in region and 0 otherwise
-      in_regions['region'][s] = 1 if abstract state s may be outside region and 0 otherwise '''
+      in_regions['region'][s] = True if abstract state s _may_ be in region and False otherwise
+      in_regions['region'][s] = True if abstract state s _may_ be outside region and False otherwise '''
 
     in_regions = dict()
     nin_regions = dict()
 
-    if (self.eps is None) | (self.eps ==0):
+    if (self.eps is None) or (self.eps == 0):
       for input_i in self.ap_regions.keys():
-        in_regions[input_i] = np.array([[1.] if self.T2x.dot(np.array(s)) in self.ap_regions[input_i] else [0.] 
-                                        for s in itertools.product(*self.srep)])
-
-      for input_i in self.ap_regions.keys():
-        nin_regions[input_i] = np.ones(in_regions[input_i].shape)-np.array([[1.] if self.T2x.dot(np.array(s)) in regions[input_i] else [0.] 
-                                       for s in itertools.product(*self.srep)])
+        in_regions[input_i] = [True if self.T2x.dot(np.array(s)) in self.ap_regions[input_i] else False
+                               for s in itertools.product(*self.srep)]
+        nin_regions[input_i] = [False if self.T2x.dot(np.array(s)) in self.ap_regions[input_i] else True 
+                                for s in itertools.product(*self.srep)]
 
     else :
       u, s, v = np.linalg.svd(self.M)
@@ -308,33 +329,13 @@ class LTIAbstraction(Abstraction):
 
         scaling = np.zeros((A.shape[0],A.shape[0]))
         for index in range(A.shape[0]):
-            scaling[index,index] = np.linalg.norm(A[index,:])**-1
-        print('check norm of rows', scaling.dot(A))
+          scaling[index,index] = np.linalg.norm(A[index,:])**-1
+        
         A = scaling.dot(A).dot(Minhalf)
+        b_in = scaling.dot(b) + self.eps
+        b_nin = scaling.dot(b) - self.eps
 
-        b = scaling.dot(b) + self.eps
-
-        assert self.ap_regions[input_i].A.shape == A.shape
-        assert self.ap_regions[input_i].b.shape == b.shape
-
-        in_regions[input_i] = np.array(
-            [[1.] if np.all(A.dot(np.array(s))-b<=0) else [0.] for s in
-             itertools.product(*self.srep)])
-
-      for input_i in self.ap_regions.keys():
-        # quantify whether a state could be outside the polytope
-        A = self.ap_regions[input_i].A.dot(self.T2x).dot(Minvhalf)
-        b = self.ap_regions[input_i].b
-
-        scaling = np.zeros((A.shape[0],A.shape[0]))
-        for index in range(A.shape[0]):
-            scaling[index,index] = np.linalg.norm(A[index,:])**-1
-
-        A = scaling.dot(A).dot(Minhalf)
-        b = scaling.dot(b) - self.eps
-
-        nin_regions[input_i] = np.ones(in_regions[input_i].shape) - np.array(
-            [[1.] if np.all(A.dot(np.array(s))-b<=0)else [0.] for s in
-             itertools.product(*self.srep)])
+        in_regions[input_i] = [True if np.all(A.dot(np.array(s)) <= b_in) else False for s in itertools.product(*self.srep)]
+        nin_regions[input_i] = [False if np.all(A.dot(np.array(s)) <= b_nin) else True for s in itertools.product(*self.srep)]
     
     return in_regions, nin_regions

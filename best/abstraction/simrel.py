@@ -56,7 +56,7 @@ def eps_err(lti,Dist,lamb=.99999):
   lam_opt = scipy.optimize.fminbound(lambda val: f_opt(val), 0,1)
   lam.value = lam_opt
   prob.solve()
-  eps_min = eps2.value ** .5
+  eps_min = eps2.value[0,0] ** .5
   M_min = inv(Minv.value)
   K_min = L.value*Minv.value
 

@@ -338,9 +338,10 @@ class POMDPNetwork:
         deterministic = False
 
       for u in u_list:
+
         if u < 0 or u >= nM:
           raise Exception('connection invalid for output {}'.format(o_tuple))
-        conn_matrix[(u,) + o_tuple] = True
+        conn_matrix[(int(u),) + o_tuple] = True
 
     self.connections.append((outputs, input, conn_matrix, deterministic))
 
