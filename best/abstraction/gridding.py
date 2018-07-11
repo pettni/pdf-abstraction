@@ -1,10 +1,9 @@
 import numpy as np
 import polytope as pc
 import itertools
-import operator
 import scipy.sparse as sp
+import scipy.linalg as sl
 from scipy.stats import norm
-from functools import reduce
 
 from best.utils import *
 from best.models.pomdp import POMDP
@@ -88,34 +87,45 @@ class Abstraction(object):
 
 class LTIAbstraction(Abstraction):
 
-  def __init__(self, lti_syst, d, un=3):
-
-    self.s_finite = None
-
-    # Diagonalize
-    lti_syst = lti_syst.normalize()
-    self.T2x = lti_syst.T2x
-
-    # check that W is a diagonal
+  def __init__(self, lti_syst, eta, un=3, T2x=None, MKeps=None):
+    '''Construct a grid abstraction of a LTI Gaussian system
+    :param lti_syst: A LTI system (noise matrix must be diagonal)
+    :param eta: abstraction grid size (one for each dimension)
+    :param un: number of discrete inputs per dimension
+    :param T2x=None: transformation matrix (use for rotated systems for easy access to original coordinates)
+    :param MKeps=None: tuple (M, K, eps) defining a simulation relation. if None one will be computed
+    '''
+    # check that W is diagonal
     if not np.all(lti_syst.W == np.diag(np.diagonal(lti_syst.W))):
       raise Exception('system noise must be diagonal')
-  
-    # compute simulation relation
-    Dist = pc.box2poly(np.diag(d).dot(np.kron(np.ones((lti_syst.dim, 1)), np.array([[-1, 1]]))))
-    self.M, self.K, self.eps = eps_err(lti_syst, Dist)
+    
+    # store state transformation matrix
+    if lti_syst.T2x is None:
+      self.T2x = np.eye(lti_syst.dim)  # identity
+    else:
+      self.T2x = lti_syst.T2x
 
-    # save state discretization information
+    # compute/store simulation relation
+    if MKeps is None:
+      dist = pc.box2poly(np.diag(eta).dot(np.kron(np.ones((lti_syst.dim, 1)), np.array([[-1, 1]]))))
+      self.M, self.K, self.eps = eps_err(lti_syst, dist)
+    else:
+      self.M = MKeps[0]
+      self.K = MKeps[1]
+      self.eps = MKeps[2]
+
+    # state discretization information
     lx, ux = pc.bounding_box(lti_syst.X)
     lx = lx.flatten()
     ux = ux.flatten()
 
-    remainx = d - np.remainder(ux-lx, d)  # center slack
+    remainx = eta - np.remainder(ux-lx, eta)  # center slack
     lx -= remainx/2
     ux += remainx/2
 
     self.x_low = lx.flatten()
     self.x_up = ux.flatten()
-    self.eta_list = d.flatten()
+    self.eta_list = eta.flatten()
     self.n_list = tuple(np.ceil((self.x_up - self.x_low)/self.eta_list).astype(int))
 
     # save input discretization information: place inputs on boundary
@@ -123,9 +133,8 @@ class LTIAbstraction(Abstraction):
     lu, uu = pc.bounding_box(lti_syst.U)  
 
     self.u_low = lu.flatten()
-    self.u_up = uu.flatten()
     self.m_list = tuple(un for i in range(lti_syst.m))
-    self.eta_u_list = (self.u_up - self.u_low)/(np.array(self.m_list)-1)
+    self.eta_u_list = (uu.flatten() - self.u_low)/(np.array(self.m_list)-1)
 
     transition_list = [np.zeros((self.N+1, self.N+1)) for m in range(prod(self.m_list))]  # one dummy state
 
@@ -243,64 +252,14 @@ class LTIAbstraction(Abstraction):
 
     else:
       # must account for epsilon
-      if not np.all( np.sum(poly.A * poly.A, 1).flatten() == 1):
-        raise Exception('polyhedron must be normalized')
+      # move to transformed coordinates (since this is where sim relation is defined)
+      poly_trans = pc.Polytope( poly.A.dot(self.T2x), poly.b )
+      x_trans = self.transform_o_d(x)
 
-      ret = set()
-      if np.all( poly.A.dot(x) <= poly.b + self.eps ):
-        ret |= set([True])  # might be inside
-      if not np.all( poly.A.dot(x) <= poly.b - self.eps ):
-        ret |= set([False])  # might be outside
+      return poly_ellipse_isect(x_trans, self.M, self.eps, poly_trans)
 
-      if not len(ret):
-        raise Exception('error in polytopic_predicate, result empty')
-
-      return ret
-
-  def map_dfa_inputs(self, regions):
-    '''for dict regions {'region': polytope}, compute dicts in_regions and nin_regions where
-      in_regions['region'][s] = True if abstract state s _may_ be in region and False otherwise
-      in_regions['region'][s] = True if abstract state s _may_ be outside region and False otherwise '''
-
-    local_sr = tuple()
-    for i, dval in enumerate(self.eta_list):
-      local_sr += (np.arange(self.x_low[i], self.x_up[i], self.eta_list[i])+self.eta_list[i]/2,)  # center points
-
-    in_regions = dict()
-    nin_regions = dict()
-
-    if (self.eps is None) or (self.eps == 0):
-      for input_i in regions.keys():
-        in_regions[input_i] = [True if self.T2x.dot(np.array(s)) in regions[input_i] else False
-                               for s in itertools.product(*local_sr)]
-        nin_regions[input_i] = [False if self.T2x.dot(np.array(s)) in regions[input_i] else True 
-                                for s in itertools.product(*local_sr)]
-
-    else :
-      u, s, v = np.linalg.svd(self.M)
-      Minvhalf = np.linalg.inv(v).dot(np.diag(np.power(s, -.5)))
-      Minhalf = np.diag(np.power(s, .5)).dot(v)
-      # eps is not =0,
-      for input_i in regions.keys(): # for each region, which is a polytope. Check whether it can be in it
-        #Big_polytope = regions[input_i] #<--- decrease size polytope
-
-        A = regions[input_i].A.dot(self.T2x).dot(Minvhalf)
-        b = regions[input_i].b
-
-        scaling = np.zeros((A.shape[0],A.shape[0]))
-        for index in range(A.shape[0]):
-          scaling[index,index] = np.linalg.norm(A[index,:])**-1
-        
-        A = scaling.dot(A).dot(Minhalf)
-        b_in = scaling.dot(b) + self.eps
-        b_nin = scaling.dot(b) - self.eps
-
-        in_regions[input_i] = [True if np.all(A.dot(np.array(s)) <= b_in) else False for s in itertools.product(*local_sr)]
-        nin_regions[input_i] = [False if np.all(A.dot(np.array(s)) <= b_nin) else True for s in itertools.product(*local_sr)]
-    
-    return in_regions, nin_regions
-
-
+###############################################
+###############################################
 
 def grid_cdf_1d(m, S, low, up, eta):
   '''compute how much of a 1D gaussian CDF that falls into cells on a grid
@@ -331,3 +290,30 @@ def grid_cdf_nd(m_tuple, S_mat, low_tuple, up_tuple, eta_tuple):
     ret = np.outer(ret, grid_cdf_1d(m, S, low, up, eta))
 
   return ret
+
+def poly_ellipse_isect(x0, M, eps, poly):
+  '''For an ellipse C = {x : (x-x0)' M (x-x0) <= eps^2 } and a polyhedron poly, return
+     {True} if C \subset poly
+     {False} if C \subset complement(poly)
+     {True, False} otherwise  '''
+
+  sqrtM = sl.sqrtm(M)
+
+  # Transformed
+  x0_p = sqrtM.dot(x0)
+
+  # Normalize transformed matrix
+  poly_p = pc.Polytope(poly.A.dot( sl.inv( sqrtM ) ), poly.b, normalize=True)
+
+  ret = set()
+  if np.all( poly_p.A.dot(x0_p) <= poly_p.b + eps ):
+    ret |= set([True])  # at least partly inside
+  if not np.all( poly_p.A.dot(x0_p) <= poly_p.b - eps ):
+    ret |= set([False]) # at least partly outside
+
+  if not len(ret):
+    raise Exception('error in poly_ellipse_isect, result empty')
+
+  return ret
+
+

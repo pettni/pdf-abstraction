@@ -29,7 +29,7 @@ Run tests:
 
 ### TODO
 
- - Convert old examples (lti, ADHS, RSS18) to new format
+ - Convert old examples (RSS18) to new format
  - Base class for policies, solvers return subclasses
  - Competing types of value iteration: 
     * [x] sparse tables (for MDPs)

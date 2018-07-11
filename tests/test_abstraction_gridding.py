@@ -33,12 +33,46 @@ def test_grid_cdf_nd():
   np.testing.assert_equal(Pmat.shape, (2,2))
   np.testing.assert_almost_equal(Pmat, np.array([ [0.25, 0.25], [0.25, 0.25] ]))
 
+def test_poly_ellipse():
+  poly = pc.Polytope( np.array([[1,0], [0,1], [-1,0], [0,-1]]), np.ones((4,1)) )
 
-  # Pvec = grid_cdf_1d(0, 1, 0, 0.4, 0.1)
-  # np.testing.assert_almost_equal(Pvec, [ 0.03983, 0.07926 - 0.03983, 0.11791 - 0.07926, 0.15542 - 0.11791], decimal=3)
+  M = np.eye(2)
+  eps = 0.5
 
-  # Pvec = grid_cdf_1d(2.5, 0, 0, 5, 1)
-  # np.testing.assert_almost_equal(Pvec, [ 0, 0, 1, 0, 0])
+  np.testing.assert_equal(poly_ellipse_isect(np.array([0.49,0]), M, eps, poly),
+                          {True})
+
+  np.testing.assert_equal(poly_ellipse_isect(np.array([0.51,0]), M, eps, poly),
+                          {False, True})
+
+  np.testing.assert_equal(poly_ellipse_isect(np.array([1.55,0]), M, eps, poly),
+                          {False})
+
+  np.testing.assert_equal(poly_ellipse_isect(np.array([1,0]), M, eps, poly),
+                          {False, True})
+
+  M = np.diag([4,1])  # x-radius 0.25, y-radius 0.5 
+  eps = 0.5 
+
+  np.testing.assert_equal(poly_ellipse_isect(np.array([0.74,0.49]), M, eps, poly),
+                          {True})
+
+  np.testing.assert_equal(poly_ellipse_isect(np.array([0.76,0.49]), M, eps, poly),
+                          {False, True})
+
+  np.testing.assert_equal(poly_ellipse_isect(np.array([0.74,0.51]), M, eps, poly),
+                          {False, True})
+
+  np.testing.assert_equal(poly_ellipse_isect(np.array([-0.74,0.49]), M, eps, poly),
+                          {True})
+
+  np.testing.assert_equal(poly_ellipse_isect(np.array([-0.76,0.49]), M, eps, poly),
+                          {False, True})
+
+  np.testing.assert_equal(poly_ellipse_isect(np.array([-0.74,0.51]), M, eps, poly),
+                          {False, True})
+
+
 
 
 def test_tranformation():
@@ -97,3 +131,4 @@ def test_lti():
   for s in range(0, len(abstr), 7):
     np.testing.assert_equal( abstr.x_to_s(abstr.s_to_x(s) ), s )
     np.testing.assert_equal( s in abstr.x_to_all_s(abstr.s_to_x(s) ), True )
+
