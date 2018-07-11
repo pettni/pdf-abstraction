@@ -24,6 +24,10 @@ class Abstraction(object):
     self.abstract()
 
   @property
+  def dim(self):
+    return len(self.n_list)
+
+  @property
   def N(self):
     return prod(self.n_list)
 
@@ -84,7 +88,7 @@ class Abstraction(object):
 
 class LTIAbstraction(Abstraction):
 
-  def __init__(self, lti_syst, d, un=3, Accuracy=True):
+  def __init__(self, lti_syst, d, un=3):
 
     self.s_finite = None
 
@@ -92,158 +96,130 @@ class LTIAbstraction(Abstraction):
     lti_syst = lti_syst.normalize()
     self.T2x = lti_syst.T2x
 
-    d = d.flatten()
-
     # check that W is a diagonal
     if not np.all(lti_syst.W == np.diag(np.diagonal(lti_syst.W))):
       raise Exception('system noise must be diagonal')
-    
-    vars = np.diag(lti_syst.W)
+  
+    # compute simulation relation
+    Dist = pc.box2poly(np.diag(d).dot(np.kron(np.ones((lti_syst.dim, 1)), np.array([[-1, 1]]))))
+    self.M, self.K, self.eps = eps_err(lti_syst, Dist)
 
-    lx, ux = pc.bounding_box(lti_syst.X)  # lower and upperbounds over all dimensions
-    remainx = np.remainder((ux-lx).flatten(),d.flatten())
-    remainx = np.array([d.flatten()[i]-r if r!=0 else 0 for i,r in enumerate(remainx) ]).flatten()
-    lx =lx.flatten() - remainx/2
-    ux =ux.flatten() + d
+    # save state discretization information
+    lx, ux = pc.bounding_box(lti_syst.X)
+    lx = lx.flatten()
+    ux = ux.flatten()
 
-    if Accuracy:
-      Dist = pc.box2poly(np.diag(d).dot(np.kron(np.ones((lti_syst.dim, 1)), np.array([[-1, 1]]))))
-      M_min, K_min, eps_min = eps_err(lti_syst, Dist)
-    else:
-      M_min, K_min, eps_min = None, None, None
+    remainx = d - np.remainder(ux-lx, d)  # center slack
+    lx -= remainx/2
+    ux += remainx/2
 
-    # grid state
-    srep = tuple()
-    sedge = tuple()
-    for i, dval in enumerate(d):
-      srep += (np.arange(lx[i], ux[i], dval)+dval/2,)
-      sedge += (np.arange(lx[i], ux[i]+dval, dval),)
+    self.x_low = lx.flatten()
+    self.x_up = ux.flatten()
+    self.eta_list = d.flatten()
+    self.n_list = tuple(np.ceil((self.x_up - self.x_low)/self.eta_list).astype(int))
 
-    # grid input
-    urep = tuple()
-    lu, uu = pc.bounding_box(lti_syst.U)  # lower and upperbounds over all dimensions
-    for i, low in enumerate(lu):
-      urep += (np.linspace(lu[i], uu[i], un, endpoint=True),)
+    # save input discretization information: place inputs on boundary
+    # NOTE: bounding box may give infeasible inputs..
+    lu, uu = pc.bounding_box(lti_syst.U)  
 
-    un_list = [len(ur) for ur in urep]
-    un = prod(un_list)  # number of finite states
+    self.u_low = lu.flatten()
+    self.u_up = uu.flatten()
+    self.m_list = tuple(un for i in range(lti_syst.m))
+    self.eta_u_list = (self.u_up - self.u_low)/(np.array(self.m_list)-1)
 
-    sn_list = [len(sr) for sr in srep]
-    sn = prod(sn_list) # number of finite states
-
-    transition_list = [np.zeros((sn+1, sn+1)) for m in range(un)]
+    transition_list = [np.zeros((self.N+1, self.N+1)) for m in range(prod(self.m_list))]  # one dummy state
 
     # extract all transitions
-    for u_index, u in enumerate(itertools.product(*urep)):
-      P = tuple()
-      for s, sstate in enumerate(itertools.product(*srep)):
-        mean = np.dot(lti_syst.a, np.array(sstate).reshape(-1, 1)) + np.dot(lti_syst.b, np.array(u).reshape(-1, 1))  # Ax
+    for ud in range(prod(self.m_list)):
 
-        # compute probability in each dimension
-        Pi = tuple()
-        for i in range(lti_syst.dim):
-          if vars[i]>np.finfo(np.float32).eps:
-            Pi += (np.diff(norm.cdf(sedge[i], mean[i], vars[i] ** .5)).reshape(-1),)  # probabilities for different dimensions
-          else:
-            abs_dis = np.array(map(lambda s: abs(s - mean[i]), srep[i]))
-            p_loc = np.zeros(srep[i].shape)
-            p_loc[abs_dis.argmin()] = 1
-            Pi += (p_loc,)
+      Pmat = np.zeros((self.N+1, self.N+1))
+      for s in range(self.N):
 
-        # multiply over dimensions
-        P += (np.array([[reduce(operator.mul, p, 1) for p in itertools.product(*Pi)]]),)
+        s_diag = super(LTIAbstraction, self).s_to_x(s)
+        mean = np.dot(lti_syst.a, s_diag) + np.dot(lti_syst.b, self.ud_to_u(ud))  # Ax
 
-      prob = np.concatenate(P, axis = 0)
-      p_local = np.block([[prob, 1-prob.dot(np.ones((prob.shape[1], 1)))], [np.zeros((1, prob.shape[1])), np.ones((1,1))]])
+        P = np.ravel(grid_cdf_nd(mean, lti_syst.W, self.x_low, self.x_up, self.eta_list))
 
-      transition_list[u_index] = p_local
+        Pmat[s, 0:self.N] = P
+        Pmat[s, self.N] = 1 - sum(P) 
 
-    self.srep = srep
+      Pmat[self.N, self.N] = 1
+
+      transition_list[ud] = Pmat
 
     self.mdp = POMDP(transition_list, input_names=['u_d'], state_name='s', 
                      output_transform=lambda s: (s, self.s_to_x(s)), output_name='(s,xc)')
 
-    self.M = M_min
-    self.K = K_min
-    self.eps = eps_min
-
-    self.K_refine = np.zeros((len(urep), len(self.srep)))
-
-    self.input_cst = dict([(u, uvalue) for u, uvalue in enumerate(itertools.product(*urep))])
-
   def __len__(self):
-    return prod(len(sr) for sr in self.srep)
+    return prod(self.n_list)
 
+  def ud_to_u(self, ud):
+    return self.u_low + self.eta_u_list * np.unravel_index(ud, self.m_list)
 
-  def set_regions(self, regions):
-    self.ap_regions = regions
+  def s_to_x(self, s):
+    '''return center of cell s'''
+    if s == len(self):
+      return None # the dummy state
+    if s < 0 or s > len(self):
+      raise Exception('s={} outside range'.format(s))
+    return self.transform_d_o(super(LTIAbstraction, self).s_to_x(s))
 
-  def plot(self, ax):
+  def x_to_s(self, x):
+    '''compute closest abstract state'''
+    x_diag = self.transform_o_d(x.flatten())
+    if np.any(x_diag < self.x_low) or np.any(x_diag > self.x_up):
+      return None  # outside domain
+    return super(LTIAbstraction, self).x_to_s(x_diag)
 
-    grid = np.meshgrid(*self.srep)
+  def x_to_all_s(self, x):
+    '''compute abstract states that are related to x via simulation relation'''
 
-    xy = np.vstack([grid[0].flatten(), grid[1].flatten()])
+    # we do stepping in diagonal space
+    x_diag = self.transform_o_d(x.flatten())
+    ret = set([super(LTIAbstraction, self).x_to_s(x_diag)])  # closest one
 
-    xy_t = self.transform_d_o(xy)
+    sz = len(ret)
 
-    ax.scatter(xy_t[0,:], xy_t[1,:], label='Finite states', color='k', s=10, marker="o")
+    # search in expanding squares
+    radius = 1
+    while True:
 
+      ranges = [np.arange(x_diag[i]-radius*self.eta_list[i], 
+                          x_diag[i]+radius*self.eta_list[i], 
+                          self.eta_list[i] )
+                for i in range(self.dim)]
 
-  def closest_abstract(self, x):
-    '''compute abstract state s closest to x and in simulation'''
-    if self.s_finite is None:
-      self.s_finite = np.array(list(itertools.product(*self.srep)))  # compute the grid points
+      for x_t_iter in itertools.product(*ranges):
+        x_t = np.array(x_t_iter)
+        if np.any(x_t < self.x_low) or np.any(x_t > self.x_up):
+          continue  # not in domain
 
-    # convert to diagonal system
-    x_diag = self.transform_o_d(x)
+        if (x_t - x_diag).dot(self.M).dot(x_t - x_diag) > self.eps**2:
+          continue # not in relation
+        ret |= set([ super(LTIAbstraction, self).x_to_s(x_t) ])
+      
+      if len(ret) == sz:
+        # nothing new was added
+        break
 
-    # find closest abstract state
-    sdiff = self.s_finite-np.tile(x_diag.reshape((1,-1)), (self.s_finite.shape[0], 1))
-    error=np.diag(sdiff.dot(self.M).dot(sdiff.T))
+      sz = len(ret)
 
-    s = error.argmin()
+      radius += 1
 
-    # no state simulates concrete state
-    if error[s] >= self.eps**2:
-      s = self.mdp.N-1
+    return list(ret)
 
-    return s
+  def interface(self, ud, s, x):
+    '''refine abstract input ud to concrete input'''
 
-  def interface(self, u_ab, s_ab, x):
-    '''refine abstract input u_ab to concrete input'''
-
-    u = np.array(self.input_cst[u_ab]).reshape(-1, 1)
+    u = self.ud_to_u(ud)
     
     # give zero if in dummy state
-    if s_ab == self.mdp.N - 1:
+    if s == self.mdp.N - 1:
       return np.zeros((len(self.input_cst[0]),1))
 
-    x_s = self.s_to_x(s_ab)
+    x_s = self.s_to_x(s)
 
-    return self.K.dot(x - x_s) + u
-
-
-  def all_abstract(self, x):
-    '''compute abstract states that are related to x via simulation relation
-       - returns indices, points'''
-    if self.s_finite is None:
-      self.s_finite = np.array(list(itertools.product(*self.srep)))  # compute the grid points
-
-    x_diag = self.transform_o_d(x)
-
-    if self.M is None:
-      print("WARNING no M matrix given")
-      self.M =np.eye(len(self.srep))
-
-    if self.eps is None:
-      print("WARNING no epsilon give")
-      self.eps = 1
-
-    # quantify the weighted difference between x_diag, and values of s
-    sdiff = self.s_finite-np.tile(x_diag.reshape((1,-1)), (self.s_finite.shape[0], 1))
-    error=np.diag(sdiff.dot(self.M).dot(sdiff.T))
-    s_range = np.arange(self.mdp.N-1) # minus to remove dummy state
-    return s_range[error<=self.eps**2], self.s_finite[error<=self.eps**2]
+    return self.K.dot(x.flatten() - x_s) + u
 
   def transform_o_d(self, x):
     '''transform from original to diagonal coordinates'''
@@ -253,21 +229,13 @@ class LTIAbstraction(Abstraction):
     '''transform from diagonal to original coordinates'''
     return self.T2x.dot(x_diag)
 
-  def s_to_x(self, s):
-    '''return center of cell s'''
-    sn_list = [len(sr) for sr in self.srep]
-    sn = prod(sn_list) # number of finite states
-
-    if s == self.mdp.N-1:
-      return None
-
-    x_diag = np.array(tuple(self.srep[i][s % prod(sn_list[i:]) // prod(sn_list[i + 1:])]
-                          for i in range(len(sn_list)))).reshape(-1,1)
-    return self.transform_d_o(x_diag)
-
   def polytopic_predicate(self, x, poly):
-    '''determine whether an abstract state s is inside/outside a polytopic region poly.
+    '''determine whether a state x is inside/outside a polytopic region poly.
        returns subset of {False, True}'''
+
+    if x is None: 
+      # capture dummy state
+      return set([False])
 
     if (self.eps is None) or (self.eps == 0):
       # no epsilon error
@@ -275,57 +243,49 @@ class LTIAbstraction(Abstraction):
 
     else:
       # must account for epsilon
-      u, s, v = np.linalg.svd(self.M)
-      Minvhalf = np.linalg.inv(v).dot(np.diag(np.power(s, -.5)))
-      Minhalf = np.diag(np.power(s, .5)).dot(v)
+      if not np.all( np.sum(poly.A * poly.A, 1).flatten() == 1):
+        raise Exception('polyhedron must be normalized')
 
       ret = set()
-
-      A = poly.A.dot(self.T2x).dot(Minvhalf)
-      b = poly.b
-
-      scaling = np.zeros((A.shape[0],A.shape[0]))
-      for index in range(A.shape[0]):
-        scaling[index,index] = np.linalg.norm(A[index,:])**-1
-
-      A = scaling.dot(A).dot(Minhalf)
-      b_in = scaling.dot(b) + self.eps
-      b_nin = scaling.dot(b) - self.eps
-
-      if np.all( A.dot(x) <= b_in ):
+      if np.all( poly.A.dot(x) <= poly.b + self.eps ):
         ret |= set([True])  # might be inside
-
-      if not np.all( A.dot(x) <= b_nin ):
+      if not np.all( poly.A.dot(x) <= poly.b - self.eps ):
         ret |= set([False])  # might be outside
+
+      if not len(ret):
+        raise Exception('error in polytopic_predicate, result empty')
 
       return ret
 
-
-  def map_dfa_inputs(self):
+  def map_dfa_inputs(self, regions):
     '''for dict regions {'region': polytope}, compute dicts in_regions and nin_regions where
       in_regions['region'][s] = True if abstract state s _may_ be in region and False otherwise
       in_regions['region'][s] = True if abstract state s _may_ be outside region and False otherwise '''
+
+    local_sr = tuple()
+    for i, dval in enumerate(self.eta_list):
+      local_sr += (np.arange(self.x_low[i], self.x_up[i], self.eta_list[i])+self.eta_list[i]/2,)  # center points
 
     in_regions = dict()
     nin_regions = dict()
 
     if (self.eps is None) or (self.eps == 0):
-      for input_i in self.ap_regions.keys():
-        in_regions[input_i] = [True if self.T2x.dot(np.array(s)) in self.ap_regions[input_i] else False
-                               for s in itertools.product(*self.srep)]
-        nin_regions[input_i] = [False if self.T2x.dot(np.array(s)) in self.ap_regions[input_i] else True 
-                                for s in itertools.product(*self.srep)]
+      for input_i in regions.keys():
+        in_regions[input_i] = [True if self.T2x.dot(np.array(s)) in regions[input_i] else False
+                               for s in itertools.product(*local_sr)]
+        nin_regions[input_i] = [False if self.T2x.dot(np.array(s)) in regions[input_i] else True 
+                                for s in itertools.product(*local_sr)]
 
     else :
       u, s, v = np.linalg.svd(self.M)
       Minvhalf = np.linalg.inv(v).dot(np.diag(np.power(s, -.5)))
       Minhalf = np.diag(np.power(s, .5)).dot(v)
       # eps is not =0,
-      for input_i in self.ap_regions.keys(): # for each region, which is a polytope. Check whether it can be in it
+      for input_i in regions.keys(): # for each region, which is a polytope. Check whether it can be in it
         #Big_polytope = regions[input_i] #<--- decrease size polytope
 
-        A = self.ap_regions[input_i].A.dot(self.T2x).dot(Minvhalf)
-        b = self.ap_regions[input_i].b
+        A = regions[input_i].A.dot(self.T2x).dot(Minvhalf)
+        b = regions[input_i].b
 
         scaling = np.zeros((A.shape[0],A.shape[0]))
         for index in range(A.shape[0]):
@@ -335,7 +295,39 @@ class LTIAbstraction(Abstraction):
         b_in = scaling.dot(b) + self.eps
         b_nin = scaling.dot(b) - self.eps
 
-        in_regions[input_i] = [True if np.all(A.dot(np.array(s)) <= b_in) else False for s in itertools.product(*self.srep)]
-        nin_regions[input_i] = [False if np.all(A.dot(np.array(s)) <= b_nin) else True for s in itertools.product(*self.srep)]
+        in_regions[input_i] = [True if np.all(A.dot(np.array(s)) <= b_in) else False for s in itertools.product(*local_sr)]
+        nin_regions[input_i] = [False if np.all(A.dot(np.array(s)) <= b_nin) else True for s in itertools.product(*local_sr)]
     
     return in_regions, nin_regions
+
+
+
+def grid_cdf_1d(m, S, low, up, eta):
+  '''compute how much of a 1D gaussian CDF that falls into cells on a grid
+     returns p such that p[i] = P( low + eta*i <= x <= low + eta*(i+1)  ) for x ~ N(m, S)'''
+
+  N = np.ceil((up - low) / eta).astype(int)
+
+  if S < np.finfo(np.float32).eps:
+    # no variance
+    Pvec = np.zeros(N)
+    if m > low and m < up: 
+      Pvec[ int((m - low)/eta) ] = 1
+  else:
+    # there is variance
+    edges = np.arange(low, up+eta, eta)
+    Pvec = np.diff(norm.cdf(edges , m, S ** .5))
+  return Pvec
+
+def grid_cdf_nd(m_tuple, S_mat, low_tuple, up_tuple, eta_tuple):
+  '''compute how much of a nd gaussian CDF that falls into cells on a nd grid
+     returns P such that p[i] = P( low + eta*i <= x <= low + eta*(i+1)  ) for x ~ N(m, S)'''
+
+  if not np.all(S_mat == np.diag(np.diagonal(S_mat))):
+    raise Exception('variance must be diagonal')
+
+  ret = 1
+  for m, S, low, up, eta in zip(m_tuple, S_mat.diagonal(), low_tuple, up_tuple, eta_tuple):
+    ret = np.outer(ret, grid_cdf_1d(m, S, low, up, eta))
+
+  return ret

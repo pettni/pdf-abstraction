@@ -6,7 +6,7 @@ import numpy as np
 from best import DTYPE, DTYPE_ACTION, DTYPE_OUTPUT
 from best.logic.translate import formula_to_pomdp
 
-def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5):
+def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5, verbose=False):
   '''solve reachability problem
   Inputs:
   - network: a POMDPNetwork
@@ -35,7 +35,8 @@ def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5):
 
   while it < horizon:
 
-    print('iteration {}, time {}'.format(it, time.time()-start))
+    if verbose:
+      print('iteration {}, time {}'.format(it, time.time()-start))
 
     # Calculate Q(u_free, x)
     Q = network.bellman(V).reshape((-1,) + network.N)
@@ -64,7 +65,7 @@ def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5):
   return val_list, pol_list
 
 
-def solve_ltl_cosafe(network, formula, predicates, delta=0., horizon=np.Inf):
+def solve_ltl_cosafe(network, formula, predicates, delta=0., horizon=np.Inf, verbose=False):
   '''synthesize a policy that maximizes the probability of
      satisfaction of formula
      Inputs:
@@ -90,7 +91,7 @@ def solve_ltl_cosafe(network, formula, predicates, delta=0., horizon=np.Inf):
   Vacc = np.zeros(network_copy.N)
   Vacc[...,list(dfsa_final)[0]] = 1
 
-  val, pol = solve_reach(network_copy, Vacc, delta=delta, horizon=horizon)
+  val, pol = solve_reach(network_copy, Vacc, delta=delta, horizon=horizon, verbose=verbose)
   
   return LTL_Policy(dfsa.input_names, dfsa._Tmat_csr, list(dfsa_init)[0], dfsa_final, val, pol)
 

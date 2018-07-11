@@ -2,7 +2,7 @@ import numpy as np
 import polytope as pc
 
 from best.models.lti import LTI
-from best.abstraction.gridding import Abstraction, LTIAbstraction
+from best.abstraction.gridding import *
 
 def test_grid():
   abstr = Abstraction([-1, -1], [1, 1], [5, 5])
@@ -17,39 +17,64 @@ def test_grid():
 
     np.testing.assert_array_less( np.abs(xc - x),  0.2)
 
+def test_grid_cdf_1d():
+  Pvec = grid_cdf_1d(0, 1, -10, 10, 10)
+  np.testing.assert_almost_equal(Pvec, [0.5, 0.5])
+
+
+  Pvec = grid_cdf_1d(0, 1, 0, 0.4, 0.1)
+  np.testing.assert_almost_equal(Pvec, [ 0.03983, 0.07926 - 0.03983, 0.11791 - 0.07926, 0.15542 - 0.11791], decimal=3)
+
+  Pvec = grid_cdf_1d(2.5, 0, 0, 5, 1)
+  np.testing.assert_almost_equal(Pvec, [ 0, 0, 1, 0, 0])
+
+def test_grid_cdf_nd():
+  Pmat = grid_cdf_nd([0, 0], np.diag([1, 1]), [-10, -10], [10, 10], [10, 10])
+  np.testing.assert_equal(Pmat.shape, (2,2))
+  np.testing.assert_almost_equal(Pmat, np.array([ [0.25, 0.25], [0.25, 0.25] ]))
+
+
+  # Pvec = grid_cdf_1d(0, 1, 0, 0.4, 0.1)
+  # np.testing.assert_almost_equal(Pvec, [ 0.03983, 0.07926 - 0.03983, 0.11791 - 0.07926, 0.15542 - 0.11791], decimal=3)
+
+  # Pvec = grid_cdf_1d(2.5, 0, 0, 5, 1)
+  # np.testing.assert_almost_equal(Pvec, [ 0, 0, 1, 0, 0])
+
 
 def test_tranformation():
   dim = 2
-  A = np.eye(2) #np.array([[.9,-0.32],[0.1,0.9]])
-  B = np.eye(dim)  #array([[1], [0.1]])
-  W = np.array([[0,0],[0,0.4]]) #2*Tr.dot(np.eye(dim)).dot(Tr)  # noise on transitions
+  A = np.eye(2) 
+  B = np.eye(dim)
+  W = np.array([[0,0],[0,0.4]])
    
   # Accuracy
-  C = np.array([[1, 0],[0,1]])  # defines metric for error (||y_finite-y||< epsilon with y= cx   )
+  C = np.array([[1, 0],[0,1]]) 
 
-  sys_lti = LTI(A, B, C, None, W=W)  # LTI system with   D = None
+  sys_lti = LTI(A, B, C, None, W=W)
 
   X = pc.box2poly(np.kron(np.ones((sys_lti.dim, 1)), np.array([[-10, 10]])))
   U = pc.box2poly(np.kron(np.ones((sys_lti.m, 1)), np.array([[-1, 1]])))
-  sys_lti.setU(U) # continuous set of inputs
-  sys_lti.setX(X) # X space
+  sys_lti.setU(U) 
+  sys_lti.setX(X)
 
-  d = np.array([[1.],[1.]])
+  d = np.array([1., 1.])
 
   abstr = LTIAbstraction(sys_lti, d, un=4)
 
   xx = 20 * np.random.rand(2,10) - 10
   for i in range(10):
-    x = xx[:,i].reshape((2,1))
-    s_ab = abstr.closest_abstract(x)
+    x = xx[:,i]
+    s_ab = abstr.x_to_s(x)
 
     x_out = abstr.mdp.transform_output(s_ab)
+
+    print(x, s_ab, x_out)
 
     np.testing.assert_equal(x_out[0], s_ab )
     np.testing.assert_array_less( np.abs(x_out[1] - x), d/2 * (1 + 1e-5) )
 
 
-def test_related():
+def test_lti():
   dim = 2
   A = np.eye(2) #np.array([[.9,-0.32],[0.1,0.9]])
   B = np.eye(dim)  #array([[1], [0.1]])
@@ -65,10 +90,10 @@ def test_related():
   sys_lti.setU(U) # continuous set of inputs
   sys_lti.setX(X) # X space
 
-  d = np.array([[1.],[1.]])
+  d = np.array([1., 1.])
 
   abstr = LTIAbstraction(sys_lti, d, un=3)
 
-  for s in np.arange(0, len(abstr), 7):
-    np.testing.assert_equal( abstr.closest_abstract(abstr.s_to_x(s) ), s )
-
+  for s in range(0, len(abstr), 7):
+    np.testing.assert_equal( abstr.x_to_s(abstr.s_to_x(s) ), s )
+    np.testing.assert_equal( s in abstr.x_to_all_s(abstr.s_to_x(s) ), True )
