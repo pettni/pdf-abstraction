@@ -55,7 +55,7 @@ def test_mdp_dfsa():
       return 0
 
   T0 = np.array([[0.5, 0.25, 0.25], [0, 1, 0], [0, 0, 1]])
-  mdp = POMDP([T0], output_transform=output, input_names=['mdp_in'], state_name='mdp_out')
+  mdp = POMDP([T0], output_trans=output, input_names=['mdp_in'], state_name='mdp_out')
 
   T1 = np.array([[1, 0], [0, 1]])
   T2 = np.array([[0, 1], [0, 1]])
@@ -138,9 +138,52 @@ def test_ltl_synth():
 
   formula = '( ( F s1 ) & ( F s2 ) )'
 
-  ap_defs = [(['x'], 's1', lambda x: set([int(x==1)])),
-             (['x'], 's2', lambda x: set([int(x==3)]))]
+  preds = {'s1': (['x'], lambda x: set([int(x==1)])),
+           's2': (['x'], lambda x: set([int(x==3)]))}
 
-  pol = solve_ltl_cosafe(network, formula, ap_defs)
+  pol = solve_ltl_cosafe(network, formula, preds)
 
   np.testing.assert_almost_equal(pol.val[0][:,0], [0.5, 0, 0, 0.5], decimal=4)
+
+def test_reach_constrained():
+
+  T0 = np.array([[0.9, 0, 0.1], [0, 1, 0], [0, 0, 1]])
+  T1 = np.array([[0, 0.5, 0.5], [0, 1, 0], [0, 0, 1]])
+
+  mdp = POMDP([T0, T1])
+
+  network = POMDPNetwork()
+  network.add_pomdp(mdp)
+
+  V_acc = np.zeros([3])
+  V_acc[2] = 1
+
+  V_con = 0.5*np.ones([3])
+
+  v_list, _ = solve_reach_constrained(network, V_acc, [(V_con, 0)], horizon=3)
+
+  np.testing.assert_almost_equal(v_list[0][0], 0.1 + 0.9*0.1 + 0.9**2*0.5)
+  np.testing.assert_almost_equal(v_list[1][0], 0.1 + 0.9*0.5)
+  np.testing.assert_almost_equal(v_list[2][0], 0.5)
+
+
+def test_reach_constrained2():
+
+  T0 = np.array([[0, 0.5, 0.5], [0, 1, 0], [0, 0, 1]])
+
+  mdp = POMDP([T0])
+
+  network = POMDPNetwork()
+  network.add_pomdp(mdp)
+
+  V_acc = np.array([0,1,1])
+  V_con = np.array([0,0,1])
+
+  v_list, _ = solve_reach_constrained(network, V_acc, [(V_con, 0)], horizon=3)
+  np.testing.assert_almost_equal(v_list[0], [1, 1, 1])
+
+  v_list, _ = solve_reach_constrained(network, V_acc, [(V_con, 0.49)], horizon=3)
+  np.testing.assert_almost_equal(v_list[0], [0.5, 0, 1])
+
+  v_list, _ = solve_reach_constrained(network, V_acc, [(V_con, 0.51)], horizon=3)
+  np.testing.assert_almost_equal(v_list[0], [0, 0, 1])

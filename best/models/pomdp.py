@@ -16,7 +16,8 @@ class POMDP:
                input_names=['u'], 
                state_name='x', 
                output_name=None,
-               output_transform=None):
+               input_trans=None,
+               output_trans=None):
     '''
     Create a POMDP
 
@@ -40,12 +41,19 @@ class POMDP:
 
       input  alphabet: U
       output alphabet: Y
+
+    Control flow:
+      U ---> range(M)  ---> range(N) ---> range(O) ---> Y
+         ^              ^             ^             ^
+         |              |             |             |
+  input_trans        dynamics    observation     output_trans
     '''
     
     self._input_names = input_names
     self._state_name  = state_name
     self._output_name = output_name
-    self._output_transform = output_transform
+    self._input_trans = input_trans
+    self._output_trans = output_trans
 
     # Transition matrices for each axis
     self._Tmat_csr = {}
@@ -135,9 +143,15 @@ class POMDP:
 
   def transform_output(self, o):
     '''return transformed output'''
-    if self._output_transform is None:
+    if self._output_trans is None:
       return o
-    return self._output_transform(o)
+    return self._output_trans(o)
+
+  def transform_input(self, u):
+    '''return transformed input'''
+    if self._input_trans is None:
+      return u
+    return self._input_trans(u)
 
   def T(self, m_tuple):
     '''transition matrix for action tuple m_tuple'''
@@ -265,6 +279,9 @@ class POMDPNetwork:
   def transform_output(self, o_tuple):
     return tuple(pomdp.transform_output(o) for (pomdp, o) in zip(self.pomdps.values(), o_tuple))
 
+  def transform_input(self, u_tuple):
+    return tuple(pomdp.transform_input(u) for (pomdp, u) in zip(self.pomdps.values(), u_tuple))
+
   def __input_size(self):
     all_inputs_size = [(input, Mi) for pomdp in self.pomdps.values() for (input, Mi) in zip(pomdp.input_names, pomdp.M)]
     connected_inputs = [input for _, input, _, _ in self.connections]
@@ -338,10 +355,10 @@ class POMDPNetwork:
         deterministic = False
 
       for u in u_list:
-
-        if u < 0 or u >= nM:
+        u_real = in_pomdp.transform_input(u)
+        if u_real < 0 or u_real >= nM:
           raise Exception('connection invalid for output {}'.format(o_tuple))
-        conn_matrix[(int(u),) + o_tuple] = True
+        conn_matrix[(int(u_real),) + o_tuple] = True
 
     self.connections.append((outputs, input, conn_matrix, deterministic))
 

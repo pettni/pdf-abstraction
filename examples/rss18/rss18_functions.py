@@ -1,5 +1,5 @@
 import numpy as np
-from best.mdp import MDP
+from best.models.pomdp import POMDP
 import matplotlib.patches as patches
 import polytope as pc
 import matplotlib.pyplot as plt
@@ -18,11 +18,11 @@ def environment_belief_model(p0, levels, name):
     # Create map belief MDP with prior p0 and qw quality of weak measurements
     if p0 == 0:
         # no dynamics
-        return MDP([np.array([1])], input_name=name+'_u', output_name=name+'_b', 
-                   input_fcn = lambda n: 0, output_fcn = lambda s: 0)
+        return POMDP([np.array([1])], input_names=[name+'_u'], state_name=name+'_b', 
+                   input_trans = lambda n: 0, output_trans = lambda s: 0)
     elif p0 == 1:
-        return MDP([np.array([1])], input_name=name+'_u', output_name=name+'_b',
-                   input_fcn = lambda n: 0, output_fcn = lambda s: 1)
+        return POMDP([np.array([1])], input_names=[name+'_u'], state_name=name+'_b',
+                   input_trans = lambda n: 0, output_trans = lambda s: 1)
     else:
         pm = levels[0]
         pp = levels[1]
@@ -42,7 +42,7 @@ def environment_belief_model(p0, levels, name):
         def output_fcn(s):
             return [0, pm, p0, pp, 1][s]
 
-    return MDP([Tnone, Tweak, Tstrong], input_name=name+'_u', output_name=name+'_b', output_fcn=output_fcn)
+    return POMDP([Tnone, Tweak, Tstrong], input_names=[name+'_u'], state_name=name+'_b', output_trans=output_fcn)
 
 def environment_belief_model2(p0, levels, name):
 
@@ -53,10 +53,10 @@ def environment_belief_model2(p0, levels, name):
 
     if p0 == 0:
         # no dynamics
-        return MDP([np.array([1])], input_fcn = lambda n: 0, output_fcn = lambda s: 0)
+        return POMDP([np.array([1])], input_trans = lambda n: 0, output_trans = lambda s: 0)
     elif p0 == 1:
         # no dynamics
-        return MDP([np.array([1])], input_fcn = lambda n: 0, output_fcn = lambda s: 1)
+        return POMDP([np.array([1])], input_trans = lambda n: 0, output_trans = lambda s: 1)
     else:
         Tnone = np.eye(7);
 
@@ -87,74 +87,29 @@ def environment_belief_model2(p0, levels, name):
         def output_fcn(s):
             return [0, pmm, pm, p0, pp, ppp, 1][s]
     
-    return MDP([Tnone, Tweak, Tstrong], input_name=name+'_u', output_name=name+'_b', output_fcn=output_fcn)
+    return POMDP([Tnone, Tweak, Tstrong], input_names=[name+'_u'], state_name=name+'_b', output_trans=output_fcn)
 
-# ROVER-ENVIRONMENT connection
-def get_conn_rov_env(regs):
-    def conn_rov_env(xr):
-        ret = [0 for i in range(len(regs))]
-        i = 0
-        for (name, info) in regs.iteritems():
-            poly = info[0]
-            if is_adjacent(poly, xr, 1) and name[0] == 'r':
-                ret[i] = 2    # strong measurement of risk region
-            elif is_adjacent(poly, xr, 0):
-                ret[i] = 2    # strong measurement of target region
-            i += 1
-        return set([tuple(ret)])
-    return conn_rov_env
+def get_rover_env_conn(region):
+    name = region[0]
+    poly = region[1][0]
+    def conn(rx):
+        dist = 1 if name[0] == 'r' else 0
+        if is_adjacent(poly, rx, dist):
+            return {2}
+        return {0}
+    return conn
 
-# COPTER-ENVIRONMENT connection
-def get_conn_copt_env(regs, copter_sight):
-    def conn_copt_env(xr):
-        ret = [0 for i in range(len(regs))]
-        i = 0
-        for (name, info) in regs.iteritems():
-            if is_adjacent(info[0], xr[0:2], 0) and xr[2] <= 2.6:
-                ret[i] = 2    # strong measurement
-            elif is_adjacent(info[0], xr[0:2], copter_sight) and xr[2] > 2.6:
-                ret[i] = 1    # weak measurement
-            i += 1
-            
-        return set([tuple(ret)])
-    return conn_copt_env
+def get_copter_env_conn(region, sight):
+    name = region[0]
+    poly = region[1][0]
+    def conn(cx):
+        if is_adjacent(poly, cx[0:2], 0) and cx[2] <= 2.6:
+            return {2}  # strong
+        elif is_adjacent(poly, cx[0:2], sight) and cx[2] > 2.6:
+            return {1}  # strong
+        return {0}
+    return conn
 
-# (ROVER-ENVIRONMENT)-LTL connection
-def get_ltl_connection(regs):
-    def ltl_connection(xc_env):
-        xc = np.array(xc_env[0]).reshape(2,1)
-        env = xc_env[1]
-        
-        i = 0
-        
-        ret = set([])
-        
-        for (name, info) in regs.iteritems():
-            poly = info[0]
-            
-            if name[0] == 'r' and poly.contains(xc) and env[i] > 0:
-                # we are in risk reg that is not confirmed safe 
-                ret |= set(['fail'])
-                
-            if name[0] == 'a' and poly.contains(xc) and env[i] == 1:
-                # we are in target reg with confirmed sample
-                ret |= set(['sampleA'])
-
-            if name[0] == 'b' and poly.contains(xc) and env[i] == 1:
-                # we are in target reg with confirmed sample
-                ret |= set(['sampleB'])
-
-            if name[0] == 'c' and poly.contains(xc) and env[i] == 1:
-                # we are in target reg with confirmed sample
-                ret |= set(['sampleC'])
-            i += 1
-
-        if env[2] == 0:
-            # no sample A
-            ret |= set(['emptyA'])
-
-        return set([tuple(ret)])
-    return ltl_connection
 
 def is_adjacent(poly, x, distance):
     # return true x within distance 3 of func
@@ -179,16 +134,17 @@ class RoverPolicy:
             self.t +=  1
         
         self.s_ab = s_ab
-        u_ab, val = self.ltlpol((s_ab, s_map), self.t)
+        u_ab, val = self.ltlpol((s_ab,) + tuple(s_map), self.t)
 
-        if u_ab == 0:
+        if u_ab == (0,):
             self.t += 1
 
         return self.rover_abstr.interface(u_ab, s_ab, x_rov), val
 
     def get_value(self, x, s_map):
         s_ab = self.rover_abstr.x_to_s(x)
-        return self.ltlpol.val[min(self.t, len(self.ltlpol.val)-1)][s_ab, s_map, self.ltlpol.dfsa_state]
+        t_act = min(self.t, len(self.ltlpol.val)-1)
+        return self.ltlpol.val[t_act][(s_ab,) + tuple(s_map) + (self.ltlpol.dfsa_state,)]
 
     def finished(self):
         return self.ltlpol.finished() or self.t > len(self.ltlpol.val)
@@ -216,20 +172,18 @@ class CopterPolicy:
         if s_ab != self.s_ab and self.s_ab != None:
             self.t +=  1
 
-        if self.t >= len(self.val_list):
+        if self.t >= len(self.pol_list):
             self.ft = True
-            u_ab = 0
-            val = self.val_list[-1][s_ab, s_map]
+            u_ab = (0,)
+            val = self.val_list[-1][(s_ab,) + tuple(s_map)]
 
         else:
             self.s_ab = s_ab
-
-            val = self.val_list[self.t][s_ab, s_map]
-            u_ab = self.pol_list[self.t][s_ab, s_map]
-            if u_ab == 0:
+            val = self.val_list[self.t][(s_ab,) + tuple(s_map)]
+            u_ab = (self.pol_list[self.t][0][(s_ab,) + tuple(s_map)],)  # input is 1-tuple
+            if u_ab == (0,):
                 # stay in cell
                 self.t += 1 
-
         return self.copter_abstr.interface(u_ab, s_ab, x_cop), val
 
     def reset(self):

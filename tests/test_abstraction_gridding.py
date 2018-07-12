@@ -21,7 +21,6 @@ def test_grid_cdf_1d():
   Pvec = grid_cdf_1d(0, 1, -10, 10, 10)
   np.testing.assert_almost_equal(Pvec, [0.5, 0.5])
 
-
   Pvec = grid_cdf_1d(0, 1, 0, 0.4, 0.1)
   np.testing.assert_almost_equal(Pvec, [ 0.03983, 0.07926 - 0.03983, 0.11791 - 0.07926, 0.15542 - 0.11791], decimal=3)
 
@@ -72,16 +71,11 @@ def test_poly_ellipse():
   np.testing.assert_equal(poly_ellipse_isect(np.array([-0.74,0.51]), M, eps, poly),
                           {False, True})
 
-
-
-
 def test_tranformation():
   dim = 2
   A = np.eye(2) 
   B = np.eye(dim)
   W = np.array([[0,0],[0,0.4]])
-   
-  # Accuracy
   C = np.array([[1, 0],[0,1]]) 
 
   sys_lti = LTI(A, B, C, None, W=W)
@@ -92,8 +86,14 @@ def test_tranformation():
   sys_lti.setX(X)
 
   d = np.array([1., 1.])
+  M = np.array([[ 1.00002, -0.,     ],
+                [-0.,       1.00002]])
+  K = np.array([[-0.99996, -0.     ],
+                [-0.,      -0.99996]])
+  eps = 1.4142261558177154
 
-  abstr = LTIAbstraction(sys_lti, d, un=4)
+  abstr = LTIAbstraction(sys_lti, d, un=4, MKeps = (M, K, eps))
+
 
   xx = 20 * np.random.rand(2,10) - 10
   for i in range(10):
@@ -102,11 +102,8 @@ def test_tranformation():
 
     x_out = abstr.mdp.transform_output(s_ab)
 
-    print(x, s_ab, x_out)
-
     np.testing.assert_equal(x_out[0], s_ab )
     np.testing.assert_array_less( np.abs(x_out[1] - x), d/2 * (1 + 1e-5) )
-
 
 def test_lti():
   dim = 2
@@ -125,8 +122,13 @@ def test_lti():
   sys_lti.setX(X) # X space
 
   d = np.array([1., 1.])
+  M = np.array([[ 1.00002, -0.,     ],
+                [-0.,       1.00002]])
+  K = np.array([[-0.99996, -0.     ],
+                [-0.,      -0.99996]])
+  eps = 1.4142261558177154
 
-  abstr = LTIAbstraction(sys_lti, d, un=3)
+  abstr = LTIAbstraction(sys_lti, d, un=4, MKeps = (M, K, eps))
 
   for s in range(0, len(abstr), 7):
     np.testing.assert_equal( abstr.x_to_s(abstr.s_to_x(s) ), s )

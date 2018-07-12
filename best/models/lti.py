@@ -11,7 +11,7 @@ from functools import reduce # Valid in Python 2.6+, required in Python 3
 class LTI:
   """Define a discrete-time linear time invariant system"""
 
-  def __init__(self, a, b, c, d, x=None, bw=None, W=None, u=None, T2x = None,stochdiff=None):
+  def __init__(self, a, b, c, d, x=None, bw=None, W=None, u=None, T2x = None, stochdiff=None):
     self.a = a
     self.b = b
     self.c = c  # currently unused

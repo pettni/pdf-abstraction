@@ -106,3 +106,5 @@ ENV/
 **/.texpadtmp
 
 **/.idea
+
+examples/**/*.txt

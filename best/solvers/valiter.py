@@ -36,17 +36,18 @@ def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5, verbose=Fal
   while it < horizon:
 
     if verbose:
-      print('iteration {}, time {}'.format(it, time.time()-start))
+      print('iteration {}, time {:.2f}'.format(it, time.time()-start))
 
     # Calculate Q(u_free, x)
     Q = network.bellman(V).reshape((-1,) + network.N)
+
+    # Max over accept set
+    Q = np.fmax(V_accept[np.newaxis, ...], np.maximum(Q - delta, 0))
 
     # Max over free actions
     P_new = np.unravel_index(Q.argmax(axis=0).astype(DTYPE_ACTION, copy=False), network.M)
     V_new = Q.max(axis=0)
 
-    # Max over accept set
-    V_new = np.fmax(V_accept, np.maximum(V_new - delta, 0))
 
     if horizon < np.Inf:
       val_list.insert(0, V_new)
@@ -60,7 +61,78 @@ def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5, verbose=Fal
     V = V_new
     it += 1
 
-  print('finished after {}s and {} iterations'.format(time.time()-start, it))
+  print('finished after {:.2f}s and {} iterations'.format(time.time()-start, it))
+
+  return val_list, pol_list
+
+
+def solve_reach_constrained(network, accept, constraints, horizon=np.Inf, delta=0, prec=1e-5, verbose=False):
+  '''solve constrained reachability problem
+  Inputs:
+  - network: a POMDPNetwork
+  - accept: function defining target set
+  - constraints: list of pairs (Vcon, thresh) s.t. P(reach Vcon) > thresh
+  - horizon: reachability horizon (standard is infinite-horizon)
+  - delta: failure probability in each step
+  - prec: termination tolerance (inifinite-horizon case)
+
+  Outputs::
+  - val_list: array [V0 V1 .. VT] of value functions
+
+  The infinite-horizon problem has a stationary value function and policy. In this
+  case the return argument has length 2, i.e. val_list = [V0 VT]
+  '''
+
+  V_accept = accept.astype(DTYPE, copy=False)
+
+  it = 0
+  start = time.time()
+
+  V = np.fmax(V_accept, np.zeros(network.N, dtype=DTYPE))
+  Vcon_list, thresh_list = zip(*constraints)
+
+  val_list = []
+  pol_list = []
+  val_list.insert(0, V)
+
+  while it < horizon:
+
+    if verbose:
+      print('iteration {}, time {:.2f}'.format(it, time.time()-start))
+
+    # Calculate constraint Qs
+    Qcon_list = [network.bellman(Vcon).reshape((-1,) + network.N) for Vcon in Vcon_list]
+
+    # Update constraints
+    Vcon_list = [Qcon.max(axis=0) for Qcon in Qcon_list]
+
+    # Calculate Q(u_free, x)
+    Q = network.bellman(V).reshape((-1,) + network.N)
+
+    # Max over accept set
+    Q = np.fmax(V_accept[np.newaxis, ...], np.maximum(Q - delta, 0))
+
+    # Max over free actions that satisfy constraints
+    mask = np.ones(Q.shape)
+    for Qcon, thresh in zip(Qcon_list, thresh_list):
+      mask *= (Qcon >= thresh)
+
+    V_new = (Q * mask).max(axis=0)
+    P_new = np.unravel_index( (Q * mask - 2*(1-mask) ).argmax(axis=0).astype(DTYPE_ACTION, copy=False), network.M)
+
+    if horizon < np.Inf:
+      val_list.insert(0, V_new)
+      pol_list.insert(0, P_new)
+
+    if horizon == np.Inf and np.amax(np.abs(V_new - V)) < prec:
+      val_list.insert(0, V_new)
+      pol_list.insert(0, P_new)
+      break
+
+    V = V_new
+    it += 1
+
+  print('finished after {:.2f}s and {} iterations'.format(time.time()-start, it))
 
   return val_list, pol_list
 
@@ -80,16 +152,23 @@ def solve_ltl_cosafe(network, formula, predicates, delta=0., horizon=np.Inf, ver
      Outputs:
       - pol: a LTL_Policy maximizing the probability of enforcing formula''' 
 
+  if verbose:
+    start = time.time()
+    print("constructing augmented network...")
+
   dfsa, dfsa_init, dfsa_final = formula_to_pomdp(formula)
 
   network_copy = copy.deepcopy(network)
 
   network_copy.add_pomdp(dfsa)
-  for output, ap, conn in predicates:
-    network_copy.add_connection(output, ap, conn)
+  for ap, (outputs, conn) in predicates.items():
+    network_copy.add_connection(outputs, ap, conn)
 
   Vacc = np.zeros(network_copy.N)
   Vacc[...,list(dfsa_final)[0]] = 1
+
+  if verbose:
+    print("finished constructing augmented network in {:.2f}s".format(time.time()-start))
 
   val, pol = solve_reach(network_copy, Vacc, delta=delta, horizon=horizon, verbose=verbose)
   

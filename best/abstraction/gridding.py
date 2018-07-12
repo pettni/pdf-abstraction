@@ -11,7 +11,7 @@ from best.abstraction.simrel import eps_err
 
 class Abstraction(object):
 
-  def __init__(self, x_low, x_up, n_list):
+  def __init__(self, x_low, x_up, n_list, name_prefix=''):
     ''' Create abstraction of \prod_i [x_low[i], x_up[i]] with n_list[i] discrete states 
       in dimension i, and with 1-step movements'''
 
@@ -20,7 +20,7 @@ class Abstraction(object):
     self.n_list = n_list
     self.eta_list = (self.x_up - self.x_low)/np.array(self.n_list)
 
-    self.abstract()
+    self.abstract(name_prefix)
 
   @property
   def dim(self):
@@ -47,7 +47,8 @@ class Abstraction(object):
 
   def interface(self, u_ab, s_ab, x):
     '''return target point for given abstract control and action'''
-    return self.s_to_x( self.pomdp.evolve(s_ab, u_ab) )
+    sp, _ = self.pomdp.evolve_observe(s_ab, u_ab)
+    return self.s_to_x( sp )
 
   def plot(self, ax):
     xy_t = np.array([self.s_to_x(s) for s in range(prod(self.n_list))])
@@ -56,7 +57,7 @@ class Abstraction(object):
     ax.set_xlim(self.x_low[0], self.x_up[0])
     ax.set_ylim(self.x_low[1], self.x_up[1])
 
-  def abstract(self):
+  def abstract(self, name_prefix):
 
     def move(s0, dim, direction):
       # which state is in direction along dim from s0?
@@ -80,9 +81,13 @@ class Abstraction(object):
       T_pl = sp.coo_matrix((vals, (n0, npl)), shape=(self.N, self.N))
       T_list.append(T_pl)
 
-    output_transform = lambda s: self.x_low + self.eta_list/2 + self.eta_list * np.unravel_index(s, self.n_list)
+    output_trans = lambda s: self.x_low + self.eta_list/2 + self.eta_list * np.unravel_index(s, self.n_list)
 
-    self.pomdp = POMDP(T_list, input_names=['u'], state_name='s', output_transform=output_transform, output_name='(s,xc)')
+    self.pomdp = POMDP(T_list, 
+                       input_names=[name_prefix + '_u'], 
+                       state_name=name_prefix + '_s', 
+                       output_trans=output_trans, 
+                       output_name=name_prefix + '_x')
 
 
 class LTIAbstraction(Abstraction):
@@ -157,7 +162,7 @@ class LTIAbstraction(Abstraction):
       transition_list[ud] = Pmat
 
     self.mdp = POMDP(transition_list, input_names=['u_d'], state_name='s', 
-                     output_transform=lambda s: (s, self.s_to_x(s)), output_name='(s,xc)')
+                     output_trans=lambda s: (s, self.s_to_x(s)), output_name='(s,xc)')
 
   def __len__(self):
     return prod(self.n_list)
