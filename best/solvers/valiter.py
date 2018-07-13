@@ -89,11 +89,17 @@ def solve_reach_constrained(network, accept, constraints, horizon=np.Inf, delta=
   start = time.time()
 
   V = np.fmax(V_accept, np.zeros(network.N, dtype=DTYPE))
+
+  # make sure that objective does not conflict with constraints
+  for Vcon, thresh in constraints:
+    if thresh > 0:
+      V = np.fmin(V, Vcon)
+      
   Vcon_list, thresh_list = zip(*constraints)
 
   val_list = []
   pol_list = []
-  val_list.insert(0, V)
+  val_list.insert(0, V_accept)
 
   while it < horizon:
 
@@ -117,8 +123,10 @@ def solve_reach_constrained(network, accept, constraints, horizon=np.Inf, delta=
     for Qcon, thresh in zip(Qcon_list, thresh_list):
       mask *= (Qcon >= thresh)
 
+    # Subtract to satisfy constraint even where Q=0
     V_new = (Q * mask).max(axis=0)
-    P_new = np.unravel_index( (Q * mask - 2*(1-mask) ).argmax(axis=0).astype(DTYPE_ACTION, copy=False), network.M)
+    P_new = np.unravel_index((Q * mask - 2*(1-mask) ).argmax(axis=0)
+                             .astype(DTYPE_ACTION, copy=False), network.M)
 
     if horizon < np.Inf:
       val_list.insert(0, V_new)

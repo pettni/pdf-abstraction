@@ -4,7 +4,6 @@ from best.models.pomdp import POMDP, POMDPNetwork
 from best.solvers.valiter import *
 
 def test_connection():
-
   T0 = np.array([[0, 1], [1, 0]])
   T1 = np.array([[1, 0], [0, 1]])
   mdp1 = POMDP([T0, T1], input_names=['u'], state_name='zout')
@@ -30,7 +29,6 @@ def test_connection():
   vals2, _ = solve_reach(network, V2)
   np.testing.assert_almost_equal(vals2[0], [[1, 1], [1, 1]])
 
-
 def test_reach():
   T0 = np.array([[0.5, 0.25, 0.25], [0, 1, 0], [0, 0, 1]])
   mdp = POMDP([T0])
@@ -45,9 +43,7 @@ def test_reach():
 
   np.testing.assert_almost_equal(v_list[0], [0.5, 0, 1], decimal=4)
 
-
 def test_mdp_dfsa():
-
   def output(n1):
     if n1 == 2:
       return 1
