@@ -54,6 +54,14 @@ class Env(object):
         self.b_reg_init = np.matrix(self.b_reg_init).T
         self.b_prod_init = self.get_product_belief(self.b_reg_init)
 
+    def __str__(self):
+        to_print = "Regions: \n"
+        to_print += str(self.reg_index) + "\n\n"
+        to_print += "Total number of unknown regions: " + str(self.n_unknown_regs) + "\n"
+        to_print += "Total number of  regions: " + str(self.n_total_regs)
+
+        return to_print
+
     ''' returns O matrix (2^n_unknown_regs x 2^n_unknown_regs)
         v_mean = mean value of a FIRM node '''
     def get_O_prod(self, v_mean):
