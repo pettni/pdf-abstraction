@@ -45,7 +45,23 @@ class State_Space(object):
         return self.distance_mean( state1, state1)
 
     def distance_mean(self, state1, state2):
-        return LA.norm( state1.mean -  state2.mean)
+        if isinstance(state1,State):
+            mean1 = state1.mean
+        else:
+            mean1 = np.mat(state1)
+            if mean1.shape[0] == 1:
+                mean1 = mean1.T
+
+        if isinstance(state2,State):
+            mean2 = state2.mean
+        else:
+            mean2 = np.mat(state2)
+            if mean2.shape[0] == 1:
+                mean2 = mean2.T
+
+
+
+        return LA.norm(mean1 - mean2)
 
     def new_state(self, mean):
         if isinstance(mean,State):
@@ -166,13 +182,17 @@ class Det_SI_Model(Motion_Model):
 
     def getLS(self,Wx,Wu):
         if self.Ls is None:
-            S = np.mat(dare(self.A, self.B, self.Wx, self.Wu))
-            self.Ls = (self.B.T * S * self.B + self.Wu).I * self.B.T * S * self.A
+            print(self.A)
+            print(self.B)
             self.Wx = Wx
             self.Wu = Wu
+            print(dare(self.A, self.B, self.Wx, self.Wu))
+            S = np.mat(dare(self.A, self.B, self.Wx, self.Wu))
+            self.Ls = (self.B.T * S * self.B + self.Wu).I * self.B.T * S * self.A
+
             return self.Ls
         else:
-            if (self.Wx == Wx) & (self.Wu == Wu):
+            if (self.Wx == Wx).all() & (self.Wu == Wu).all():
                 return self.Ls
             else:
                 S = np.mat(dare(self.A, self.B, self.Wx, self.Wu))
@@ -187,12 +207,12 @@ class Det_SI_Model(Motion_Model):
     def generate_desiredtraj_and_ffinput(self, node_i, node_j):
         # NOTE: ignoring covariance
         N = int(math.floor(LA.norm(node_j.mean - node_i.mean)/(self.max_speed * self.dt)))
-        traj_d = [node_i]
+        traj_d = [node_i.mean]
         u_ff = []
         for k in range(1,N+1):
             traj_d_k = node_i.mean + k*(node_j.mean - node_i.mean)/N
-            traj_d.append(self.state_space.new_state(traj_d_k))
-            speed_k = LA.norm(traj_d[-2].mean - traj_d[-1].mean)/self.dt
+            traj_d.append(traj_d_k)
+            speed_k = LA.norm(traj_d[-2] - traj_d[-1])/self.dt
             u_ff_k = speed_k * (node_j.mean - node_i.mean)/LA.norm(node_j.mean - node_i.mean)
             u_ff.append(u_ff_k)
         return (traj_d, u_ff)

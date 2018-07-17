@@ -1,7 +1,7 @@
 from best.mdp import MDP
-from best.hVI_models import  Det_SI_Model, State_Space
+from best.hVI_models import  Det_SI_Model, State_Space, State
 import best.rss18_functions as rf
-
+import time
 import numpy as np
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
@@ -51,10 +51,16 @@ class SPaths(object):
         self.edge_output_prob = OrderedDict()
         self.T_list = None
         self.Tz_list = None
+    def make_nodes_edges(self,number,edges ):
+        t = [time.clock()]
+        self.sample_nodes(number)
+        t += [time.clock()]
 
-        self.sample_nodes(15)
-        self.make_edges(4)
+        self.make_edges(edges)
+        t += [time.clock()]
+
         self.n_particles = 1
+        print(np.diff(t))
 
     def sample_nodes(self, n_nodes, means=list(), append=False):
         # ''' Sample nodes in belief space and also generate node_controllers '''
@@ -80,10 +86,14 @@ class SPaths(object):
                    raise ValueError('means does not have n_nodes values')
                 node = self.state_space.new_state(means[i])
             else:
-                if i < len(self.regs) and (self.regs[self.regs.keys()[i]][2] is not 'obs'):
-                    node = self.state_space.sample_new_state_in_reg(self.regs[self.regs.keys()[i]][0])
+                # add sample to every region that is not an obstacle
+
+                if i < len(self.regs) and ((self.regs[self.regs.keys()[i]][2] is not 'obs') or (self.regs[self.regs.keys()[i]][1]<1)):
+                        node = self.state_space.sample_new_state_in_reg(self.regs[self.regs.keys()[i]][0])
                 else:
-                    # Implemented rejection sampling to avoid nodes in obs
+                    # Implemented rejection sampling to avoid nodes in obs => why would you do that?
+                    # you want to avoid samples in regions that we know to be obstacles,
+                    # but if they could be obstacles and it is not sure, then it makes more sense to keep samples in them
                     resample = True
                     while resample:
                         resample = False
@@ -116,35 +126,84 @@ class SPaths(object):
     def make_edges(self, dist):
         self.max_actions = 1  # '''used to construct T'''
         # Can make more efficient
+        t = [time.clock()]
+        visited=dict()
         for i in range(len(self.nodes)):
             neigh = []
             edge_controllers = []
+            ti = []
             for j in range(len(self.nodes)):
-                # if i == j:
-                #     continue
-                dist_nodes = self.state_space.distance_mean(self.nodes[i], self.nodes[j])
-                if dist_nodes < dist:
+                if i == j:
+                    continue
+                add_edge = False
+                if frozenset({i,j}) in visited:
+                    add_edge = visited[frozenset({i,j})]
+                else:
+
+                    dist_nodes = self.state_space.distance_mean(self.nodes[i], self.nodes[j])
+                    add_edge = dist_nodes < dist
+                    if add_edge:
+
+                        # check whether the kripke condition is satisfied
+                        output = set(self.get_outputs(self.nodes[i], self.nodes[j]))
+                        output_ends = set(self.get_outputs(self.nodes[i]))
+                        output_ends |= set(self.get_outputs(self.nodes[j]))
+
+
+                        if not(output.issubset(output_ends)):
+                            print(('remove edge',{i,j}))
+                            print(output)
+                            add_edge = False
+
+                    visited[frozenset({i, j})] = add_edge
+
+                if add_edge:
                     neigh.append(j)
                     edge_controllers.append(Edge_Controller(self.motion_model,self.obs_model,self.nodes[i],self.nodes[j],self.Wx,self.Wu,self.state_space))
             if len(neigh) > self.max_actions:
                 self.max_actions = len(neigh)
+
+
+
             self.edges[i] = neigh
             self.edge_controllers[i] = edge_controllers
+
+    def intersect(self,box,src,dest):
+            diff = dest - src
+            ranges = np.append(*box.bounding_box, axis=1)
+
+            low, high = box.bounding_box
+
+            u = np.zeros((2,))
+            v = np.ones((2,))
+
+            if abs(diff[0]) < np.finfo(float).eps: # constant along the x-axis
+                if not (ranges[0, 0] <= src[0] <= ranges[0, 1]):
+                    return False
+            else:
+                u[0] = max(min((low[0] - src[0])/diff[0],(high[0] - src[0])/diff[0]),0)
+                v[0] = min(max((low[0] - src[0])/diff[0],(high[0] - src[0])/diff[0]),1)
+
+            if abs(diff[1]) < np.finfo(float).eps: # constant along the y-axis
+                if not (ranges[1, 0] <= src[1] <= ranges[1, 1]):
+
+                    return False
+            else:
+                u[1] = max(min((low[1] - src[1])/diff[1],(high[1] - src[1])/diff[1]),0)
+                v[1] = min(max((low[1] - src[1])/diff[1],(high[1] - src[1])/diff[1]),1)
+            assert (v<=1).all()
+            assert (u>=0).all()
+            return np.max(u) <= np.min(v)
 
     ''' Compute the probability over output set for each edge in the FIRM graph '''
     def compute_output_prob(self):
         for (node, edge_controllers) in self.edge_controllers.iteritems():
             output_prob_edges = []
             for edge_controller in edge_controllers:
+                output = self.get_outputs(edge_controller.node_i, dest=edge_controller.node_j)
                 p_out = OrderedDict([(key, 0) for key, value in self.regs.iteritems()])
-                for i in range(self.n_particles):
-                    traj_e = edge_controller.simulate_trajectory(edge_controller.node_i)
-                    traj_n = self.node_controllers[self.nodes.index(edge_controller.node_j)].simulate_trajectory(traj_e[-1])
-                    output = self.get_outputs(traj_e + traj_n)
-                    p_out[output] = p_out[output] + 1
-                    if self.ax is not None:
-                        self.plot_traj(traj_e + traj_n, self.output_color[output])
-                p_out = {key: val / self.n_particles for key, val in p_out.iteritems()}
+                for out in output:
+                    p_out[out] = 1
                 output_prob_edges.append(p_out)
             self.edge_output_prob[node] = output_prob_edges
 
@@ -153,26 +212,58 @@ class SPaths(object):
     even if multiple outputs are generated '''
     # traj = list of belief_state(s)
     # [R] output = key of regs
-    def get_outputs(self, traj):
-        output = 'null'
-        for belief in traj:
+    def get_outputs(self, src,dest=None):
+        output = ['null']
+        start = (src.mean if isinstance(src, State) else src)
+
+        if dest:
+
+            end = (dest.mean if isinstance(dest,State) else dest)
+
+
             for (name, info) in self.regs.iteritems():
-                poly = info[0]
-                if poly.contains(belief.mean):
-                    if self.regs.keys().index(output) > self.regs.keys().index(name):
-                        output = name
-        return output
+                if name == 'null':
+                    continue
+                box = info[0]
+                if self.intersect(box, start, end):
+                    output += [name]
+                    if self.ax is not None:
+                        self.plot_traj([src] + [dest], self.output_color[name])
+            return output
+
+        else: # this is if dest is None
+            for (name, info) in self.regs.iteritems():
+                if name == 'null':
+                    continue
+                box = info[0]
+                if box.contains(start):
+                    output += [name]
+
+            return output
+
+
+
+
 
     ''' Plot a trajectory in belief space'''
     # traj = list of belief_state(s)
     # color = color for argument of plot
     def plot_traj(self, traj, color):
         for i in range(len(traj)-1):
-            x = [np.ravel(traj[i].mean)[0], np.ravel(traj[i+1].mean)[0]]
-            y = [np.ravel(traj[i].mean)[1], np.ravel(traj[i+1].mean)[1]]
+            if isinstance(traj[i], State):
+                try:
+                    x = [np.ravel(traj[i].mean)[0], np.ravel(traj[i+1].mean)[0]]
+                    y = [np.ravel(traj[i].mean)[1], np.ravel(traj[i+1].mean)[1]]
+                except:
+                    x = [np.ravel(traj[i].mean)[0], np.ravel(traj[i+1])[0]]
+                    y = [np.ravel(traj[i].mean)[1], np.ravel(traj[i+1])[1]]
+
+            else:
+                x = [np.ravel(traj[i])[0], np.ravel(traj[i+1])[0]]
+                y = [np.ravel(traj[i])[1], np.ravel(traj[i+1])[1]]
             if color == 'white':
                 color = 'black'
-            self.ax.plot(x, y, color, ms=20)
+            self.ax.plot(x, y, color, ms=20,linewidth=3.0)
 
     ''' Plot the FIRM graph '''
     # ax = handle to plot
@@ -185,7 +276,7 @@ class SPaths(object):
             for j in neigh:
                 x = [np.ravel(self.nodes[i].mean)[0], np.ravel(self.nodes[j].mean)[0]]
                 y = [np.ravel(self.nodes[i].mean)[1], np.ravel(self.nodes[j].mean)[1]]
-                # ax.plot(x, y, 'b')
+                ax.plot(x, y, 'b')
         scale = 3
         for i in range(len(self.nodes)):
             # ax.plot(self.nodes[i].mean[0], self.nodes[i].mean[1], 'go')
@@ -205,9 +296,9 @@ class SPaths(object):
             ell.set_facecolor('gray')
             ax.add_artist(ell)
             if i < 10:
-                plt.text(np.ravel(self.nodes[i].mean)[0]-0.04, np.ravel(self.nodes[i].mean)[1]-0.05, str(i), color='white')
+                plt.text(np.ravel(self.nodes[i].mean)[0]-0.04, np.ravel(self.nodes[i].mean)[1]-0.05, str(i), color='black',backgroundcolor='grey')
             else:
-                plt.text(np.ravel(self.nodes[i].mean)[0]-0.09, np.ravel(self.nodes[i].mean)[1]-0.05, str(i), color='white')
+                plt.text(np.ravel(self.nodes[i].mean)[0]-0.09, np.ravel(self.nodes[i].mean)[1]-0.05, str(i), color='black',backgroundcolor='grey')
         ax.set_xlim(self.state_space.x_low[0], self.state_space.x_up[0])
         ax.set_ylim(self.state_space.x_low[1], self.state_space.x_up[1])
         for (name, info) in self.regs.iteritems():
@@ -257,35 +348,27 @@ class Node_Controller(object):
         self.Wu = Wu
         self.state_space = state_space
         # set control gain
-        S = np.mat(dare(self.A, self.B, self.Wx, self.Wu))
+        #S = np.mat(dare(self.A, self.B, self.Wx, self.Wu))
+        self.motion_model.getLS(Wx,Wu)
         self.Ls = self.motion_model.Ls #(self.B.T * S * self.B + self.Wu).I * self.B.T * S * self.A
 
     ''' Simulates trajectory form node_i to node_j '''
     # b0 = initial belief_state
     def simulate_trajectory(self, b0):
-        traj = [b0]
+        traj = [b0.mean]
         while not self.state_space.distance(traj[-1], self.node) < 0.1:
             ''' Get control, apply control, get observation and apply observation '''
             b = traj[-1]
             # Get control
-            u_k = -self.Ls * (b.mean - self.node.mean)
+
+
+            u_k = -self.Ls * (np.mat(b) - self.node.mean)
+
             # Apply control/predict (Esq. 75-76, 98-99)
             # x^-_k+1 = A * x^+_k + B * u; P^-_k+1 = A * P^+_k *A^T + G Q G^T
-            w = self.motion_model.generate_noise(b, u_k)
-            bnew_pred = self.motion_model.evolve(b, u_k, w)
-            bnew_pred.cov = self.A * b.cov * \
-                self.A.T + self.G * self.Q * self.G.T
-            # Get measurement
-            z = self.obs_model.get_obs(bnew_pred)
-            # Update Belief
-            innovation = z - self.obs_model.get_obs_prediction(bnew_pred)
-            K = bnew_pred.cov * self.H.T * \
-                (self.H * bnew_pred.cov * self.H.T +
-                 self.M * self.R * self.M.T).I
-            bnew_mean = bnew_pred.mean + K * innovation
-            bnew_cov = bnew_pred.cov - K * self.H * bnew_pred.cov
-            # Append traj
-            traj.append(self.belief_space.new_state(bnew_mean, bnew_cov))
+            bnew_pred = self.motion_model.evolve(b, u_k)
+
+            traj.append(self.state_space.new_state(bnew_pred))
         return traj
 
 
@@ -294,43 +377,46 @@ class Edge_Controller(object):
     # belief_space, motion_model, obs_model: Refer to classes in models.py
     # Wx = quadratic cost matrix of state used in LQR
     # Wu = quadratic cost matrix of input used in LQR
-    def __init__(self, motion_model, obs_model, node_i, node_j, Wx, Wu, belief_space):
+    def __init__(self, motion_model, obs_model, node_i, node_j, Wx, Wu, state_space):
         self.motion_model = motion_model
-        self.obs_model = obs_model
+        self.obs_model = obs_model # = None
         self.node_i = node_i
         self.node_j = node_j
-        self.Wx = Wx
-        self.Wu = Wu
-        self.belief_space = belief_space
+        # self.Wx = Wx
+        # self.Wu = Wu
+        self.state_space = state_space
         [self.traj_d, self.u0] = self.motion_model.generate_desiredtraj_and_ffinput(node_i, node_j)
+
         self.N = len(self.traj_d)
         n_xdim = self.motion_model.getA(node_i).shape[1]
         n_udim = self.motion_model.getB(node_i).shape[1]
         # Generate feedback gains
-        S = np.empty((self.N + 1, n_xdim, n_xdim), dtype=np.float)
+        # S = np.empty((self.N + 1, n_xdim, n_xdim), dtype=np.float)
         self.L = np.empty((self.N, n_udim, n_xdim), dtype=np.float)
-        S[self.N, :, :] = self.Wx
+        # S[self.N, :, :] = self.Wx
         for t in it.count(self.N - 1, -1):
-            A, B, S_next = map(np.mat, [self.motion_model.getA(self.traj_d[t]),
-                                        self.motion_model.getB(self.traj_d[t]),
-                                        S[t + 1, :, :]])
-            L = (B.T * S_next * B + self.Wu).I * B.T * S_next * A
-            self.L[t, :, :] = L
-            S[t, :, :] = self.Wx + A.T * S_next * (A - B * L)
+            #A, B, S_next = map(np.mat, [self.motion_model.getA(self.traj_d[t]),
+            #                           self.motion_model.getB(self.traj_d[t]),
+            #                           S[t + 1, :, :]])
+            #L = (B.T * S_next * B + self.Wu).I * B.T * S_next * A
+
+            self.L[t, :, :] = self.motion_model.Ls
+            #S[t, :, :] = self.Wx + A.T * S_next * (A - B * L)
             if t == 0:
                 break
 
     ''' Simulates trajectory starting from node_i to node_j '''
     def simulate_trajectory(self, b0):
+
         # traj = [self.node_i]
         traj = [b0]
         for t in range(self.N-1):
             b = traj[-1]
-            u = -self.L[t, :, :] * (b.mean - self.traj_d[t].mean) + self.u0[t]
+
+            u = -self.L[t, :, :] * (b.mean - self.traj_d[t]) + self.u0[t]
             bnew_pred = self.motion_model.evolve(b, u)
-            A = self.motion_model.getA(b)
             # Update Belief
-            traj.append(self.belief_space.new_state(bnew_pred))
+            traj.append(self.state_space.new_state(bnew_pred))
         return traj
 
 
@@ -435,5 +521,9 @@ if __name__ == '__main__':
     fig = plt.figure(0)
     ax = fig.add_subplot(111, aspect='equal')
     firm = SPaths(r2_bs, motion_model, Wx, Wu, regs, output_color, ax)
+    firm.make_nodes_edges(40, 3)
+    t1 = time.clock()
     firm.compute_output_prob()
-    firm.plot(ax)
+    t2 = time.clock()
+    print(t2-t1)
+
