@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import linalg as LA
 import math
+from scipy.linalg import solve_discrete_are as dare
 
 
 # Define Belief Space/State
@@ -30,25 +31,27 @@ class State_Space(object):
         ''' Returns a random state  '''
         mean = [self.x_low[i] + (self.x_up[i] - self.x_low[i]) * np.random.rand()
                 for i in range(len(self.x_low))]
-        return  mean
+        return  State(mean)
 
     def sample_new_state_in_reg(self, reg_polytope):
         x_low = reg_polytope.bounding_box[0].ravel()
         x_up = reg_polytope.bounding_box[1].ravel()
         mean = [x_low[i] + (x_up[i] - x_low[i]) * 0.5
                 for i in range(len(x_low))]
-        return mean
+        return State(mean)
 
     def distance(self, state1, state2):
 
         return self.distance_mean( state1, state1)
 
     def distance_mean(self, state1, state2):
-        return LA.norm( state1 -  state2)
+        return LA.norm( state1.mean -  state2.mean)
 
     def new_state(self, mean):
-
-        return mean
+        if isinstance(mean,State):
+            return mean
+        else:
+            return State(mean)
 
 
 class Rn_Belief_Space(Belief_Space):
@@ -59,8 +62,8 @@ class Rn_Belief_Space(Belief_Space):
 
     def sample_new_state(self):
         ''' Returns a belief state with random mean and zero covariance '''
-        mean = [self.x_low[i] + (self.x_up[i] - self.x_low[i]) * np.random.rand()
-                for i in range(len(self.x_low))]
+        mean = np.array([[self.x_low[i] + (self.x_up[i] - self.x_low[i]) * np.random.rand()]
+                for i in range(len(self.x_low))])
         return Rn_Belief_State(mean)
 
     def sample_new_state_in_reg(self, reg_polytope):
@@ -99,6 +102,18 @@ class Rn_Belief_State(Belief_State):
             self.cov = np.mat(cov)
 
 
+
+class State(Belief_State):
+
+    def __init__(self, mean, cov=None):
+        self.mean = np.mat(mean)
+        if self.mean.shape[0] == 1:
+            self.mean = self.mean.T
+        if cov is None:
+            self.cov = np.zeros([len(mean), len(mean)])
+        else:
+            self.cov = np.mat(cov)
+
 # Define Motion Models
 class Motion_Model(object):
 
@@ -126,7 +141,7 @@ class Motion_Model(object):
         raise NotImplementedError
 
 
-class Det_SI_model(Motion_Model):
+class Det_SI_Model(Motion_Model):
     ''' Single Integrator Model '''
 
     def __init__(self, dt):
@@ -134,8 +149,11 @@ class Det_SI_model(Motion_Model):
         self.max_speed = 0.5
         self.A = np.eye(2)
         self.B = dt * np.eye(2)
-        self.space = State_Space([-1, -1], [1, 1])
+        self.state_space = State_Space([-1, -1], [1, 1])
 
+        self.Ls = None
+        self.Wx = None
+        self.Wu = None
         print(" The used model contains an integrator for each dimension:\n")
         print(str(self.A))
 
@@ -146,7 +164,22 @@ class Det_SI_model(Motion_Model):
     def getB(self, belief_state):
         return self.B
 
-
+    def getLS(self,Wx,Wu):
+        if self.Ls is None:
+            S = np.mat(dare(self.A, self.B, self.Wx, self.Wu))
+            self.Ls = (self.B.T * S * self.B + self.Wu).I * self.B.T * S * self.A
+            self.Wx = Wx
+            self.Wu = Wu
+            return self.Ls
+        else:
+            if (self.Wx == Wx) & (self.Wu == Wu):
+                return self.Ls
+            else:
+                S = np.mat(dare(self.A, self.B, self.Wx, self.Wu))
+                self.Ls = (self.B.T * S * self.B + self.Wu).I * self.B.T * S * self.A
+                self.Wx = Wx
+                self.Wu = Wu
+                return self.Ls
 
 
 
@@ -158,14 +191,14 @@ class Det_SI_model(Motion_Model):
         u_ff = []
         for k in range(1,N+1):
             traj_d_k = node_i.mean + k*(node_j.mean - node_i.mean)/N
-            traj_d.append(self.belief_space.new_state(traj_d_k, np.zeros([2,2])))
+            traj_d.append(self.state_space.new_state(traj_d_k))
             speed_k = LA.norm(traj_d[-2].mean - traj_d[-1].mean)/self.dt
             u_ff_k = speed_k * (node_j.mean - node_i.mean)/LA.norm(node_j.mean - node_i.mean)
             u_ff.append(u_ff_k)
         return (traj_d, u_ff)
 
-    def evolve(self, b, u, w):
-        bnew = self.belief_space.new_state(self.A * b.mean + self.B * u + w, b.cov)
+    def evolve(self, b, u):
+        bnew = self.state_space.new_state(self.A * b.mean + self.B * u )
         return bnew
 
 

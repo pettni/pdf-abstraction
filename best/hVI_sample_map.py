@@ -1,5 +1,5 @@
 from best.mdp import MDP
-from hVI_models import Gaussian_Noise, SI_Model, Rn_Belief_Space, Rn_Belief_State
+from best.hVI_models import  Det_SI_Model, State_Space
 import best.rss18_functions as rf
 
 import numpy as np
@@ -22,17 +22,21 @@ class SPaths(object):
     """
 
 
-    # belief_space, motion_model, obs_model: Refer to classes in models.py
+    # belief_space, motion_model: Refer to classes in models.py
     # Wx = quadratic cost matrix of state used in LQR
     # Wu = quadratic cost matrix of input used in LQR
     # regs = same as RSS definition
     # regs_outputs = Mapping from regs info[2] to integer of output; e.g. regs_output = {'blue':0, 'green':1, 'red':2}
     # output_color = e.g. output_color = {-1:'black', 0:'blue', 1:'green', 2:'red'}
     # ax = handle for plotting stuff, can be generated as: fig = plt.figure(0); ax = fig.add_subplot(111, aspect='equal')
-    def __init__(self, state_space, motion_model, obs_model, Wx, Wu, regs, output_color, ax, sc):
+    def __init__(self, state_space, motion_model, Wx, Wu, regs, output_color, ax):
         self.state_space = state_space
+        # verify that the motion model is deterministic
+
+        if not isinstance(motion_model, Det_SI_Model):
+            raise TypeError
         self.motion_model = motion_model
-        self.obs_model = obs_model
+        self.obs_model = None
         self.regs = regs
         assert np.all(np.linalg.eigvals(Wx) > 0)
         assert np.all(np.linalg.eigvals(Wu) > 0)
@@ -47,21 +51,21 @@ class SPaths(object):
         self.edge_output_prob = OrderedDict()
         self.T_list = None
         self.Tz_list = None
-        if sc == 'toy':
-            self.sample_nodes(3, [[-4,0.2],[0,-0.2],[4,0]])
-            self.make_edges(5)
-        else:
-            self.sample_nodes(15)
-            self.make_edges(4)
+
+        self.sample_nodes(15)
+        self.make_edges(4)
         self.n_particles = 1
 
-    ''' Sample nodes in belief space and also generate node_controllers '''
-    # n_nodes = number of nodes to sample in graph
-    # append = False erases all previous nodes whereas True adds more nodes to existing graph
-    def sample_nodes(self, n_nodes, means=[], append=False):
+    def sample_nodes(self, n_nodes, means=list(), append=False):
+        # ''' Sample nodes in belief space and also generate node_controllers '''
+        # n_nodes = number of nodes to sample in graph
+        # append = False erases all previous nodes whereas True adds more nodes to existing graph
+
         # TODO: Implement append to sample nodes incrementally
         if not means and n_nodes < len(self.regs):
-            raise ValueError('Number of FIRM samples cannot be less than n_regs')
+            raise ValueError('Number of samples cannot be less than n_regs')
+
+
         if append is False:
             self.nodes = []  # clear previous nodes/edges
             self.edges = OrderedDict()
@@ -74,40 +78,30 @@ class SPaths(object):
             if means:
                 if len(means) is not n_nodes:
                    raise ValueError('means does not have n_nodes values')
-                node = self.belief_space.new_state(means[i])
+                node = self.state_space.new_state(means[i])
             else:
                 if i < len(self.regs) and (self.regs[self.regs.keys()[i]][2] is not 'obs'):
-                    node = self.belief_space.sample_new_state_in_reg(self.regs[self.regs.keys()[i]][0])
+                    node = self.state_space.sample_new_state_in_reg(self.regs[self.regs.keys()[i]][0])
                 else:
                     # Implemented rejection sampling to avoid nodes in obs
                     resample = True
                     while resample:
                         resample = False
-                        node = self.belief_space.sample_new_state()
+                        node = self.state_space.sample_new_state()
+
                         for key, value in self.regs.iteritems():
                             if value[2] is 'obs' and value[0].contains(node.mean):
                                 resample = True
 
             # Set Co-variance
             A = self.motion_model.getA(node)
-            G = self.motion_model.getG(node)
-            Q = self.motion_model.getQ(node)
-            H = self.obs_model.getH(node)
-            M = self.obs_model.getM(node)
-            R = self.obs_model.getR(node)
-            Pprd = np.mat(dare(A.T, H.T, G * Q * G.T, M * R * M.T))
-            assert np.all(np.isreal(Pprd)) and np.all(Pprd == Pprd.T)
-            Pest = Pprd - (
-                Pprd * H.T) * (
-                H * Pprd * H.T + M * R * M.T).I * (
-                Pprd * H.T).T
-            assert np.all(np.isreal(Pest)) and np.all(Pest == Pest.T)
-            node.cov = Pest
+
+
             self.nodes.append(node)
             self.node_controllers.append(
                 Node_Controller(self.motion_model, self.obs_model,
                                 node, self.Wx, self.Wu,
-                                self.belief_space))
+                                self.state_space))
         # TODO:''' Generate one node in each region '''
         # j=0
         # for key in self.regs:
@@ -128,10 +122,10 @@ class SPaths(object):
             for j in range(len(self.nodes)):
                 # if i == j:
                 #     continue
-                dist_nodes = self.belief_space.distance_mean(self.nodes[i], self.nodes[j])
+                dist_nodes = self.state_space.distance_mean(self.nodes[i], self.nodes[j])
                 if dist_nodes < dist:
                     neigh.append(j)
-                    edge_controllers.append(Edge_Controller(self.motion_model,self.obs_model,self.nodes[i],self.nodes[j],self.Wx,self.Wu,self.belief_space))
+                    edge_controllers.append(Edge_Controller(self.motion_model,self.obs_model,self.nodes[i],self.nodes[j],self.Wx,self.Wu,self.state_space))
             if len(neigh) > self.max_actions:
                 self.max_actions = len(neigh)
             self.edges[i] = neigh
@@ -214,8 +208,8 @@ class SPaths(object):
                 plt.text(np.ravel(self.nodes[i].mean)[0]-0.04, np.ravel(self.nodes[i].mean)[1]-0.05, str(i), color='white')
             else:
                 plt.text(np.ravel(self.nodes[i].mean)[0]-0.09, np.ravel(self.nodes[i].mean)[1]-0.05, str(i), color='white')
-        ax.set_xlim(self.belief_space.x_low[0], self.belief_space.x_up[0])
-        ax.set_ylim(self.belief_space.x_low[1], self.belief_space.x_up[1])
+        ax.set_xlim(self.state_space.x_low[0], self.state_space.x_up[0])
+        ax.set_ylim(self.state_space.x_low[1], self.state_space.x_up[1])
         for (name, info) in self.regs.iteritems():
             hatch = False
             fill = True
@@ -253,29 +247,24 @@ class Node_Controller(object):
     # belief_space, motion_model, obs_model: Refer to classes in models.py
     # Wx = quadratic cost matrix of state used in LQR
     # Wu = quadratic cost matrix of input used in LQR
-    def __init__(self, motion_model, obs_model, node, Wx, Wu, belief_space):
+    def __init__(self, motion_model, obs_model, node, Wx, Wu, state_space):
         self.motion_model = motion_model
-        self.obs_model = obs_model
+        self.obs_model = obs_model # = None
         self.A = self.motion_model.getA(node)
         self.B = self.motion_model.getB(node)
-        self.G = self.motion_model.getG(node)
-        self.Q = self.motion_model.getQ(node)
-        self.H = self.obs_model.getH(node)
-        self.M = self.obs_model.getM(node)
-        self.R = self.obs_model.getR(node)
         self.node = node
         self.Wx = Wx
         self.Wu = Wu
-        self.belief_space = belief_space
+        self.state_space = state_space
         # set control gain
         S = np.mat(dare(self.A, self.B, self.Wx, self.Wu))
-        self.Ls = (self.B.T * S * self.B + self.Wu).I * self.B.T * S * self.A
+        self.Ls = self.motion_model.Ls #(self.B.T * S * self.B + self.Wu).I * self.B.T * S * self.A
 
     ''' Simulates trajectory form node_i to node_j '''
     # b0 = initial belief_state
     def simulate_trajectory(self, b0):
         traj = [b0]
-        while not self.belief_space.distance(traj[-1], self.node) < 0.1:
+        while not self.state_space.distance(traj[-1], self.node) < 0.1:
             ''' Get control, apply control, get observation and apply observation '''
             b = traj[-1]
             # Get control
@@ -338,56 +327,113 @@ class Edge_Controller(object):
         for t in range(self.N-1):
             b = traj[-1]
             u = -self.L[t, :, :] * (b.mean - self.traj_d[t].mean) + self.u0[t]
-            w = self.motion_model.generate_noise(b, u)
-            bnew_pred = self.motion_model.evolve(b, u, w)
+            bnew_pred = self.motion_model.evolve(b, u)
             A = self.motion_model.getA(b)
-            G = self.motion_model.getG(b)
-            Q = self.motion_model.getQ(b)
-            H = self.obs_model.getH(b)
-            M = self.obs_model.getM(b)
-            R = self.obs_model.getR(b)
-            bnew_pred.cov = A * b.cov * A.T + G * Q * G.T
-            # Get measurement
-            z = self.obs_model.get_obs(bnew_pred)
             # Update Belief
-            innovation = z - self.obs_model.get_obs_prediction(bnew_pred)
-            K = bnew_pred.cov * H.T * (H * bnew_pred.cov * H.T + M * R * M.T).I
-            bnew_mean = bnew_pred.mean + K * innovation
-            bnew_cov = bnew_pred.cov - K * H * bnew_pred.cov
-            traj.append(self.belief_space.new_state(bnew_mean, bnew_cov))
+            traj.append(self.belief_space.new_state(bnew_pred))
         return traj
 
 
 if __name__ == '__main__':
-    Wx = np.eye(2)
-    Wu = np.eye(2)
-    r2_bs = Rn_Belief_Space([-5, -5], [5, 5])
-    motion_model = SI_Model(0.1)
-    obs_model = Gaussian_Noise(2)
-    regs = OrderedDict()
+    from best.ltl import formula_to_mdp
+    from best.hVI_models import State_Space, Det_SI_Model
+    from best.hVI_types import Env, Gamma
+    import best.rss18_functions as rf
+    from best.hVI_config import sc, load, parr, obs_action, epsilon, rand_seed
+    import numpy as np
+    from collections import OrderedDict
+    import matplotlib.pyplot as plt
+    import copy
+    import cPickle as pkl
+    import random
+    from os import fork
+    from joblib import Parallel, delayed
+    import multiprocessing
+    from itertools import product
+    import time
 
-    p1 = rf.vertex_to_poly(np.array([[1.2, 0], [2.2, 1], [-1.6, 3.6], [-2.6, 2.6]]))
-    regs['r1'] = (p1, 1, 'red')
-    p2 = rf.vertex_to_poly(np.array([[-3, 4], [-3, 5], [-5, 5], [-5, 4]]))
-    regs['r2'] = (p2, 1, 'red')
-    p3 = rf.vertex_to_poly(np.array([[2, -1.5], [3, -1], [5, -3], [5, -5], [4, -5]]))
-    regs['r3'] = (p3, 1, 'red')
-    p4 = rf.vertex_to_poly(np.array([[1.2, 0], [2.2, 1], [2, -1.5], [3, -1]]))
-    regs['r4'] = (p4, 0.4, 'green')
-    p5 = rf.vertex_to_poly(np.array([[2, -1.5], [2.5, -2.5], [1, -5], [-1, -5]]))
-    regs['r5'] = (p5, 0.3, 'green')
-    a1 = rf.vertex_to_poly(np.array([[4, -2], [5, -2], [5, -1], [4, -1]]))
-    regs['a1'] = (a1, 0.5, 'blue')
-    a2 = rf.vertex_to_poly(np.array([[2, -4], [3, -4], [3, -5], [2, -5]]))
-    regs['a2'] = (a2, 0.5, 'blue')
-    a3 = rf.vertex_to_poly(np.array([[-2, 0], [-2, 1], [-1, 1], [-1, 0]]))
-    regs['a3'] = (a3, 0.9, 'blue')
+    from polytope import *
+
+    print "Setting Up Scenario"
+
+    # Define Regions
+    # Regs have the same format as RSS code. Regs that are added first have a higher priority
+    #### Wall region
+    print("Started wall case")
+    regs = OrderedDict()
+    p1 = rf.vertex_to_poly(np.array([[2, 0], [3, 0], [3, 1], [2, 1]]))
+    regs['r1'] = (p1, 1, 'obs')
+    p2 = rf.vertex_to_poly(np.array([[2, 1], [3, 1], [3, 2], [2, 2]]))
+    regs['r2'] = (p2, 1, 'obs')
+    p3 = rf.vertex_to_poly(np.array([[2, 2], [3, 2], [3, 3], [2, 3]]))
+    regs['r3'] = (p3, 1, 'obs')
+    p4 = rf.vertex_to_poly(np.array([[2, 3], [3, 3], [3, 4], [2, 4]]))
+    regs['r4'] = (p4, 0.5, 'obs', 0)
+    p5 = rf.vertex_to_poly(np.array([[2, 4], [3, 4], [3, 5], [2, 5]]))
+    regs['r5'] = (p5, 0, 'obs', 0)
+
+    p1 = rf.vertex_to_poly(np.array([[2, 0], [3, 0], [3, -1], [2, -1]]))
+    regs['r6'] = (p1, 1, 'obs')
+    p2 = rf.vertex_to_poly(np.array([[2, -1], [3, -1], [3, -2], [2, -2]]))
+    regs['r7'] = (p2, 1, 'obs')
+    p3 = rf.vertex_to_poly(np.array([[2, -2], [3, -2], [3, -3], [2, -3]]))
+    regs['r8'] = (p3, 1, 'obs')
+    p4 = rf.vertex_to_poly(np.array([[2, -3], [3, -3], [3, -4], [2, -4]]))
+    regs['r9'] = (p4, 0.5, 'obs', 0)
+    p5 = rf.vertex_to_poly(np.array([[2, -4], [3, -4], [3, -5], [2, -5]]))
+    regs['r10'] = (p5, 0, 'obs', 0)
+
+    a1 = rf.vertex_to_poly(np.array([[4, 0], [5, 0], [5, 1], [4, 1]]))
+    regs['a1'] = (a1, 0.9, 'sample', 1)
+
+    output_color = {'r1': 'red', 'r2': 'red', 'r3': 'red', 'r4': 'red', 'r5': 'red', 'r6': 'red', 'r7': 'red',
+                    'r8': 'red', 'r9': 'red', 'r10': 'red',
+                    'a1': 'green', 'null': 'white'}
+    # Define Null regions with bounds of the space for null output with lowest priority
+    p = rf.vertex_to_poly(np.array([[-3, -5], [-3, 5], [5, -5], [5, 5]]))
+    regs['null'] = (p, 1.0, 'null')
+
+    # Construct belief-MDP for env
+    env = Env(regs)
+
+    print(env)
+    # belief set used for PBVI =>>> unclear what this is
+    probs = [0, 0.2, 0.5, 0.8, 1]  # what is this?
+    probs_list = [probs for i in range(env.n_unknown_regs)]
+    if obs_action is True:
+        b_reg_set = [env.get_reg_belief(list(i)) for i in product(*probs_list)]
+    b_prod_set = [env.get_product_belief(list(i)) for i in product(*probs_list)]
+    # True state of the regs used to simulate trajectories after policy is generated
+    # x_e_true
 
     fig = plt.figure(0)
     ax = fig.add_subplot(111, aspect='equal')
-    regs_output = {'blue':0, 'green':1, 'red':2}
-    output_color = {-1:'black', 0:'blue', 1:'green', 2:'red'}
-    firm = FIRM(r2_bs, motion_model, obs_model, Wx, Wu, regs, regs_output, output_color, ax)
+    l, u = bounding_box(p)
+    ax.set_xlim(l[0], u[0])
+    ax.set_ylim(l[1], u[1])
+    for (name, info) in regs.iteritems():
+        hatch = False
+        fill = True
+        if name is not 'null':
+            rf.plot_region(ax, info[0], name, info[1], output_color[name], hatch=hatch, fill=fill)
+    # plt.show()
+
+    # Construct and Visualize FIRM
+
+    ''' Configuration Parameters '''
+    random.seed(rand_seed)
+    np.random.seed(rand_seed)
+
+    print ''' Setup Motion and Observation Models '''
+    # Define Motion and Observation Model
+    Wx = np.eye(2)
+    Wu = np.eye(2)
+    r2_bs = State_Space([-5, -5], [5, 5])
+    motion_model = Det_SI_Model(0.1)
+
+    print " Constructing FIRM"
+    fig = plt.figure(0)
+    ax = fig.add_subplot(111, aspect='equal')
+    firm = SPaths(r2_bs, motion_model, Wx, Wu, regs, output_color, ax)
     firm.compute_output_prob()
     firm.plot(ax)
-    # firm.abstract()
