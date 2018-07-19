@@ -276,7 +276,7 @@ class SPaths(object):
             for j in neigh:
                 x = [np.ravel(self.nodes[i].mean)[0], np.ravel(self.nodes[j].mean)[0]]
                 y = [np.ravel(self.nodes[i].mean)[1], np.ravel(self.nodes[j].mean)[1]]
-                #ax.plot(x, y, 'b')
+                ax.plot(x, y, 'b')
         scale = 3
         for i in range(len(self.nodes)):
             # ax.plot(self.nodes[i].mean[0], self.nodes[i].mean[1], 'go')
