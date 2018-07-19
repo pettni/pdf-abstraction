@@ -200,7 +200,7 @@ class SPaths(object):
         for (node, edge_controllers) in self.edge_controllers.iteritems():
             output_prob_edges = []
             for edge_controller in edge_controllers:
-                output = self.get_outputs(edge_controller.node_i, dest=edge_controller.node_j)
+                output = self.get_outputs(edge_controller.node_i)
                 p_out = OrderedDict([(key, 0) for key, value in self.regs.iteritems()])
                 for out in output:
                     p_out[out] = 1
@@ -237,7 +237,7 @@ class SPaths(object):
                     continue
                 box = info[0]
                 if box.contains(start):
-                    output += [name]
+                    output = [name]
 
             return output
 
@@ -263,7 +263,7 @@ class SPaths(object):
                 y = [np.ravel(traj[i])[1], np.ravel(traj[i+1])[1]]
             # if color == 'white':
             #     color = 'black'
-            # self.ax.plot(x, y, color, ms=20,linewidth=3.0)
+            #self.ax.plot(x, y, color, ms=20,linewidth=3.0)
 
     ''' Plot the FIRM graph '''
     # ax = handle to plot
@@ -276,7 +276,7 @@ class SPaths(object):
             for j in neigh:
                 x = [np.ravel(self.nodes[i].mean)[0], np.ravel(self.nodes[j].mean)[0]]
                 y = [np.ravel(self.nodes[i].mean)[1], np.ravel(self.nodes[j].mean)[1]]
-                ax.plot(x, y, 'b')
+                #ax.plot(x, y, 'b')
         scale = 3
         for i in range(len(self.nodes)):
             # ax.plot(self.nodes[i].mean[0], self.nodes[i].mean[1], 'go')
@@ -491,7 +491,8 @@ if __name__ == '__main__':
     b_prod_set = [env.get_product_belief(list(i)) for i in product(*probs_list)]
     # True state of the regs used to simulate trajectories after policy is generated
     # x_e_true
-
+    n = 10
+    b_prod_set = random.sample(b_prod_set, n)
     fig = plt.figure(0)
     ax = fig.add_subplot(111, aspect='equal')
     l, u = bounding_box(p)
@@ -502,7 +503,7 @@ if __name__ == '__main__':
         fill = True
         if name is not 'null':
             rf.plot_region(ax, info[0], name, info[1], output_color[name], hatch=hatch, fill=fill)
-    # plt.show()
+    plt.show()
 
     # Construct and Visualize FIRM
 
@@ -518,13 +519,16 @@ if __name__ == '__main__':
     motion_model = Det_SI_Model(0.1)
 
     print " Constructing FIRM"
-    fig = plt.figure(0)
+    fig = plt.figure(figsize=(14, 14), dpi=80, facecolor='w', edgecolor='k')
+
     ax = fig.add_subplot(111, aspect='equal')
     firm = SPaths(r2_bs, motion_model, Wx, Wu, regs, output_color, ax)
-    firm.make_nodes_edges(40, 3)
+    firm.make_nodes_edges(50, 3)
     t1 = time.clock()
     firm.compute_output_prob()
     t2 = time.clock()
+    firm.plot(ax)
+
     print(t2-t1)
 
 
@@ -580,6 +584,8 @@ if __name__ == '__main__':
         b = val[i_v][i_q].b_prod_points[i_b]
         if i_q in dfsa_final:
             return (np.ones([len(b), 1]), firm.edges[i_v][0]) # return 0th edge caz it doesn't matter
+
+
         index_alpha_init = np.argmax(val[i_v][i_q].alpha_mat.T * b)  # set max alpha to current max
         max_alpha_b_e = val[i_v][i_q].alpha_mat[:, index_alpha_init]
         best_e = val[i_v][i_q].best_edge[index_alpha_init]
@@ -635,6 +641,12 @@ if __name__ == '__main__':
             if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (sum_o.T * np.matrix(b)):
                 max_alpha_b_e = sum_o
                 best_e = -1*(env.regs.keys().index(key)+1)  # region 0 will map to edge -1
+
+
+        if not (max_alpha_b_e <= 1).all():
+            print(max_alpha_b_e, best_e)
+            assert False
+
         return (max_alpha_b_e, best_e)
 
 
@@ -679,23 +691,24 @@ if __name__ == '__main__':
         # Initialize Value Function to 1_(q_goal)
         for i_v in range(len(firm.nodes)):
             for i_q in range(dfsa.N):
-                for i_b in range(len(val[i_v][i_q].b_prod_points)):
-                    if i_q in dfsa_final:
-                        val[i_v][i_q].alpha_mat[:, i_b] = 1  #np.zeros([n_regs, 1])
-                    else:
-                        val[i_v][i_q].alpha_mat[:, i_b] = 0  #np.zeros([n_regs, 1])
+                if i_q in dfsa_final:
+                    val[i_v][i_q].alpha_mat[:, 0] = 1  #np.zeros([n_regs, 1])
+                #else:
+                #    val[i_v][i_q].alpha_mat[:, 0] = 0  #np.zeros([n_regs, 1])
+
+
         n_cores = multiprocessing.cpu_count() - 1
         print "Running Value Iteration"
         t_start = time.time()
         val_new = copy.deepcopy(val)
-        for i in range(10):
+        for i in range(20):
             print "Iteration = " + str(i)
             for i_v in range(len(firm.nodes)):
                 for i_q in range(dfsa.N):
                     # Don't backup states which are in obs or goal
                     # if True:
                     if (sc == 'rss' or sc == 'toy') and i_q == 0:
-                        print "Backing up i_v = " + str(i_v) + " of " + str(len(firm.nodes))
+                        #print "Backing up i_v = " + str(i_v) + " of " + str(len(firm.nodes))
                         # Run backup for each belief point in parallel
                         if parr:
                             results = Parallel(n_jobs=n_cores)(delayed(backup)(i_b, i_v, i_q, val)
@@ -703,17 +716,21 @@ if __name__ == '__main__':
                             for i_b in range(len(val[i_v][i_q].b_prod_points)):
                                 val_new[i_v][i_q].alpha_mat[:, i_b] = results[i_b][0]
                                 val_new[i_v][i_q].best_edge[i_b] = results[i_b][1]
-                            print(val_new[i_v][i_q])
+
                         else:
+                            alph_list = []
                             for i_b in range(len(val[i_v][i_q].b_prod_points)):
                                 if obs_action is True:
                                     alpha_new, best_e = backup_with_obs_action(i_b, i_v, i_q, val)
+                                    alph_list += [alpha_new]
                                 else:
                                     alpha_new, best_e = backup(i_b, i_v, i_q, val)
-                                val_new[i_v][i_q].alpha_mat[:, i_b] = alpha_new
-                                val_new[i_v][i_q].best_edge[i_b] = best_e
-                            print(val_new[i_v][i_q].alpha_mat)
+                                    alph_list += [alpha_new]
 
+                                #val_new[i_v][i_q].alpha_mat[:, i_b] = alpha_new
+                                val_new[i_v][i_q].best_edge[i_b] = best_e
+                            alpha_mat = np.concatenate(alph_list,axis=1)
+                            val_new[i_v][i_q].alpha_mat = np.matrix(np.unique(alpha_mat,axis = 1)) # new feature
 
             val = copy.deepcopy(val_new)
         t_end = time.time()

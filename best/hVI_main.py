@@ -162,6 +162,8 @@ def backup(i_b, i_v, i_q, val):
         if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (sum_z.T * np.matrix(b)):
             max_alpha_b_e = sum_z
             best_e = firm.edges[i_v][i_e]
+            assert (max_alpha_b_e <= 1).all()
+
     return (max_alpha_b_e, best_e)
 
 
@@ -224,6 +226,8 @@ def backup_with_obs_action(i_b, i_v, i_q, val):
         if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (sum_o.T * np.matrix(b)):
             max_alpha_b_e = sum_o
             best_e = -1*(env.regs.keys().index(key)+1)  # region 0 will map to edge -1
+            assert (max_alpha_b_e <= 1).all()
+
     return (max_alpha_b_e, best_e)
 
 def plot_val(val):

@@ -19,7 +19,7 @@ class Gamma(object):
         if alpha_mat:
             self.alpha_mat = np.matrix(alpha_mat)
         else:
-            self.alpha_mat = np.matrix(np.zeros([len(b_prod_points[0]), len(b_prod_points)]))
+            self.alpha_mat = np.matrix(np.zeros([len(b_prod_points[0]),1]))
         self.b_prod_points = b_prod_points
         self.best_edge = -np.ones(len(b_prod_points), dtype=np.int8)  # policy
         if obs_action is True:
