@@ -195,10 +195,11 @@ class Det_SI_Model(Motion_Model):
             if (self.Wx == Wx).all() & (self.Wu == Wu).all():
                 return self.Ls
             else:
-                S = np.mat(dare(self.A, self.B, self.Wx, self.Wu))
-                self.Ls = (self.B.T * S * self.B + self.Wu).I * self.B.T * S * self.A
                 self.Wx = Wx
                 self.Wu = Wu
+                S = np.mat(dare(self.A, self.B, self.Wx, self.Wu))
+                self.Ls = (self.B.T * S * self.B + self.Wu).I * self.B.T * S * self.A
+
                 return self.Ls
 
 
