@@ -186,7 +186,7 @@ if __name__ == '__main__':
             # Get goal vertex corresponding to edge
             v_e = firm.edges[i_v][i_e]
             # Get output corresponding to goal vertex
-            z = firm.get_outputs(firm.nodes[v_e])
+            z = firm.get_outputs(firm.nodes[v_e])[0]
             # If output is not null then get new q
             if (regs[z][2] == 'obs' or regs[z][2] == 'sample'):
                 q_z = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
@@ -282,7 +282,6 @@ if __name__ == '__main__':
                 #else:
                 #    val[i_v][i_q].alpha_mat[:, 0] = 0  #np.zeros([n_regs, 1])
 
-
         n_cores = multiprocessing.cpu_count() - 1
         print "Running Value Iteration"
         t_start = time.time()
@@ -302,7 +301,6 @@ if __name__ == '__main__':
                             for i_b in range(len(val[i_v][i_q].b_prod_points)):
                                 val_new[i_v][i_q].alpha_mat[:, i_b] = results[i_b][0]
                                 val_new[i_v][i_q].best_edge[i_b] = results[i_b][1]
-
                         else:
                             alph_list = []
                             for i_b in range(len(val[i_v][i_q].b_prod_points)):
@@ -317,7 +315,6 @@ if __name__ == '__main__':
                                 val_new[i_v][i_q].best_edge[i_b] = best_e
                             alpha_mat = np.concatenate(alph_list,axis=1)
                             val_new[i_v][i_q].alpha_mat = np.matrix(np.unique(alpha_mat,axis = 1)) # new feature
-
             val = copy.deepcopy(val_new)
         t_end = time.time()
         print t_end-t_start
@@ -326,15 +323,69 @@ if __name__ == '__main__':
         pkl.dump(val, fh)
         fh.flush()
         fh.close()
-            # print "Val(v5,q0)"
-            # print val[5][0].alpha_mat
-            # print val[5][0].best_edge
-            # print "Val(v3,q0)"
-            # print val[3][0].alpha_mat
-            # print val[3][0].best_edge
-            # print "Val(v7,q0)"
-            # print val[7][0].alpha_mat
-            # print val[7][0].best_edge
     if sc == 'toy':
         plot_val(val_new)
 
+''' Execute the policy '''
+b = env.b_prod_init
+print b
+q = 0
+v = 2
+# v = 0
+traj = []
+for t in range(50):
+    # import pdb; pdb.set_trace()
+    print "val = " + str(max(val[v][q].alpha_mat.T * b))
+    # Get best edge
+    i_best_alpha = np.argmax(val_new[v][q].alpha_mat.T * b)
+    best_e = val_new[v][q].best_edge[i_best_alpha]
+    if obs_action is True and best_e < 0:
+        reg_key = env.regs.keys()[-1 * (best_e - 1)]
+        (b_, o, i_o) = env.get_b_o_reg(b, env.regs[reg_key][3], reg_key, firm.nodes[v].mean)
+        b = b_
+        print "Observing " + str(-1 * (best_e - 1)) + " at vertex" + str(v) + " q = " + str(q) + " b_ = " + str(b_)
+        continue
+    # Simulate trajectory under edges
+    edge_controller = firm.edge_controllers[v][firm.edges[v].index(best_e)]
+    traj_e = edge_controller.simulate_trajectory(edge_controller.node_i)
+    traj_n = firm.node_controllers[firm.nodes.index(edge_controller.node_j)].simulate_trajectory(traj_e[-1])
+    # traj_i = [(b, i, q) for i in traj_e + traj_n]
+    traj_i = traj_e + traj_n
+    traj = traj + traj_i
+    # Get q', v', q' and loop
+    z = firm.get_outputs(traj_e + traj_n)
+    v_ = best_e
+    if obs_action is False:
+        print "TODO: Implement backup without obs_action"
+    else:
+        if regs[z][2] is 'null':
+            b_ = b
+            q_ = q
+        elif regs[z][2] is 'obs' or regs[z][2] is 'sample':
+            q_ = None
+            b_ = None
+            # if region is known
+            if regs[z][1] == 1 or regs[z][1] == 0:
+                # if label is true
+                if regs[z][1] == 1:
+                    q_ = np.argmax(dfsa.T(proplist[regs[z][2]])[q, :])
+                    b_ = b
+            # else update belief by simulating an observation
+            else:
+                (b_, o, i_o) = env.get_b_o_reg(b, env.regs[z][3], z)
+                # if true label is true then do transition in DFA
+                # We are assuming that we get zero false rate when we pass through the region
+                if regs[z][3] is 1:
+                    q_ = np.argmax(dfsa.T(proplist[regs[z][2]])[q, :])
+            if q_ is None:
+                q_ = q
+            if b_ is None:
+                b_ = b
+    print "going from vertex " + str(v) + " to vertex " + str(v_) + " q = " + str(q) + " b = " + str(b)
+    b = b_
+    q = q_
+    v = v_
+    if q in dfsa_final:
+        break
+firm.plot_traj(traj, 'blue')
+plt.show()
