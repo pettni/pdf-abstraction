@@ -40,7 +40,7 @@ if __name__ == '__main__':
     p3 = rf.vertex_to_poly(np.array([[2, 2], [3, 2], [3, 3], [2, 3]]))
     regs['r3'] = (p3, 1, 'obs')
     p4 = rf.vertex_to_poly(np.array([[2, 3], [3, 3], [3, 4], [2, 4]]))
-    regs['r4'] = (p4, 0, 'obs', 0)
+    regs['r4'] = (p4, 0.01, 'obs', 0)
     p5 = rf.vertex_to_poly(np.array([[2, 4], [3, 4], [3, 5], [2, 5]]))
     regs['r5'] = (p5, 0.1, 'obs', 0)
 
@@ -338,15 +338,8 @@ if __name__ == '__main__':
 
                                 #val_new[i_v][i_q].alpha_mat[:, i_b] = alpha_new
                                 val_new[i_v][i_q].best_edge[i_b] = best_e
-<<<<<<< HEAD
-                            alpha_mat = np.concatenate(alph_list,axis=1)
-                            val_new[i_v][i_q].alpha_mat = np.matrix(np.unique(alpha_mat,axis = 1)) # new feature
-                            if importance:
-                                print('iteration=', i, i_v,i_q,importance)
-=======
                             alpha_mat = np.concatenate(alph_list, axis=1)
                             val_new[i_v][i_q].alpha_mat = np.matrix(np.unique(alpha_mat, axis = 1)) # new feature
->>>>>>> 8d18aa6b91df00bb059da6f0d46908c45bf36566
             val = copy.deepcopy(val_new)
             print val[42][0].best_edge
         t_end = time.time()
