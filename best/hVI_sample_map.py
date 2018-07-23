@@ -111,7 +111,7 @@ if __name__ == '__main__':
     firm.compute_output_prob()
     t2 = time.clock()
     firm.plot(ax)
-    plt.show()
+    # plt.show()
 
     print(t2-t1)
 
@@ -122,7 +122,7 @@ if __name__ == '__main__':
     def backup(i_b, i_v, i_q, val):
         b = val[i_v][i_q].b_prod_points[i_b]
         if i_q in dfsa_final:
-            return (np.ones([len(b), 1]), firm.edges[i_v][0]) # return 0th edge caz it doesn't matter
+            return (np.ones([len(b), 1]), firm.edges[i_v][0])  # return 0th edge caz it doesn't matter
         index_alpha_init = np.argmax(val[i_v][i_q].alpha_mat.T * b)  # set max alpha to current max
         max_alpha_b_e = val[i_v][i_q].alpha_mat[:, index_alpha_init]
         best_e = val[i_v][i_q].best_edge[index_alpha_init]
@@ -138,13 +138,13 @@ if __name__ == '__main__':
                 for i_o in range(len(O)):
                     q_z_o = None
                     # if we are in an obstacle region and we observe an obstacle/sample
-                    if regs[z][1]==1:
+                    if regs[z][1] == 1:
                         # if regs[z][2]=='obs' or regs[z][2]=='sample':
-                        if regs[z][2]=='obs' or regs[z][2]=='sample' and regs[z][0].contains(firm.nodes[v_e].mean):
+                        if regs[z][2] == 'obs' or regs[z][2] == 'sample' and regs[z][0].contains(firm.nodes[v_e].mean):
                             q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
-                    elif regs[z][1]>0:
+                    elif regs[z][1] > 0:
                         # if (regs[z][2]=='obs' or regs[z][2]=='sample') and (env.x_e[i_o] & 2**env.reg_index[z] == 2**env.reg_index[z]):
-                        if (regs[z][2]=='obs' or regs[z][2]=='sample') and (env.x_e[i_o] & 2**env.reg_index[z] == 2**env.reg_index[z]) and regs[z][0].contains(firm.nodes[v_e].mean):
+                        if (regs[z][2] == 'obs' or regs[z][2] == 'sample') and (env.x_e[i_o] & 2**env.reg_index[z] == 2**env.reg_index[z]) and regs[z][0].contains(firm.nodes[v_e].mean):
                             q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
                     if q_z_o is None:
                         q_z_o = i_q
@@ -162,76 +162,79 @@ if __name__ == '__main__':
                 best_e = firm.edges[i_v][i_e]
         return (max_alpha_b_e, best_e)
 
-
     def backup_with_obs_action(i_b, i_v, i_q, val):
+        # Get belief point from value function
         b = val[i_v][i_q].b_prod_points[i_b]
+        # If specification is already satisfied
         if i_q in dfsa_final:
-            return (np.ones([len(b), 1]), firm.edges[i_v][0]) # return 0th edge caz it doesn't matter
+            # Return 0th edge caz it doesn't matter
+            return (np.ones([len(b), 1]), firm.edges[i_v][0])
 
-
-        index_alpha_init = np.argmax(val[i_v][i_q].alpha_mat.T * b)  # set max alpha to current max
+        # Set max alpha and best edge to current max/best (need this to avoid invariant policies)
+        # Find index of best alpha from gamma set
+        index_alpha_init = np.argmax(val[i_v][i_q].alpha_mat.T * b)
+        # Save best alpha vector
         max_alpha_b_e = val[i_v][i_q].alpha_mat[:, index_alpha_init]
+        # Save edge corresponding to best alpha vector
         best_e = val[i_v][i_q].best_edge[index_alpha_init]
+
         # Foreach edge action
         for i_e in range(len(firm.edges[i_v])):
-            p_outputs = firm.edge_output_prob[i_v][i_e]
+            # Get probability of reaching goal vertex corresponding to current edge
+            # p_reach_goal_node = firm.reach_goal_node_prob[i_v][i_e]
+            p_reach_goal_node = 0.95  # Get this from Petter's Barrier Certificate
+            # Get goal vertex corresponding to edge
             v_e = firm.edges[i_v][i_e]
-            sum_z = np.zeros([2**env.n_unknown_regs, 1])
-            for z, info in firm.regs.iteritems():
-                if p_outputs[z] == 0:
-                    continue
-                # if (i_v==0 and i_q==0 and i_b==31 and i==7):
-                    # print "obs = " + str(i_o) + "q_z_o = " + str(q_z_o)
-                    # print sum_z.T * b
-                    # print max_alpha_b_e.T * np.matrix(b)
-                    # import pdb; pdb.set_trace()
-                # If we get a null output from an edge or region is known then don't sum over obs
-                if regs[z][2] is 'null' or regs[z][1]==1 or regs[z][1]==0:
-                    if (regs[z][2]=='obs' or regs[z][2]=='sample') and regs[z][1]==1:
-                        q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
-                    elif regs[z][2] is 'null' or regs[z][1]==0:
-                        q_z_o = i_q
-                    gamma_e = np.matrix(val[v_e][q_z_o].alpha_mat)
-                    index = np.argmax(gamma_e.T * b)
-                    sum_o = gamma_e[:, index]
-                else:
-                    sum_o = 0
-                    O = env.get_O_reg_prob(z)
-                    for i_o in range(2):
-                        q_z_o = None
-                        # if we pass through an unknown obstacle/sample region and also observe obstacle/sample
-                        if regs[z][1]>0:
-                            if (regs[z][2]=='obs' or regs[z][2]=='sample') and (i_o is 1):
-                                q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
-                        if q_z_o is None:
-                            q_z_o = i_q
-                        gamma_e = np.diag(np.ravel(O[i_o, :])) * np.matrix(val[v_e][q_z_o].alpha_mat)
-                        index = np.argmax(gamma_e.T * b)
-                        sum_o = sum_o + gamma_e[:, index]
-                sum_z = sum_z + p_outputs[z] * sum_o
-            if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (sum_z.T * np.matrix(b)):
-                max_alpha_b_e = sum_z
+            # Get output corresponding to goal vertex
+            z = firm.get_outputs(firm.nodes[v_e])
+            # If output is not null then get new q
+            if (regs[z][2] == 'obs' or regs[z][2] == 'sample'):
+                q_z = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
+            # Else set new q = current q
+            elif regs[z][2] is 'null':
+                q_z = i_q
+            # Get gamma set corresponding to v and q after transition
+            gamma_e = np.matrix(val[v_e][q_z].alpha_mat)
+            # Get index of best alpha in the gamma set
+            index = np.argmax(gamma_e.T * b)
+            # Get new alpha vector by scaling down best alpha by prob of reaching goal node
+            alpha_new = p_reach_goal_node * gamma_e[:, index]
+            # Update max_alpha and best_edge if this has a greater value
+            if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (alpha_new.T * np.matrix(b)):
+                max_alpha_b_e = alpha_new
                 best_e = firm.edges[i_v][i_e]
-        # Foreach obs action
+            # if (i_v==0 and i_q==0 and i_b==31 and i==7):  # for debugging only
+                # print "obs = " + str(i_o) + "q_z = " + str(q_z)
+                # print sum_z.T * b
+                # print max_alpha_b_e.T * np.matrix(b)
+                # import pdb; pdb.set_trace()
+
+        # Foreach obs action (iterate through every region that we can observe)
         for key, info in env.regs.iteritems():
-            p_outputs = firm.edge_output_prob[i_v][i_e]
+            # Get observation matrix as defined in the paper
             O = env.get_O_reg_prob(key, firm.nodes[i_v].mean)
+            # Initialize sum over observations to zero
             sum_o = np.zeros([2**env.n_unknown_regs, 1])
+            # Iterate of possible observations/Labels (True, False)
             for i_o in range(2):
+                # Get new Gamma set
                 gamma_o_v = np.diag(np.ravel(O[i_o, :])) * np.matrix(val[i_v][i_q].alpha_mat)
+                # Find index of best alpha in the new Gamma set
                 index = np.argmax(gamma_o_v.T * b)
+                # Add the best alpha to the summation
                 sum_o = sum_o + gamma_o_v[:, index]
+            # Check if new alpha has a greater value
             if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (sum_o.T * np.matrix(b)):
+                # Update the max_alpha and best_edge
                 max_alpha_b_e = sum_o
-                best_e = -1*(env.regs.keys().index(key)+1)  # region 0 will map to edge -1
+                best_e = -1 * (env.regs.keys().index(key) + 1)  # region 0 will map to edge -1
 
-
+        # Sanity check that alpha <= 1
         if not (max_alpha_b_e <= 1).all():
             print(max_alpha_b_e, best_e)
             assert False
 
         return (max_alpha_b_e, best_e)
-
 
     def plot_val(val):
         # v_names=['left','center','right']
@@ -253,7 +256,7 @@ if __name__ == '__main__':
                     plt.xlabel('belief', horizontalalignment='right', x=1.0)
                     plt.ylabel('Value')
                     plt.ylim(-0.5, 1.5)
-        plt.show()
+        # plt.show()
 
 
     if load:

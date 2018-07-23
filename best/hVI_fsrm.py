@@ -208,7 +208,7 @@ class SPaths(object):
     even if multiple outputs are generated '''
     # traj = list of belief_state(s)
     # [R] output = key of regs
-    def get_outputs(self, src,dest=None):
+    def get_outputs(self, src, dest=None):
         output = ['null']
         start = (src.mean if isinstance(src, State) else src)
 
