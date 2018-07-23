@@ -15,7 +15,10 @@ import scipy.sparse as sp
 from scipy.linalg import solve_discrete_are as dare
 import itertools as it
 from collections import OrderedDict
-
+from tulip.transys.labeled_graphs import LabeledDiGraph
+from best.ltl import formula_to_mdp
+from itertools import product
+import random
 
 class SPaths(object):
     # belief_space, motion_model: Refer to classes in models.py
@@ -415,8 +418,153 @@ class Edge_Controller(object):
         return traj
 
 
-class spec_Spaths(SPaths):
+class spec_Spaths(LabeledDiGraph):
     # includes the SPaths information
-    def __init__(self, state_space, motion_model, Wx, Wu, regs, output_color, ax):
-         super(spec_Spaths, self).__init__(state_space, motion_model, Wx, Wu, regs, output_color, ax)
-         raise NotImplementedError
+    def __init__(self,SPaths_object, formula,env):
+        self.dfsa, self.dfsa_init, self.dfsa_final, self.proplist = formula_to_mdp(formula)
+        # initialize with DFA and SPath object
+        self.firm = SPaths_object
+        probs = [0.1, 0.2, 0.5, 0.8, .95]  # what is this?
+        self.probs_list = [probs for i in range(env.n_unknown_regs)]
+        self.b_reg_set = [env.get_reg_belief(list(i)) for i in product(*self.probs_list)]
+        b_prod_set = [env.get_product_belief(list(i)) for i in product(*self.probs_list)]
+        # True state of the regs used to simulate trajectories after policy is generated
+        # x_e_true
+        n = 50
+        b_prod_set = random.sample(b_prod_set, n)
+
+        self.prod = self.create_prod()
+
+
+
+        # values will point to values of _*_label_def below
+        self.inputs = dict()
+
+
+
+        LabeledDiGraph.__init__(self)
+
+        self.dot_node_shape = {'normal': 'ellipse'}
+        self.default_export_fname = 'fsm'
+
+
+
+    def create_prod(self):
+        # Hybrid Value Iteration
+        for i_q in range(self.dfsa.N): # TODO why not iterate over the nodes?
+            for i_v in range(len(self.firm.nodes)): # TODO why not iterate over the nodes?
+                self.add_node((i_q,i_v)) # added i_q,i_v
+                self.val[(i_q,i_v)] = Gamma(b_prod_set,self.b_reg_set)# added i_q,i_v
+
+
+        # Initialize Value Function to 1_(q_goal)
+        for i_v in range(len(firm.nodes)):
+            for i_q in range(dfsa.N):
+                if i_q in dfsa_final:
+                    val[i_v][i_q].alpha_mat[:, 0] = 1  #np.zeros([n_regs, 1])
+                #else:
+                #    val[i_v][i_q].alpha_mat[:, 0] = 0  #np.zeros([n_regs, 1])
+
+
+        self.add_node()
+
+
+        assert False
+
+
+    def back_up(self,i_b, i_v, i_q, val):
+
+        # Get belief point from value function
+        b = val[i_v][i_q].b_prod_points[i_b]
+        # If specification is already satisfied
+        if i_q in dfsa_final:
+            # Return 0th edge caz it doesn't matter
+            return (np.ones([len(b), 1]), firm.edges[i_v][0])
+
+        # Set max alpha and best edge to current max/best (need this to avoid invariant policies)
+        # Find index of best alpha from gamma set
+        index_alpha_init = np.argmax(val[i_v][i_q].alpha_mat.T * b)
+        # Save best alpha vector
+        max_alpha_b_e = val[i_v][i_q].alpha_mat[:, index_alpha_init]
+        # Save edge corresponding to best alpha vector
+        best_e = val[i_v][i_q].best_edge[index_alpha_init]
+
+        # Foreach edge action
+        for i_e in range(len(firm.edges[i_v])):
+            # Get probability of reaching goal vertex corresponding to current edge
+            # p_reach_goal_node = firm.reach_goal_node_prob[i_v][i_e]
+            p_reach_goal_node = 0.95  # Get this from Petter's Barrier Certificate
+            # Get goal vertex corresponding to edge
+            v_e = firm.edges[i_v][i_e]
+            # Get output corresponding to goal vertex
+            z = firm.get_outputs(firm.nodes[v_e])[0]
+
+            # TODO: Remove this hardcoding
+            # If output is null or region is known
+            if regs[z][2] is 'null' or regs[z][1] == 1 or regs[z][1] == 0:
+                # If output not null and label is true
+                if (regs[z][2] == 'obs' or regs[z][2] == 'sample') and regs[z][1] == 1:
+                    # Find transition to next state
+                    q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
+                # Else if output is null or label is false set new q = current q
+                elif regs[z][2] is 'null' or regs[z][1] == 0:
+                    # q doesn't change
+                    q_z_o = i_q
+                # Get gamma set corresponding to v and q after transition
+                gamma_e = np.matrix(val[v_e][q_z_o].alpha_mat)
+                # Get index of best alpha in the gamma set
+                index = np.argmax(gamma_e.T * b)
+                # Get new alpha vector by scaling down best alpha by prob of reaching goal node
+                alpha_new = p_reach_goal_node * gamma_e[:, index]
+            else:
+                alpha_new = 0
+                O = env.get_O_reg_prob(z)
+                for i_o in range(2):
+                    q_z_o = None
+                    # if we pass through an unknown obstacle/sample region and also observe obstacle/sample
+                    if regs[z][1] > 0:
+                        if (regs[z][2] == 'obs' or regs[z][2] == 'sample') and (i_o is 1):
+                            # Transition to new q
+                            q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
+                    if q_z_o is None:
+                        # new q = current q
+                        q_z_o = i_q
+                    gamma_e = np.diag(np.ravel(O[i_o, :])) * np.matrix(val[v_e][q_z_o].alpha_mat)
+                    index = np.argmax(gamma_e.T * b)
+                    alpha_new = alpha_new + p_reach_goal_node * gamma_e[:, index]
+            # Update max_alpha and best_edge if this has a greater value
+            if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (alpha_new.T * np.matrix(b)):
+                max_alpha_b_e = alpha_new
+                best_e = firm.edges[i_v][i_e]
+            # if (i_v==42 and i_q==0 and i==7):  # for debugging only
+            # print "obs = " + str(i_o) + "q_z = " + str(q_z)
+            # print sum_z.T * b
+            # print max_alpha_b_e.T * np.matrix(b)
+            # import pdb; pdb.set_trace()
+
+        # Foreach obs action (iterate through every region that we can observe)
+        for key, info in env.regs.iteritems():
+            # Get observation matrix as defined in the paper
+            O = env.get_O_reg_prob(key, firm.nodes[i_v].mean)
+            # Initialize sum over observations to zero
+            sum_o = np.zeros([2 ** env.n_unknown_regs, 1])
+            # Iterate over possible observations/Labels (True, False)
+            for i_o in range(2):
+                # Get new Gamma set
+                gamma_o_v = np.diag(np.ravel(O[i_o, :])) * np.matrix(val[i_v][i_q].alpha_mat)
+                # Find index of best alpha in the new Gamma set
+                index = np.argmax(gamma_o_v.T * b)
+                # Add the best alpha to the summation
+                sum_o = sum_o + gamma_o_v[:, index]
+            # Check if new alpha has a greater value
+            if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (sum_o.T * np.matrix(b)):
+                # Update the max_alpha and best_edge
+                max_alpha_b_e = sum_o
+                best_e = -1 * (env.regs.keys().index(key) + 1)  # region 0 will map to edge -1
+
+        # Sanity check that alpha <= 1
+        if not (max_alpha_b_e <= 1).all():
+            print(max_alpha_b_e, best_e)
+            assert False
+
+        return (max_alpha_b_e, best_e, (max_alpha_b_e > 0).any())

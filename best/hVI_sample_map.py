@@ -40,9 +40,9 @@ if __name__ == '__main__':
     p3 = rf.vertex_to_poly(np.array([[2, 2], [3, 2], [3, 3], [2, 3]]))
     regs['r3'] = (p3, 1, 'obs')
     p4 = rf.vertex_to_poly(np.array([[2, 3], [3, 3], [3, 4], [2, 4]]))
-    regs['r4'] = (p4, 0.01, 'obs', 0)
+    regs['r4'] = (p4, 0.5, 'obs', 1)
     p5 = rf.vertex_to_poly(np.array([[2, 4], [3, 4], [3, 5], [2, 5]]))
-    regs['r5'] = (p5, 0.1, 'obs', 0)
+    regs['r5'] = (p5, 1, 'obs', 1)
 
     p1 = rf.vertex_to_poly(np.array([[2, 0], [3, 0], [3, -1], [2, -1]]))
     regs['r6'] = (p1, 1, 'obs')
@@ -51,9 +51,9 @@ if __name__ == '__main__':
     p3 = rf.vertex_to_poly(np.array([[2, -2], [3, -2], [3, -3], [2, -3]]))
     regs['r8'] = (p3, 1, 'obs')
     p4 = rf.vertex_to_poly(np.array([[2, -3], [3, -3], [3, -4], [2, -4]]))
-    regs['r9'] = (p4, 1, 'obs', 0)
+    regs['r9'] = (p4, .7, 'obs', 0)
     p5 = rf.vertex_to_poly(np.array([[2, -4], [3, -4], [3, -5], [2, -5]]))
-    regs['r10'] = (p5, 1, 'obs', 0)
+    regs['r10'] = (p5, .7, 'obs', 0)
 
     a1 = rf.vertex_to_poly(np.array([[4, 0], [5, 0], [5, 1], [4, 1]]))
     regs['a1'] = (a1, 0.9, 'sample', 1)
@@ -70,15 +70,15 @@ if __name__ == '__main__':
 
     print(env)
     # belief set used for PBVI =>>> unclear what this is
-    probs = [0, 0.2, 0.5, 0.8, 1]  # what is this?
+    probs = [0.1, 0.2, 0.5, 0.8, .95]  # what is this?
     probs_list = [probs for i in range(env.n_unknown_regs)]
     if obs_action is True:
         b_reg_set = [env.get_reg_belief(list(i)) for i in product(*probs_list)]
     b_prod_set = [env.get_product_belief(list(i)) for i in product(*probs_list)]
     # True state of the regs used to simulate trajectories after policy is generated
     # x_e_true
-    # n = 20
-    # b_prod_set = random.sample(b_prod_set, n)
+    n = 50
+    b_prod_set = random.sample(b_prod_set, n)
     # fig = plt.figure(0)
     # ax = fig.add_subplot(111, aspect='equal')
     # l, u = bounding_box(p)
@@ -119,52 +119,56 @@ if __name__ == '__main__':
     formula = '! obs U sample'
     dfsa, dfsa_init, dfsa_final, proplist = formula_to_mdp(formula)
 
-    def backup(i_b, i_v, i_q, val):
-        b = val[i_v][i_q].b_prod_points[i_b]
-        if i_q in dfsa_final:
-            return (np.ones([len(b), 1]), firm.edges[i_v][0])  # return 0th edge caz it doesn't matter
-        index_alpha_init = np.argmax(val[i_v][i_q].alpha_mat.T * b)  # set max alpha to current max
-        max_alpha_b_e = val[i_v][i_q].alpha_mat[:, index_alpha_init]
-        best_e = val[i_v][i_q].best_edge[index_alpha_init]
-        for i_e in range(len(firm.edges[i_v])):
-            p_outputs = firm.edge_output_prob[i_v][i_e]
-            v_e = firm.edges[i_v][i_e]
-            O = env.get_O_prod(firm.nodes[v_e].mean)
-            sum_z = np.zeros([2**env.n_unknown_regs, 1])
-            for z, info in firm.regs.iteritems():
-                if p_outputs[z] == 0:
-                    continue
-                sum_o = np.zeros([2**env.n_unknown_regs, 1])
-                for i_o in range(len(O)):
-                    q_z_o = None
-                    # if we are in an obstacle region and we observe an obstacle/sample
-                    if regs[z][1] == 1:
-                        # if regs[z][2]=='obs' or regs[z][2]=='sample':
-                        if regs[z][2] == 'obs' or regs[z][2] == 'sample' and regs[z][0].contains(firm.nodes[v_e].mean):
-                            q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
-                    elif regs[z][1] > 0:
-                        # if (regs[z][2]=='obs' or regs[z][2]=='sample') and (env.x_e[i_o] & 2**env.reg_index[z] == 2**env.reg_index[z]):
-                        if (regs[z][2] == 'obs' or regs[z][2] == 'sample') and (env.x_e[i_o] & 2**env.reg_index[z] == 2**env.reg_index[z]) and regs[z][0].contains(firm.nodes[v_e].mean):
-                            q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
-                    if q_z_o is None:
-                        q_z_o = i_q
-                    gamma_o_e = np.diag(np.ravel(O[i_o, :])) * np.matrix(val[v_e][q_z_o].alpha_mat)
-                    index = np.argmax(gamma_o_e.T * b)
-                    sum_o = sum_o + gamma_o_e[:, index]
-                    # if (i_v==8 and i_q==0 and (v_e==7) and i==3):
-                        # print "obs = " + str(i_o) + "q_z_o = " + str(q_z_o)
-                        # print sum_z.T * b
-                        # print max_alpha_b_e.T * np.matrix(b)
-                        # import pdb; pdb.set_trace()
-                sum_z = sum_z + p_outputs[z] * sum_o
-            if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (sum_z.T * np.matrix(b)):
-                max_alpha_b_e = sum_z
-                best_e = firm.edges[i_v][i_e]
-        return (max_alpha_b_e, best_e)
+    # def backup(i_b, i_v, i_q, val):
+    #     b = val[i_v][i_q].b_prod_points[i_b]
+    #     if i_q in dfsa_final:
+    #         return (np.ones([len(b), 1]), firm.edges[i_v][0])  # return 0th edge caz it doesn't matter
+    #     index_alpha_init = np.argmax(val[i_v][i_q].alpha_mat.T * b)  # set max alpha to current max
+    #     max_alpha_b_e = val[i_v][i_q].alpha_mat[:, index_alpha_init]
+    #     best_e = val[i_v][i_q].best_edge[index_alpha_init]
+    #     for i_e in range(len(firm.edges[i_v])):
+    #         p_outputs = firm.edge_output_prob[i_v][i_e]
+    #         v_e = firm.edges[i_v][i_e]
+    #         O = env.get_O_prod(firm.nodes[v_e].mean)
+    #         sum_z = np.zeros([2**env.n_unknown_regs, 1])
+    #         for z, info in firm.regs.iteritems():
+    #             if p_outputs[z] == 0:
+    #                 continue
+    #             sum_o = np.zeros([2**env.n_unknown_regs, 1])
+    #             for i_o in range(len(O)):
+    #                 q_z_o = None
+    #                 # if we are in an obstacle region and we observe an obstacle/sample
+    #                 if regs[z][1] == 1:
+    #                     # if regs[z][2]=='obs' or regs[z][2]=='sample':
+    #                     if regs[z][2] == 'obs' or regs[z][2] == 'sample' and regs[z][0].contains(firm.nodes[v_e].mean):
+    #                         q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
+    #                 elif regs[z][1] > 0:
+    #                     # if (regs[z][2]=='obs' or regs[z][2]=='sample') and (env.x_e[i_o] & 2**env.reg_index[z] == 2**env.reg_index[z]):
+    #                     if (regs[z][2] == 'obs' or regs[z][2] == 'sample') and (env.x_e[i_o] & 2**env.reg_index[z] == 2**env.reg_index[z]) and regs[z][0].contains(firm.nodes[v_e].mean):
+    #                         q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
+    #                 if q_z_o is None:
+    #                     q_z_o = i_q
+    #                 gamma_o_e = np.diag(np.ravel(O[i_o, :])) * np.matrix(val[v_e][q_z_o].alpha_mat)
+    #                 index = np.argmax(gamma_o_e.T * b)
+    #                 sum_o = sum_o + gamma_o_e[:, index]
+    #                 # if (i_v==8 and i_q==0 and (v_e==7) and i==3):
+    #                     # print "obs = " + str(i_o) + "q_z_o = " + str(q_z_o)
+    #                     # print sum_z.T * b
+    #                     # print max_alpha_b_e.T * np.matrix(b)
+    #                     # import pdb; pdb.set_trace()
+    #             sum_z = sum_z + p_outputs[z] * sum_o
+    #         if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (sum_z.T * np.matrix(b)):
+    #             max_alpha_b_e = sum_z
+    #             best_e = firm.edges[i_v][i_e]
+    #     return (max_alpha_b_e, best_e)
 
-    def backup_with_obs_action(i_b, i_v, i_q, val):
-        # Get belief point from value function
-        b = val[i_v][i_q].b_prod_points[i_b]
+    def backup_with_obs_action(i_b, i_v, i_q, val, index = True):
+        if index:
+            # Get belief point from value function
+            b = val[i_v][i_q].b_prod_points[i_b]
+        else:
+            b = i_b
+
         # If specification is already satisfied
         if i_q in dfsa_final:
             # Return 0th edge caz it doesn't matter
@@ -310,37 +314,46 @@ if __name__ == '__main__':
         print "Running Value Iteration"
         t_start = time.time()
         val_new = copy.deepcopy(val)
-        for i in range(50):
-            print "Iteration = " + str(i)
-            for i_v in range(len(firm.nodes)):
-                for i_q in range(dfsa.N):
-                    # Don't backup states which are in obs or goal
-                    # if True:
-                    if (sc == 'rss' or sc == 'toy') and i_q == 0:
-                        #print "Backing up i_v = " + str(i_v) + " of " + str(len(firm.nodes))
-                        # Run backup for each belief point in parallel
-                        if parr:
-                            results = Parallel(n_jobs=n_cores)(delayed(backup)(i_b, i_v, i_q, val)
-                                                           for i_b in range(len(val[i_v][i_q].b_prod_points)))
-                            for i_b in range(len(val[i_v][i_q].b_prod_points)):
-                                val_new[i_v][i_q].alpha_mat[:, i_b] = results[i_b][0]
-                                val_new[i_v][i_q].best_edge[i_b] = results[i_b][1]
-                        else:
-                            alph_list = []
-                            for i_b in range(len(val[i_v][i_q].b_prod_points)):
-                                if obs_action is True:
-                                    alpha_new, best_e,importance = backup_with_obs_action(i_b, i_v, i_q, val)
-                                    alph_list += [alpha_new]
-                                else:
-                                    alpha_new, best_e = backup(i_b, i_v, i_q, val)
-                                    alph_list += [alpha_new]
 
-                                #val_new[i_v][i_q].alpha_mat[:, i_b] = alpha_new
-                                val_new[i_v][i_q].best_edge[i_b] = best_e
-                            alpha_mat = np.concatenate(alph_list, axis=1)
-                            val_new[i_v][i_q].alpha_mat = np.matrix(np.unique(alpha_mat, axis = 1)) # new feature
-            val = copy.deepcopy(val_new)
-            print val[42][0].best_edge
+        try:
+            for i in range(50):
+                print "Iteration = " + str(i)
+                for i_v in range(len(firm.nodes)):
+                    for i_q in range(dfsa.N):
+                        # Don't backup states which are in obs or goal
+                        # if True:
+                        if (sc == 'rss' or sc == 'toy') and i_q == 0:
+                            #print "Backing up i_v = " + str(i_v) + " of " + str(len(firm.nodes))
+                            # Run backup for each belief point in parallel
+                            if parr:
+                                results = Parallel(n_jobs=n_cores)(delayed(backup)(i_b, i_v, i_q, val)
+                                                               for i_b in range(len(val[i_v][i_q].b_prod_points)))
+                                for i_b in range(len(val[i_v][i_q].b_prod_points)):
+                                    val_new[i_v][i_q].alpha_mat[:, i_b] = results[i_b][0]
+                                    val_new[i_v][i_q].best_edge[i_b] = results[i_b][1]
+                            else:
+                                alph_list = []
+                                for i_b in range(len(val[i_v][i_q].b_prod_points)):
+                                    if obs_action is True:
+                                        alpha_new, best_e,importance = backup_with_obs_action(i_b, i_v, i_q, val)
+                                        alph_list += [alpha_new]
+                                    else:
+                                        alpha_new, best_e = backup(i_b, i_v, i_q, val)
+                                        alph_list += [alpha_new]
+
+                                    #val_new[i_v][i_q].alpha_mat[:, i_b] = alpha_new
+                                    val_new[i_v][i_q].best_edge[i_b] = best_e
+                                alpha_mat = np.concatenate(alph_list, axis=1)
+                                val_new[i_v][i_q].alpha_mat = alpha_mat
+                                #np.matrix(np.unique(alpha_mat, axis = 1)) # new feature
+                val = copy.deepcopy(val_new)
+                print val[29][0].best_edge
+                if np.array_equal(np.array(val_new[29][0].alpha_mat), np.array(val[29][0].alpha_mat)) and  i>10:
+                    print('converged')
+                    raise StopIteration
+        except StopIteration:
+            pass
+
         t_end = time.time()
         print t_end-t_start
 
@@ -355,14 +368,16 @@ if __name__ == '__main__':
 b = env.b_prod_init
 print b
 q = 0
-v = 42
+v = 29
 # v = 0
 traj = []
 for t in range(50):
     # import pdb; pdb.set_trace()
     print "val = " + str(max(val[v][q].alpha_mat.T * b))
     # Get best edge
-    i_best_alpha = np.argmax(val_new[v][q].alpha_mat.T * b)
+    alpha_new, best_e, importance = backup_with_obs_action(i_b, v, q, val)
+
+    #i_best_alpha = np.argmax(val_new[v][q].alpha_mat.T * b)
     best_e = val_new[v][q].best_edge[i_best_alpha]
     if obs_action is True and best_e < 0:
         reg_key = env.regs.keys()[-1 * (best_e - 1)]

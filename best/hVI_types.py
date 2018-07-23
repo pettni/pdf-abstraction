@@ -109,13 +109,14 @@ class Env(object):
         return O
 
 
-    ''' simulates an observation and returns updated belief with obs_action
-        v_mean = mean value of a FIRM node
-        b = current belief (product)
-        x_true_reg = true label of region i.e. being observed \in {0,1}
-        reg_key = key for a particular region
-        returns (updated belief, simulated observation, index of simulated observation)'''
+
     def get_b_o_reg(self, b, x_true_reg, reg_key, v_mean=None):
+        ''' simulates an observation and returns updated belief with obs_action
+            v_mean = mean value of a FIRM node
+            b = current belief (product)
+            x_true_reg = true label of region i.e. being observed \in {0,1}
+            reg_key = key for a particular region
+            returns (updated belief, simulated observation, index of simulated observation)'''
         if x_true_reg is not 0 and x_true_reg is not 1:
             raise ValueError("x_true_reg should be 0 or 1")
         if v_mean is None:
@@ -130,6 +131,7 @@ class Env(object):
             i_o = x_true_reg
         else:
             i_o = 1-x_true_reg
+        print(O_prod[i_o, :])
         b_ = np.multiply(O_prod[i_o, :].T, b)/(O_prod[i_o, :] * b)
         return (b_, i_o, i_o)
 
