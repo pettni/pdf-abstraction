@@ -187,23 +187,45 @@ if __name__ == '__main__':
             v_e = firm.edges[i_v][i_e]
             # Get output corresponding to goal vertex
             z = firm.get_outputs(firm.nodes[v_e])[0]
-            # If output is not null then get new q
-            if (regs[z][2] == 'obs' or regs[z][2] == 'sample'):
-                q_z = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
-            # Else set new q = current q
-            elif regs[z][2] is 'null':
-                q_z = i_q
-            # Get gamma set corresponding to v and q after transition
-            gamma_e = np.matrix(val[v_e][q_z].alpha_mat)
-            # Get index of best alpha in the gamma set
-            index = np.argmax(gamma_e.T * b)
-            # Get new alpha vector by scaling down best alpha by prob of reaching goal node
-            alpha_new = p_reach_goal_node * gamma_e[:, index]
+
+            # TODO: Remove this hardcoding
+            # If output is null or region is known
+            if regs[z][2] is 'null' or regs[z][1]==1 or regs[z][1]==0:
+                # If output not null and label is true
+                if (regs[z][2] == 'obs' or regs[z][2] == 'sample') and regs[z][1] == 1:
+                    # Find transition to next state
+                    q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
+                # Else if output is null or label is false set new q = current q
+                elif regs[z][2] is 'null' or regs[z][1] == 0:
+                    # q doesn't change
+                    q_z_o = i_q
+                # Get gamma set corresponding to v and q after transition
+                gamma_e = np.matrix(val[v_e][q_z_o].alpha_mat)
+                # Get index of best alpha in the gamma set
+                index = np.argmax(gamma_e.T * b)
+                # Get new alpha vector by scaling down best alpha by prob of reaching goal node
+                alpha_new = p_reach_goal_node * gamma_e[:, index]
+            else:
+                alpha_new = 0
+                O = env.get_O_reg_prob(z)
+                for i_o in range(2):
+                    q_z_o = None
+                    # if we pass through an unknown obstacle/sample region and also observe obstacle/sample
+                    if regs[z][1] > 0:
+                        if (regs[z][2]=='obs' or regs[z][2]=='sample') and (i_o is 1):
+                            # Transition to new q
+                            q_z_o = np.argmax(dfsa.T(proplist[regs[z][2]])[i_q, :])
+                    if q_z_o is None:
+                        # new q = current q
+                        q_z_o = i_q
+                    gamma_e = np.diag(np.ravel(O[i_o, :])) * np.matrix(val[v_e][q_z_o].alpha_mat)
+                    index = np.argmax(gamma_e.T * b)
+                    alpha_new = alpha_new + p_reach_goal_node * gamma_e[:, index]
             # Update max_alpha and best_edge if this has a greater value
             if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (alpha_new.T * np.matrix(b)):
                 max_alpha_b_e = alpha_new
                 best_e = firm.edges[i_v][i_e]
-            # if (i_v==0 and i_q==0 and i_b==31 and i==7):  # for debugging only
+            # if (i_v==42 and i_q==0 and i==7):  # for debugging only
                 # print "obs = " + str(i_o) + "q_z = " + str(q_z)
                 # print sum_z.T * b
                 # print max_alpha_b_e.T * np.matrix(b)
@@ -215,7 +237,7 @@ if __name__ == '__main__':
             O = env.get_O_reg_prob(key, firm.nodes[i_v].mean)
             # Initialize sum over observations to zero
             sum_o = np.zeros([2**env.n_unknown_regs, 1])
-            # Iterate of possible observations/Labels (True, False)
+            # Iterate over possible observations/Labels (True, False)
             for i_o in range(2):
                 # Get new Gamma set
                 gamma_o_v = np.diag(np.ravel(O[i_o, :])) * np.matrix(val[i_v][i_q].alpha_mat)
@@ -259,6 +281,7 @@ if __name__ == '__main__':
         # plt.show()
 
 
+    plt.show()
     if load:
         print "Loading Value Function"
         # fh = open('val.pkl', 'rb')
@@ -313,9 +336,10 @@ if __name__ == '__main__':
 
                                 #val_new[i_v][i_q].alpha_mat[:, i_b] = alpha_new
                                 val_new[i_v][i_q].best_edge[i_b] = best_e
-                            alpha_mat = np.concatenate(alph_list,axis=1)
-                            val_new[i_v][i_q].alpha_mat = np.matrix(np.unique(alpha_mat,axis = 1)) # new feature
+                            alpha_mat = np.concatenate(alph_list, axis=1)
+                            val_new[i_v][i_q].alpha_mat = np.matrix(np.unique(alpha_mat, axis = 1)) # new feature
             val = copy.deepcopy(val_new)
+            print val[42][0].best_edge
         t_end = time.time()
         print t_end-t_start
 
@@ -330,7 +354,7 @@ if __name__ == '__main__':
 b = env.b_prod_init
 print b
 q = 0
-v = 2
+v = 42
 # v = 0
 traj = []
 for t in range(50):
