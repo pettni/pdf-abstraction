@@ -77,8 +77,8 @@ if __name__ == '__main__':
     b_prod_set = [env.get_product_belief(list(i)) for i in product(*probs_list)]
     # True state of the regs used to simulate trajectories after policy is generated
     # x_e_true
-    n = 10
-    b_prod_set = random.sample(b_prod_set, n)
+    # n = 20
+    # b_prod_set = random.sample(b_prod_set, n)
     # fig = plt.figure(0)
     # ax = fig.add_subplot(111, aspect='equal')
     # l, u = bounding_box(p)
@@ -281,7 +281,6 @@ if __name__ == '__main__':
         # plt.show()
 
 
-    plt.show()
     if load:
         print "Loading Value Function"
         # fh = open('val.pkl', 'rb')
@@ -377,7 +376,7 @@ for t in range(50):
     traj_i = traj_e + traj_n
     traj = traj + traj_i
     # Get q', v', q' and loop
-    z = firm.get_outputs(traj_e + traj_n)
+    z = firm.get_output_traj(traj_e + traj_n)
     v_ = best_e
     if obs_action is False:
         print "TODO: Implement backup without obs_action"
@@ -411,5 +410,5 @@ for t in range(50):
     v = v_
     if q in dfsa_final:
         break
-firm.plot_traj(traj, 'blue')
+firm.plot_traj(traj, 'green')
 plt.show()
