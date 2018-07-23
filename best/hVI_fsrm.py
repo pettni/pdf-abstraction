@@ -328,6 +328,7 @@ class SPaths(object):
         output_fcn = lambda s: self.nodes[s]
         return MDP(self.T_list, output_name='xc', output_fcn=output_fcn)
 
+
 class Node_Controller(object):
     ''' Consists of SLGR and SKF '''
     # belief_space, motion_model, obs_model: Refer to classes in models.py
@@ -414,3 +415,9 @@ class Edge_Controller(object):
             traj.append(self.state_space.new_state(bnew_pred))
         return traj
 
+
+class spec_Spaths(SPaths):
+    # includes the SPaths information
+    def __init__(self, state_space, motion_model, Wx, Wu, regs, output_color, ax):
+         super(spec_Spaths, self).__init__(state_space, motion_model, Wx, Wu, regs, output_color, ax)
+         raise NotImplementedError

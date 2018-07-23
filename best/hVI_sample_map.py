@@ -40,7 +40,7 @@ if __name__ == '__main__':
     p3 = rf.vertex_to_poly(np.array([[2, 2], [3, 2], [3, 3], [2, 3]]))
     regs['r3'] = (p3, 1, 'obs')
     p4 = rf.vertex_to_poly(np.array([[2, 3], [3, 3], [3, 4], [2, 4]]))
-    regs['r4'] = (p4, 0.5, 'obs', 0)
+    regs['r4'] = (p4, 0, 'obs', 0)
     p5 = rf.vertex_to_poly(np.array([[2, 4], [3, 4], [3, 5], [2, 5]]))
     regs['r5'] = (p5, 0.1, 'obs', 0)
 
@@ -234,7 +234,9 @@ if __name__ == '__main__':
             print(max_alpha_b_e, best_e)
             assert False
 
-        return (max_alpha_b_e, best_e)
+
+
+        return (max_alpha_b_e, best_e, (max_alpha_b_e > 0).any() )
 
     def plot_val(val):
         # v_names=['left','center','right']
@@ -286,7 +288,7 @@ if __name__ == '__main__':
         print "Running Value Iteration"
         t_start = time.time()
         val_new = copy.deepcopy(val)
-        for i in range(20):
+        for i in range(50):
             print "Iteration = " + str(i)
             for i_v in range(len(firm.nodes)):
                 for i_q in range(dfsa.N):
@@ -305,7 +307,7 @@ if __name__ == '__main__':
                             alph_list = []
                             for i_b in range(len(val[i_v][i_q].b_prod_points)):
                                 if obs_action is True:
-                                    alpha_new, best_e = backup_with_obs_action(i_b, i_v, i_q, val)
+                                    alpha_new, best_e,importance = backup_with_obs_action(i_b, i_v, i_q, val)
                                     alph_list += [alpha_new]
                                 else:
                                     alpha_new, best_e = backup(i_b, i_v, i_q, val)
@@ -315,6 +317,8 @@ if __name__ == '__main__':
                                 val_new[i_v][i_q].best_edge[i_b] = best_e
                             alpha_mat = np.concatenate(alph_list,axis=1)
                             val_new[i_v][i_q].alpha_mat = np.matrix(np.unique(alpha_mat,axis = 1)) # new feature
+                            if importance:
+                                print('iteration=', i, i_v,i_q,importance)
             val = copy.deepcopy(val_new)
         t_end = time.time()
         print t_end-t_start
