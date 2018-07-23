@@ -3,6 +3,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import OrderedDict
+from best.hVI_fsrm import SPaths
 
 
 if __name__ == '__main__':
@@ -78,20 +79,18 @@ if __name__ == '__main__':
     # x_e_true
     n = 10
     b_prod_set = random.sample(b_prod_set, n)
-    fig = plt.figure(0)
-    ax = fig.add_subplot(111, aspect='equal')
-    l, u = bounding_box(p)
-    ax.set_xlim(l[0], u[0])
-    ax.set_ylim(l[1], u[1])
-    for (name, info) in regs.iteritems():
-        hatch = False
-        fill = True
-        if name is not 'null':
-            rf.plot_region(ax, info[0], name, info[1], output_color[name], hatch=hatch, fill=fill)
-    plt.show()
+    # fig = plt.figure(0)
+    # ax = fig.add_subplot(111, aspect='equal')
+    # l, u = bounding_box(p)
+    # ax.set_xlim(l[0], u[0])
+    # ax.set_ylim(l[1], u[1])
+    # for (name, info) in regs.iteritems():
+    #     hatch = False
+    #     fill = True
+    #     if name is not 'null':
+    #         rf.plot_region(ax, info[0], name, info[1], output_color[name], hatch=hatch, fill=fill)
 
     # Construct and Visualize FIRM
-
     ''' Configuration Parameters '''
     random.seed(rand_seed)
     np.random.seed(rand_seed)
@@ -105,7 +104,6 @@ if __name__ == '__main__':
 
     print " Constructing FIRM"
     fig = plt.figure(figsize=(14, 14), dpi=80, facecolor='w', edgecolor='k')
-
     ax = fig.add_subplot(111, aspect='equal')
     firm = SPaths(r2_bs, motion_model, Wx, Wu, regs, output_color, ax)
     firm.make_nodes_edges(50, 3)
@@ -113,9 +111,9 @@ if __name__ == '__main__':
     firm.compute_output_prob()
     t2 = time.clock()
     firm.plot(ax)
+    plt.show()
 
     print(t2-t1)
-
 
     # Create DFA
     formula = '! obs U sample'
