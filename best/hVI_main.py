@@ -337,7 +337,7 @@ for t in range(50):
     i_best_alpha = np.argmax(val_new[v][q].alpha_mat.T * b)
     best_e = val_new[v][q].best_edge[i_best_alpha]
     if obs_action is True and best_e < 0:
-        reg_key = env.regs.keys()[-1*(best_e-1)]
+        reg_key = env.regs.keys()[-1*(best_e+1)]
         (b_, o, i_o) = env.get_b_o_reg(b, env.regs[reg_key][3], reg_key, firm.nodes[v].mean)
         b = b_
         print "Observing " + str(best_e) + " at vertex" + str(v) + " q = " + str(q) + " b_ = " + str(b_)

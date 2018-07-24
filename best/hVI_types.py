@@ -38,6 +38,7 @@ class Env(object):
     _reg = in lower dimensional space (prob of label = 1)
     _prod = in product space '''
     def __init__(self, regs):
+        self._regs = regs
         self.reg_index = OrderedDict()  # saves the position of the region in observation vector
         self.regs = OrderedDict()  # stores only unknown regs
         self.b_reg_init = []
