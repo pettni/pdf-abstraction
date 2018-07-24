@@ -70,14 +70,14 @@ if __name__ == '__main__':
 
     print(env)
     # belief set used for PBVI =>>> unclear what this is
-    probs = [0.1, 0.2, 0.5, 0.8, .95]  # what is this?
+    probs = [0, 0.2, 0.5, 0.8, 1]  # what is this?
     probs_list = [probs for i in range(env.n_unknown_regs)]
     if obs_action is True:
         b_reg_set = [env.get_reg_belief(list(i)) for i in product(*probs_list)]
     b_prod_set = [env.get_product_belief(list(i)) for i in product(*probs_list)]
     # True state of the regs used to simulate trajectories after policy is generated
     # x_e_true
-    n = 50
+    n = 40
     b_prod_set = random.sample(b_prod_set, n)
     # fig = plt.figure(0)
     # ax = fig.add_subplot(111, aspect='equal')
@@ -348,6 +348,8 @@ if __name__ == '__main__':
                                 #np.matrix(np.unique(alpha_mat, axis = 1)) # new feature
                 val = copy.deepcopy(val_new)
                 print val[29][0].best_edge
+                print val[31][0].best_edge
+
                 if np.array_equal(np.array(val_new[29][0].alpha_mat), np.array(val[29][0].alpha_mat)) and  i>10:
                     print('converged')
                     raise StopIteration
@@ -376,6 +378,7 @@ for t in range(50):
     print "val = " + str(max(val[v][q].alpha_mat.T * b))
     # Get best edge
     alpha_new, best_e, importance = backup_with_obs_action(i_b, v, q, val)
+    print("best action = ",best_e)
 
     #i_best_alpha = np.argmax(val_new[v][q].alpha_mat.T * b)
     #best_e = val_new[v][q].best_edge[i_best_alpha]

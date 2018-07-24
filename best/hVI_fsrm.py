@@ -19,6 +19,8 @@ from tulip.transys.labeled_graphs import LabeledDiGraph
 from best.ltl import formula_to_mdp
 from itertools import product
 import random
+from best.hVI_types import Env, Gamma
+
 
 class SPaths(object):
     # belief_space, motion_model: Refer to classes in models.py
@@ -62,7 +64,7 @@ class SPaths(object):
         self.n_particles = 1
         print(np.diff(t))
 
-    def sample_nodes(self, n_nodes, means=list(), append=False):
+    def sample_nodes(self, n_nodes, means=list(), append=False, from_grid= False):
         # ''' Sample nodes in belief space and also generate node_controllers '''
         # n_nodes = number of nodes to sample in graph
         # append = False erases all previous nodes whereas True adds more nodes to existing graph
@@ -77,6 +79,8 @@ class SPaths(object):
             self.edges = OrderedDict()
             self.node_controllers = []
             self.edge_controllers =OrderedDict()
+
+
         for i in range(n_nodes):
             # if i == 4:
             #     import pdb; pdb.set_trace()
@@ -435,7 +439,8 @@ class spec_Spaths(LabeledDiGraph):
 
         self.prod = self.create_prod()
 
-
+        self.val = dict()
+        self.active = dict()
 
         # values will point to values of _*_label_def below
         self.inputs = dict()
@@ -450,54 +455,61 @@ class spec_Spaths(LabeledDiGraph):
 
 
     def create_prod(self):
-        # Hybrid Value Iteration
+        # Add nodes
         for i_q in range(self.dfsa.N): # TODO why not iterate over the nodes?
             for i_v in range(len(self.firm.nodes)): # TODO why not iterate over the nodes?
                 self.add_node((i_q,i_v)) # added i_q,i_v
-                self.val[(i_q,i_v)] = Gamma(b_prod_set,self.b_reg_set)# added i_q,i_v
+                self.val[(i_q,i_v)] = Gamma(self.b_prod_set,self.b_reg_set)# added i_q,i_v
+                self.val[(i_q,i_v)] = Gamma(self.b_prod_set,self.b_reg_set)# added i_q,i_v
+                self.active[(i_q,i_v)] = True
 
 
         # Initialize Value Function to 1_(q_goal)
-        for i_v in range(len(firm.nodes)):
-            for i_q in range(dfsa.N):
-                if i_q in dfsa_final:
-                    val[i_v][i_q].alpha_mat[:, 0] = 1  #np.zeros([n_regs, 1])
-                #else:
-                #    val[i_v][i_q].alpha_mat[:, 0] = 0  #np.zeros([n_regs, 1])
+            for i_q in self.dfsa_final:
+                for i_v in range(len(self.firm.nodes)):  # TODO why not iterate over the nodes?
+                    self.val[(i_q, i_v)].alpha_mat[:, 0] = 1
+                    self.active[(i_q, i_v)] = False
 
+        # Add edges
+        # TODO Add edges
 
-        self.add_node()
 
 
         assert False
 
+    def full_back_up(self):
+        for (i_v, i_q) in self.nodes():
+            # do back up
+            self.back_up(self, i_v, i_q)
 
-    def back_up(self,i_b, i_v, i_q, val):
 
+    def back_up(self, i_v, i_q, b=None):
+
+        if b == None:
         # Get belief point from value function
-        b = val[i_v][i_q].b_prod_points[i_b]
-        # If specification is already satisfied
-        if i_q in dfsa_final:
-            # Return 0th edge caz it doesn't matter
-            return (np.ones([len(b), 1]), firm.edges[i_v][0])
+            for b in self.val[(i_q, i_v)].b_prod_points:
+                 self.back_up(self, i_v, i_q, b=b)
+
+        if self.active[(i_q, i_v)] == False:
+            return
 
         # Set max alpha and best edge to current max/best (need this to avoid invariant policies)
         # Find index of best alpha from gamma set
-        index_alpha_init = np.argmax(val[i_v][i_q].alpha_mat.T * b)
+        index_alpha_init = np.argmax(self.val[i_v][i_q].alpha_mat.T * b)
         # Save best alpha vector
-        max_alpha_b_e = val[i_v][i_q].alpha_mat[:, index_alpha_init]
+        max_alpha_b_e = self.val[i_v][i_q].alpha_mat[:, index_alpha_init]
         # Save edge corresponding to best alpha vector
-        best_e = val[i_v][i_q].best_edge[index_alpha_init]
+        best_e = self.val[i_v][i_q].best_edge[index_alpha_init]
 
         # Foreach edge action
-        for i_e in range(len(firm.edges[i_v])):
+        for i_e in range(len(self.firm.edges[i_v])):
             # Get probability of reaching goal vertex corresponding to current edge
             # p_reach_goal_node = firm.reach_goal_node_prob[i_v][i_e]
             p_reach_goal_node = 0.95  # Get this from Petter's Barrier Certificate
             # Get goal vertex corresponding to edge
-            v_e = firm.edges[i_v][i_e]
+            v_e = self.firm.edges[i_v][i_e]
             # Get output corresponding to goal vertex
-            z = firm.get_outputs(firm.nodes[v_e])[0]
+            z = self.firm.get_outputs(self.firm.nodes[v_e])[0]
 
             # TODO: Remove this hardcoding
             # If output is null or region is known
