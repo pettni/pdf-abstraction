@@ -40,7 +40,7 @@ if __name__ == '__main__':
     p3 = rf.vertex_to_poly(np.array([[2, 2], [3, 2], [3, 3], [2, 3]]))
     regs['r3'] = (p3, 1, 'obs')
     p4 = rf.vertex_to_poly(np.array([[2, 3], [3, 3], [3, 4], [2, 4]]))
-    regs['r4'] = (p4, 0.5, 'obs', 1)
+    regs['r4'] = (p4, 1, 'obs', 1)
     p5 = rf.vertex_to_poly(np.array([[2, 4], [3, 4], [3, 5], [2, 5]]))
     regs['r5'] = (p5, 1, 'obs', 1)
 
@@ -51,9 +51,9 @@ if __name__ == '__main__':
     p3 = rf.vertex_to_poly(np.array([[2, -2], [3, -2], [3, -3], [2, -3]]))
     regs['r8'] = (p3, 1, 'obs')
     p4 = rf.vertex_to_poly(np.array([[2, -3], [3, -3], [3, -4], [2, -4]]))
-    regs['r9'] = (p4, .7, 'obs', 0)
+    regs['r9'] = (p4, .2, 'obs', 0)
     p5 = rf.vertex_to_poly(np.array([[2, -4], [3, -4], [3, -5], [2, -5]]))
-    regs['r10'] = (p5, .7, 'obs', 0)
+    regs['r10'] = (p5, .7, 'obs', 1)
 
     a1 = rf.vertex_to_poly(np.array([[4, 0], [5, 0], [5, 1], [4, 1]]))
     regs['a1'] = (a1, 0.9, 'sample', 1)
@@ -67,18 +67,16 @@ if __name__ == '__main__':
 
     # Construct belief-MDP for env
     env = Env(regs)
-
     print(env)
-    # belief set used for PBVI =>>> unclear what this is
-    probs = [0.1, 0.2, 0.5, 0.8, .95]  # what is this?
+    probs = [0.1, 0.2, 0.5, 0.8, .95]  # Probabilities of labels of individual region
     probs_list = [probs for i in range(env.n_unknown_regs)]
     if obs_action is True:
         b_reg_set = [env.get_reg_belief(list(i)) for i in product(*probs_list)]
     b_prod_set = [env.get_product_belief(list(i)) for i in product(*probs_list)]
     # True state of the regs used to simulate trajectories after policy is generated
     # x_e_true
-    n = 50
-    b_prod_set = random.sample(b_prod_set, n)
+    # n = 50
+    # b_prod_set = random.sample(b_prod_set, n)
     # fig = plt.figure(0)
     # ax = fig.add_subplot(111, aspect='equal')
     # l, u = bounding_box(p)
@@ -371,7 +369,7 @@ q = 0
 v = 29
 # v = 0
 traj = []
-for t in range(50):
+for t in range(150):
     # import pdb; pdb.set_trace()
     print "val = " + str(max(val[v][q].alpha_mat.T * b))
     # Get best edge
@@ -380,10 +378,10 @@ for t in range(50):
     #i_best_alpha = np.argmax(val_new[v][q].alpha_mat.T * b)
     #best_e = val_new[v][q].best_edge[i_best_alpha]
     if obs_action is True and best_e < 0:
-        reg_key = env.regs.keys()[-1 * (best_e - 1)]
+        reg_key = env.regs.keys()[-1 * (best_e + 1)]
         (b_, o, i_o) = env.get_b_o_reg(b, env.regs[reg_key][3], reg_key, firm.nodes[v].mean)
         b = b_
-        print "Observing " + str(-1 * (best_e - 1)) + " at vertex" + str(v) + " q = " + str(q) + " b_ = " + str(b_)
+        print "Observing " + str(-1 * (best_e + 1)) + " at vertex" + str(v) + " q = " + str(q) + " b_ = " + str(b_)
         continue
     # Simulate trajectory under edges
     edge_controller = firm.edge_controllers[v][firm.edges[v].index(best_e)]
