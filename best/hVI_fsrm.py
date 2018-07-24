@@ -20,6 +20,8 @@ from best.ltl import formula_to_mdp
 from itertools import product
 import random
 from best.hVI_types import Env, Gamma
+import logging
+logger = logging.getLogger(__name__)
 
 
 class SPaths(object):
@@ -268,18 +270,6 @@ class SPaths(object):
             # if color == 'white':
             #     color = 'black'
             self.ax.plot(x, y, color, ms=20, linewidth=3.0)
-        if isinstance(traj[0], State):
-            try:
-                x = [np.ravel(traj[0].mean)[0], np.ravel(traj[-1].mean)[0]]
-                y = [np.ravel(traj[0].mean)[1], np.ravel(traj[-1].mean)[1]]
-            except:
-                x = [np.ravel(traj[0].mean)[0], np.ravel(traj[-1])[0]]
-                y = [np.ravel(traj[0].mean)[1], np.ravel(traj[-1])[1]]
-
-        else:
-            x = [np.ravel(traj[0])[0], np.ravel(traj[-1])[0]]
-            y = [np.ravel(traj[0])[1], np.ravel(traj[-1])[1]]
-        self.ax.arrow(x[0], y[0], x[1]-x[0], y[1]-y[1],color=color)
 
     ''' Plot the FIRM graph '''
     # ax = handle to plot
@@ -437,6 +427,8 @@ class Edge_Controller(object):
 class spec_Spaths(LabeledDiGraph):
     # includes the SPaths information
     def __init__(self,SPaths_object, formula,env):
+        # type: (SPaths_object, formula, env) -> spec_Spaths
+
         self.dfsa, self.dfsa_init, self.dfsa_final, self.proplist = formula_to_mdp(formula)
         # initialize with DFA and SPath object
         self.firm = SPaths_object
@@ -450,7 +442,6 @@ class spec_Spaths(LabeledDiGraph):
         n = 50
         self.b_prod_set = random.sample(b_prod_set, n)
         self.epsilon = 10**-5
-        self.prod = self.create_prod()
 
         self.val = dict()
         self.active = dict()
@@ -461,6 +452,7 @@ class spec_Spaths(LabeledDiGraph):
 
 
         LabeledDiGraph.__init__(self)
+        self.create_prod()
 
         self.dot_node_shape = {'normal': 'ellipse'}
         self.default_export_fname = 'fsm'
@@ -471,14 +463,16 @@ class spec_Spaths(LabeledDiGraph):
         # Add nodes
         for i_q in range(self.dfsa.N): # TODO why not iterate over the nodes?
             for i_v in range(len(self.firm.nodes)): # TODO why not iterate over the nodes?
-                self.add_node((i_q,i_v)) # added i_q,i_v
-                self.val[(i_q,i_v)] = Gamma(self.b_prod_set,self.b_reg_set)# added i_q,i_v
-                self.active[(i_q,i_v)] = True
+                self.add_node((i_q, i_v))
 
 
         # Initialize Value Function to 1_(q_goal)
             for i_q in self.dfsa_final:
                 for i_v in range(len(self.firm.nodes)):  # TODO why not iterate over the nodes?
+                    if not( (i_q,i_v) in self.nodes):
+                        logger.debug('WARNING missing node added')
+                        self.add_node((i_q, i_v))
+
                     self.val[(i_q, i_v)].alpha_mat[:, 0] = 1
                     self.active[(i_q, i_v)] = False
 
@@ -487,31 +481,47 @@ class spec_Spaths(LabeledDiGraph):
 
 
 
-        assert False
+    def add_node(self, n, attr_dict=None, check=True, **attr):
+        # add node n to graph
+        super(spec_Spaths, self).add_node(n, attr_dict=attr_dict, check=check)
+        self.val[n] = Gamma(self.b_prod_set, self.b_reg_set)  # added i_q,i_v
+        self.active[n] = True
+
+    def rem_node(self,n):
+        # (n=node)=> remove node from graph
+        super(spec_Spaths, self).remove_node(n)
+        self.active.__delitem__(n)
+        self.val.__delitem__(n)
 
     def full_back_up(self):
-        for (i_v, i_q) in self.nodes():
+
+        for n in self.nodes():
             # do back up
-            self.back_up(self, i_v, i_q)
+            self.back_up(n[0],n[1])
 
 
-    def back_up(self, i_v, i_q, b=None):
+    def back_up(self, i_q, i_v, b=None):
         epsilon = self.epsilon
+        if self.active[(i_q, i_v)] == False:
+            return
 
-        if b == None:
+        if isinstance(b,np.ndarray): # if no b is given then do it for all of them
+            pass
+        else:
             alph_list = []
             i_b = 0
             # Get belief point from value function
             for b in self.val[(i_q, i_v)].b_prod_points:
-                alpha_new, best_e, importance = self.back_up( i_v, i_q, b=b)
+                alpha_new, best_e, importance = self.back_up(i_q,i_v, b=b)
                 alph_list += [alpha_new]
                 self.val[(i_q, i_v)].best_edge[i_b] = best_e
                 i_b += 1
             alpha_mat = np.concatenate(alph_list, axis=1)
             self.val[(i_q, i_v)].alpha_mat = alpha_mat
-
-        if self.active[(i_q, i_v)] == False:
             return
+
+        logger.debug('Backing up node = q:{q},v:{v}, b:{b}'.format(v=i_v,q=i_q, b=b))
+
 
         # Set max alpha and best edge to current max/best (need this to avoid invariant policies)
         # Find index of best alpha from gamma set
@@ -522,12 +532,11 @@ class spec_Spaths(LabeledDiGraph):
         best_e = self.val[(i_q, i_v)].best_edge[index_alpha_init]
 
         # Foreach edge action
-        for i_e in range(len(self.firm.edges[i_v])):
+        for v_e in self.firm.edges[i_v]:
             # Get probability of reaching goal vertex corresponding to current edge
             # p_reach_goal_node = firm.reach_goal_node_prob[i_v][i_e]
             p_reach_goal_node = 0.99  # TODO Get this from Petter's Barrier Certificate
             # Get goal vertex corresponding to edge
-            v_e = self.firm.edges[i_v][i_e]
             # Get output corresponding to goal vertex
             z = self.firm.get_outputs(self.firm.nodes[v_e])[0]
 
@@ -543,7 +552,7 @@ class spec_Spaths(LabeledDiGraph):
                     # q doesn't change
                     q_z_o = i_q
                 # Get gamma set corresponding to v and q after transition
-                gamma_e = np.matrix(self.val[(v_e,q_z_o)].alpha_mat)
+                gamma_e = np.matrix(self.val[(q_z_o,v_e)].alpha_mat)
                 # Get index of best alpha in the gamma set
                 index = np.argmax(gamma_e.T * b)
                 # Get new alpha vector by scaling down best alpha by prob of reaching goal node
@@ -561,13 +570,13 @@ class spec_Spaths(LabeledDiGraph):
                     if q_z_o is None:
                         # new q = current q
                         q_z_o = i_q
-                    gamma_e = np.diag(np.ravel(O[i_o, :])) * np.matrix(self.val[(v_e,q_z_o)].alpha_mat)
+                    gamma_e = np.diag(np.ravel(O[i_o, :])) * np.matrix(self.val[(q_z_o,v_e)].alpha_mat)
                     index = np.argmax(gamma_e.T * b)
                     alpha_new = alpha_new + p_reach_goal_node * gamma_e[:, index]
             # Update max_alpha and best_edge if this has a greater value
             if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (alpha_new.T * np.matrix(b)):
                 max_alpha_b_e = alpha_new
-                best_e = self.firm.edges[i_v][i_e]
+                best_e = v_e
             # if (i_v==42 and i_q==0 and i==7):  # for debugging only
             # print "obs = " + str(i_o) + "q_z = " + str(q_z)
             # print sum_z.T * b
