@@ -3,7 +3,8 @@ FSRM = Feedback State RoadMap
 This file gives the class for the generation of a sampling based path planner
 that can be used together with the HVI tools.
 '''
-
+from best.fsa import Fsa
+import networkx as nx
 from best.mdp import MDP
 from best.hVI_models import Det_SI_Model, State_Space, State
 import best.rss18_functions as rf
@@ -15,6 +16,7 @@ import scipy.sparse as sp
 from scipy.linalg import solve_discrete_are as dare
 import itertools as it
 from collections import OrderedDict
+from collections import *
 from tulip.transys.labeled_graphs import LabeledDiGraph
 from best.ltl import formula_to_mdp
 from itertools import product
@@ -22,7 +24,6 @@ import random
 from best.hVI_types import Env, Gamma
 import logging
 logger = logging.getLogger(__name__)
-
 
 class SPaths(object):
     # belief_space, motion_model: Refer to classes in models.py
@@ -55,9 +56,9 @@ class SPaths(object):
         self.T_list = None
         self.Tz_list = None
 
-    def make_nodes_edges(self, number, edges ):
+    def make_nodes_edges(self, number, edges, init=None):
         t = [time.clock()]
-        self.sample_nodes(number)
+        self.sample_nodes(number, init=init)
         t += [time.clock()]
 
         self.make_edges(edges)
@@ -66,7 +67,7 @@ class SPaths(object):
         self.n_particles = 1
         print(np.diff(t))
 
-    def sample_nodes(self, n_nodes, means=list(), append=False, from_grid= False):
+    def sample_nodes(self, n_nodes, means=list(), append=False, init= None):
         # ''' Sample nodes in belief space and also generate node_controllers '''
         # n_nodes = number of nodes to sample in graph
         # append = False erases all previous nodes whereas True adds more nodes to existing graph
@@ -93,9 +94,21 @@ class SPaths(object):
                 node = self.state_space.new_state(means[i])
             else:
                 # add sample to every region that is not an obstacle
+                if i == 0 :
+                    if isinstance(init, np.ndarray):
+                        node = State(init)
+                    else:
+                        resample = True
+                        while resample:
+                            resample = False
+                            node = self.state_space.sample_new_state()
 
-                if i < len(self.regs) and ((self.regs[self.regs.keys()[i]][2] is not 'obs') or (self.regs[self.regs.keys()[i]][1]<1)):
-                        node = self.state_space.sample_new_state_in_reg(self.regs[self.regs.keys()[i]][0])
+                            for key, value in self.regs.iteritems():
+                                if value[2] is 'obs' and value[0].contains(node.mean):
+                                    resample = True
+
+                elif i < len(self.regs)+1 and ((self.regs[self.regs.keys()[i-1]][2] is not 'obs') or (self.regs[self.regs.keys()[i-1]][1]<1)):
+                        node = self.state_space.sample_new_state_in_reg(self.regs[self.regs.keys()[i-1]][0])
                 else:
                     # Implemented rejection sampling to avoid nodes in obs => why would you do that?
                     # you want to avoid samples in regions that we know to be obstacles,
@@ -424,16 +437,19 @@ class Edge_Controller(object):
         return traj
 
 
-class spec_Spaths(LabeledDiGraph):
+class spec_Spaths(nx.MultiDiGraph):
     # includes the SPaths information
     def __init__(self,SPaths_object, formula,env):
-        # type: (SPaths_object, formula, env) -> spec_Spaths
+        # type: (SPaths_object, formula, env)
 
         self.dfsa, self.dfsa_init, self.dfsa_final, self.proplist = formula_to_mdp(formula)
+        self.fsa = Fsa()
+        self.fsa.from_formula(formula)
+        self.fsa.add_trap_state()
         # initialize with DFA and SPath object
         self.firm = SPaths_object
         self.env = env
-        probs = [0.1, 0.2, 0.5, 0.8, .95]  # what is this?
+        probs = [0.1, 0.2, 0.5, 0.8, .9]  # what is this?
         self.probs_list = [probs for i in range(env.n_unknown_regs)]
         self.b_reg_set = [env.get_reg_belief(list(i)) for i in product(*self.probs_list)]
         b_prod_set = [env.get_product_belief(list(i)) for i in product(*self.probs_list)]
@@ -447,43 +463,98 @@ class spec_Spaths(LabeledDiGraph):
         self.active = dict()
 
         # values will point to values of _*_label_def below
-        self.inputs = dict()
+
+
+        types = [
+            {'name': 'input',
+             'values': {'null'}|set(self.fsa.props.keys()),
+             'setter': True,
+             'default': 'null'}]
+        reg_names = [{'name': 'reg',
+                     'values': {'null'}|set(self.env.regs.keys()),
+                     'setter': True,
+                     'default': 'null'}]
+
+        super(spec_Spaths, self).__init__(state_label_types=reg_names , edge_label_types=types)
+        self.sequence = self.create_prod()
 
 
 
-        LabeledDiGraph.__init__(self)
-        self.create_prod()
+    def _make_edge_to(self,from_pair,  node_pair, label, unvisited):
+        if not node_pair in self.nodes():
+            self.add_node(node_pair)
+            #print('final' self.fsa.final)
+            if  node_pair[0] in self.fsa.final:
+                self.val[node_pair].alpha_mat[:, 0] = 1
+                self.active[node_pair] = False
+                print('adding edge to target')
+                self.add_edge(node_pair, (-1,-1))
 
-        self.dot_node_shape = {'normal': 'ellipse'}
-        self.default_export_fname = 'fsm'
+            else:
 
+                unvisited += [node_pair]
+
+        # TODO: add right labels for inputs
+        self.add_edge(from_pair,node_pair,input=label)
+
+        return unvisited
 
 
     def create_prod(self):
-        # Add nodes
-        for i_q in range(self.dfsa.N): # TODO why not iterate over the nodes?
-            for i_v in range(len(self.firm.nodes)): # TODO why not iterate over the nodes?
-                self.add_node((i_q, i_v))
+        # Add nodes based on which one can actually be reached
+        unvisited = []
+        for i_q in [state for (state, key) in self.fsa.init.items() if key == 1] :
+            # add all initial dfa states and initial graph stats (v=0)
+            self.add_node((i_q, 0))
+            unvisited += [(i_q, 0)]
+
+        # add a virtual final node () can be used for breath first searchs
+
+            super(spec_Spaths, self).add_node((-1,-1))
+            self.active[(-1,-1)] = False
 
 
-        # Initialize Value Function to 1_(q_goal)
-            for i_q in self.dfsa_final:
-                for i_v in range(len(self.firm.nodes)):  # TODO why not iterate over the nodes?
-                    if not( (i_q,i_v) in self.nodes):
-                        logger.debug('WARNING missing node added')
-                        self.add_node((i_q, i_v))
+        while len(unvisited)>0:
+            (i_q,i_v) = unvisited.pop(0)
+            # TODO Add edges start from initial node
+            for v_next in self.firm.edges[i_v]:
+                # TODO complete this with obs and region labels
+                # compute output of that vertex
+                list_labels = self.firm.get_outputs(self.firm.nodes[v_next])
 
-                    self.val[(i_q, i_v)].alpha_mat[:, 0] = 1
-                    self.active[(i_q, i_v)] = False
+                try:
+                    list_labels.remove('null')
+                except ValueError: pass
 
-        # Add edges
-        # TODO Add edges
+                for (orig_q_, q_next, label_dict) in self.fsa.g.out_edges(i_q, data=True):
+                    if 0 in label_dict['input']:
+                        unvisited = self._make_edge_to((i_q,i_v),(q_next, v_next), 'null', unvisited)
+                    #print(list_labels)
+                    if len(list_labels)>0 and self.fsa.bitmap_of_props((self.env.get_prop(list_labels[0]),)) in label_dict['input']:
+                        #print(list_labels, self.fsa.bitmap_of_props(('sample',)), label_dict['input'])
+                        # todo allow for more labels as input ('sample ^ obstacle')
+                        unvisited = self._make_edge_to((i_q,i_v),(q_next, v_next), self.env.get_prop(list_labels[0]), unvisited)
+                        # test edge
+                        self.find_edge((i_q,i_v),self.env.get_prop(list_labels[0]))
+        edges = nx.bfs_edges(self,(-1,-1), reverse=True)
+        u_nodes = OrderedDict() # this dictionary will give the sequence of nodes to iterate over
+        for u,v in edges:
+            u_nodes[u] = True
 
+        u_nodes[(-1,-1)] = False
+        for u in u_nodes:
+            if not self.active[u] :
+                u_nodes[u] = False
+        return u_nodes
 
 
     def add_node(self, n, attr_dict=None, check=True, **attr):
         # add node n to graph
-        super(spec_Spaths, self).add_node(n, attr_dict=attr_dict, check=check)
+        list_labels = self.firm.get_outputs(self.firm.nodes[n[1]])
+        if len(list_labels) > 1:
+            list_labels.remove('null')
+
+        super(spec_Spaths, self).add_node(n, attr_dict=attr_dict, check=check, reg=list_labels[-1])
         self.val[n] = Gamma(self.b_prod_set, self.b_reg_set)  # added i_q,i_v
         self.active[n] = True
 
@@ -493,36 +564,76 @@ class spec_Spaths(LabeledDiGraph):
         self.active.__delitem__(n)
         self.val.__delitem__(n)
 
-    def full_back_up(self):
+    def find_edge(self, n, input, v=None):
+        if v is None:
+            for (n_,next_n,dict_input) in self.out_edges({n}, data='input') :
+                if dict_input ==input:
+                    return next_n
+        for (n_,next_n,dict_input) in self.out_edges({n}, data='input') :
+            if dict_input ==input and next_n[1] == v:
 
-        for n in self.nodes():
+                return next_n[0]
+
+        raise ValueError
+
+    def full_back_up(self):
+        t0 = time.clock()
+        print('Do full back-up')
+        for n in self.sequence:
             # do back up
             self.back_up(n[0],n[1])
-
+        t1 = time.clock()
+        print(t1-t0)
+        return any(self.sequence.values())
+        # boolean value giving whether or not the backups have converged
 
     def back_up(self, i_q, i_v, b=None):
-        epsilon = self.epsilon
-        if self.active[(i_q, i_v)] == False:
+        #print(i_q, i_v)
+
+        if self.active[(i_q, i_v)] == False or self.sequence[(i_q, i_v)] == False:
             return
 
+        # check first whether a backup is really needed
+        # if all neighbors in the self graph have become inactive and
+        # if it is false in the sequence then also this node can be set to false
+
+        #print('compute for node {n}'.format(n= (i_q, i_v)))
         if isinstance(b,np.ndarray): # if no b is given then do it for all of them
-            pass
+            return self._back_up(i_q, i_v, b)
         else:
             alph_list = []
             i_b = 0
             # Get belief point from value function
             for b in self.val[(i_q, i_v)].b_prod_points:
-                alpha_new, best_e, importance = self.back_up(i_q,i_v, b=b)
+
+                alpha_new, best_e, importance = self._back_up(i_q,i_v, b)
                 alph_list += [alpha_new]
                 self.val[(i_q, i_v)].best_edge[i_b] = best_e
                 i_b += 1
-            alpha_mat = np.concatenate(alph_list, axis=1)
+            alpha_mat = np.matrix(np.unique(np.array(np.concatenate(alph_list, axis=1)),axis=1))
+            try:
+                self.sequence[(i_q, i_v)] = not np.allclose(alpha_mat,self.val[(i_q, i_v)].alpha_mat,rtol=1e-03, atol=1e-03)
+            except:
+                self.sequence[(i_q, i_v)] = True
+
+
+
+            if self.sequence[(i_q, i_v)]:# you did change something, all neighbors could be affected
+                for n_out in self.successors((i_q, i_v)):
+                    if n_out in
+                    self.sequence[(i_q, i_v)] = True
+
             self.val[(i_q, i_v)].alpha_mat = alpha_mat
+
             return
 
-        logger.debug('Backing up node = q:{q},v:{v}, b:{b}'.format(v=i_v,q=i_q, b=b))
+
+    def _back_up(self, i_q, i_v, b):
 
 
+
+
+        epsilon = self.epsilon
         # Set max alpha and best edge to current max/best (need this to avoid invariant policies)
         # Find index of best alpha from gamma set
         index_alpha_init = np.argmax(self.val[(i_q, i_v)].alpha_mat.T * b)
@@ -530,29 +641,26 @@ class spec_Spaths(LabeledDiGraph):
         max_alpha_b_e = self.val[(i_q, i_v)].alpha_mat[:, index_alpha_init]
         # Save edge corresponding to best alpha vector
         best_e = self.val[(i_q, i_v)].best_edge[index_alpha_init]
-
+        nf = (i_q, i_v) # source node
         # Foreach edge action
-        for v_e in self.firm.edges[i_v]:
+        for v_e in self.firm.edges[i_v] :
             # Get probability of reaching goal vertex corresponding to current edge
             # p_reach_goal_node = firm.reach_goal_node_prob[i_v][i_e]
             p_reach_goal_node = 0.99  # TODO Get this from Petter's Barrier Certificate
+            # next node if observing no label
+            q_z_o = self.find_edge((i_q, i_v), 'null', v=v_e)
+            n = (q_z_o, v_e)  # next node
             # Get goal vertex corresponding to edge
-            # Get output corresponding to goal vertex
-            z = self.firm.get_outputs(self.firm.nodes[v_e])[0]
+            z = self.node[n]['reg']
+
 
             # TODO: Remove this hardcoding
             # If output is null or region is known
-            if self.env._regs[z][2] is 'null' or self.env._regs[z][1] == 1 or self.env._regs[z][1] == 0:
-                # If output not null and label is true
-                if (self.env._regs[z][2] == 'obs' or self.env._regs[z][2] == 'sample') and self.env._regs[z][1] == 1:
-                    # Find transition to next state
-                    q_z_o = np.argmax(self.dfsa.T(self.proplist[self.env._regs[z][2]])[i_q, :])
-                # Else if output is null or label is false set new q = current q
-                elif self.env._regs[z][2] is 'null' or self.env._regs[z][1] == 0:
-                    # q doesn't change
-                    q_z_o = i_q
+            if z is 'null':
+
+
                 # Get gamma set corresponding to v and q after transition
-                gamma_e = np.matrix(self.val[(q_z_o,v_e)].alpha_mat)
+                gamma_e = np.matrix(self.val[n].alpha_mat)
                 # Get index of best alpha in the gamma set
                 index = np.argmax(gamma_e.T * b)
                 # Get new alpha vector by scaling down best alpha by prob of reaching goal node
@@ -562,14 +670,14 @@ class spec_Spaths(LabeledDiGraph):
                 O = self.env.get_O_reg_prob(z)
                 for i_o in range(2):
                     q_z_o = None
-                    # if we pass through an unknown obstacle/sample region and also observe obstacle/sample
-                    if self.env._regs[z][1] > 0:
-                        if (self.env._regs[z][2] == 'obs' or self.env._regs[z][2] == 'sample') and (i_o is 1):
-                            # Transition to new q
-                            q_z_o = np.argmax(self.dfsa.T(self.proplist[self.env._regs[z][2]])[i_q, :])
-                    if q_z_o is None:
+                    # if we end up in obstacle/sample region and also observe obstacle/sample
+                    if i_o == 1:
+                        # Transition to new q
+                        q_z_o = self.find_edge(nf,self.env._regs[z][2],v=v_e)
+                        #q_z_o = np.argmax(self.dfsa.T(self.proplist[self.env._regs[z][2]])[i_q, :])
+                    else:
                         # new q = current q
-                        q_z_o = i_q
+                        q_z_o = self.find_edge(nf,'null',v=v_e)
                     gamma_e = np.diag(np.ravel(O[i_o, :])) * np.matrix(self.val[(q_z_o,v_e)].alpha_mat)
                     index = np.argmax(gamma_e.T * b)
                     alpha_new = alpha_new + p_reach_goal_node * gamma_e[:, index]
@@ -605,7 +713,10 @@ class spec_Spaths(LabeledDiGraph):
 
         # Sanity check that alpha <= 1
         if not (max_alpha_b_e <= 1).all():
-            print(max_alpha_b_e, best_e)
+            print('warning ' , max_alpha_b_e, best_e)
             assert False
 
         return (max_alpha_b_e, best_e, (max_alpha_b_e > 0).any())
+
+
+    #def plot_node(self,node, region ):

@@ -6,4 +6,5 @@ numpy
 scipy
 pymdptoolbox=-4.0
 networkx=-1.11
+
 scipy=-0.19.1

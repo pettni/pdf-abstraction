@@ -62,6 +62,10 @@ class Env(object):
         to_print += "Total number of  regions: " + str(self.n_total_regs)
 
         return to_print
+    def get_prop(self,z):
+        # get atomic proposition for current region
+
+        return self._regs[z][2]
 
     ''' returns O matrix (2^n_unknown_regs x 2^n_unknown_regs)
         v_mean = mean value of a FIRM node '''
