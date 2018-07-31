@@ -144,10 +144,13 @@ if __name__ == '__main__':
         not_converged = prod_.full_back_up()
         i += 1
 
+
+    prod_.plot_node([],'r4')
     ''' Execute the policy '''
     b = prod_.env.b_prod_init
     print b
-    (q,v) =  (prod_.fsa.init.items(),0)
+    (q,key) = prod_.fsa.init.items()[0]
+    (q,v) = (q,0)
     # v = 0
     traj = []
     v_list =[v]
