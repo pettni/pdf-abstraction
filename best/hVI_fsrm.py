@@ -4,6 +4,7 @@ This file gives the class for the generation of a sampling based path planner
 that can be used together with the HVI tools.
 '''
 from best.fsa import Fsa
+from copy import copy
 import networkx as nx
 from best.mdp import MDP
 from best.hVI_models import Det_SI_Model, State_Space, State
@@ -457,7 +458,7 @@ class Edge_Controller(object):
 
 class spec_Spaths(nx.MultiDiGraph):
     # includes the SPaths information
-    def __init__(self,SPaths_object, formula,env):
+    def __init__(self,SPaths_object, formula,env, n=50):
 
         if isinstance(formula, basestring):
             _dfa, self.dfsa_init, self.dfsa_final, self.proplist = formula_to_mdp(formula)
@@ -474,15 +475,17 @@ class spec_Spaths(nx.MultiDiGraph):
         # initialize with DFA and SPath object
         self.firm = SPaths_object
         self.env = env
-        probs = [0.1, 0.2, 0.5, 0.8, .9]  # what is this?
+        probs = [0, 0.2, 0.5, 0.8, 1]  # what is this?
         self.probs_list = [probs for i in range(env.n_unknown_regs)]
         self.b_reg_set = [env.get_reg_belief(list(i)) for i in product(*self.probs_list)]
         b_prod_set = [env.get_product_belief(list(i)) for i in product(*self.probs_list)]
         # True state of the regs used to simulate trajectories after policy is generated
         # x_e_true
-        n = 50
+
         self.b_prod_set = random.sample(b_prod_set, n)
+        self.b_prod_set += [env.get_product_belief(self.env.b_reg_init.tolist())] # add initial
         self.epsilon = 10**-5
+
 
         self.val = dict()
         self.active = dict()
@@ -551,14 +554,22 @@ class spec_Spaths(nx.MultiDiGraph):
                     list_labels.remove('null')
                 except ValueError: pass
 
+                try:
+                    bit_prop = self.fsa.bitmap_of_props((self.env.get_prop(list_labels[0]),)) # assume only one label at a time
+
+                except IndexError:
+                    bit_prop = 0
+
+
 
                 for (orig_q_, q_next, label_dict) in self.fsa.g.out_edges(i_q, data=True):
                     if 0 in label_dict['input']:
                         unvisited = self._make_edge_to((i_q,i_v),(q_next, v_next), 'null', unvisited)
-                    if len(list_labels)>0 and self.fsa.bitmap_of_props((self.env.get_prop(list_labels[0]),)) in label_dict['input']:
+                        if bit_prop == 0:
+                            continue # then we are done
+                    if bit_prop in label_dict['input']:
                         # todo allow for more labels as input ('sample ^ obstacle') ==> sum them
                         unvisited = self._make_edge_to((i_q,i_v),(q_next, v_next), self.env.get_prop(list_labels[0]), unvisited)
-                        print('add edge')
         nodes = bfs(self,(-1,-1))
         u_nodes = OrderedDict() # this dictionary will give the sequence of nodes to iterate over
         for u in nodes:
@@ -593,9 +604,9 @@ class spec_Spaths(nx.MultiDiGraph):
             for (n_,next_n,dict_input) in self.out_edges({n}, data='input') :
                 if dict_input ==input:
                     return next_n
-        for (n_,next_n,dict_input) in self.out_edges({n}, data='input') :
-            if dict_input ==input and next_n[1] == v:
 
+        for (n_,next_n,dict_input) in self.out_edges({n}, data='input') :
+            if input in dict_input  and next_n[1] == v:
                 return next_n[0]
 
         raise ValueError
@@ -633,16 +644,22 @@ class spec_Spaths(nx.MultiDiGraph):
         if isinstance(b,np.ndarray): # if no b is given then do it for all of them
             return self._back_up(i_q, i_v, b)
         else:
-            alph_list = []
+            alph_list = np.array([[]])
+            best_edges = []
             i_b = 0
             # Get belief point from value function
             for b in self.val[(i_q, i_v)].b_prod_points:
 
                 alpha_new, best_e, importance = self._back_up(i_q,i_v, b)
-                alph_list += [alpha_new]
-                self.val[(i_q, i_v)].best_edge[i_b] = best_e
+                alph_list += [np.concatenate([alpha_new,np.array([[best_e]])])]
+
+
                 i_b += 1
-            alpha_mat = np.matrix(np.unique(np.array(np.concatenate(alph_list, axis=1)),axis=1))
+            #alpha_mat =np.matrix(np.concatenate(alph_list, axis=1)) #
+            alpha_mat_v= np.unique(np.array(np.concatenate(alph_list, axis=1)),axis=1)
+
+            alpha_mat = np.matrix(np.delete(alpha_mat_v,-1,0))
+            self.val[(i_q, i_v)].best_edge =  alpha_mat_v[-1,:]
             try:
                 self.sequence[(i_q, i_v)] = not np.allclose(alpha_mat,self.val[(i_q, i_v)].alpha_mat,rtol=1e-03, atol=1e-03)
             except:
@@ -689,8 +706,6 @@ class spec_Spaths(nx.MultiDiGraph):
             # TODO: Remove this hardcoding
             # If output is null or region is known
             if z is 'null':
-
-
                 # Get gamma set corresponding to v and q after transition
                 gamma_e = np.matrix(self.val[n].alpha_mat)
                 # Get index of best alpha in the gamma set
@@ -736,7 +751,7 @@ class spec_Spaths(nx.MultiDiGraph):
                 # Find index of best alpha in the new Gamma set
                 index = np.argmax(gamma_o_v.T * b)
                 # Add the best alpha to the summation
-                sum_o = sum_o + gamma_o_v[:, index]
+                sum_o = sum_o + p_reach_goal_node* gamma_o_v[:, index]
             # Check if new alpha has a greater value
             if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (sum_o.T * np.matrix(b)):
                 # Update the max_alpha and best_edge
@@ -793,52 +808,84 @@ def plot_results(prod,ax):
     # TODO TODO FiniSH WHERE I STOPPED CODING >>> make sure to only plot directed edges for possible optimal actions.
     # build the nodes from the once that are actually reachable:
     # start from the initial node
+    nodes = dict()  # empty dict with nodes as keys and values: (x,y),
+    obs = dict()   #  empty dict with nodes as keys, values: set of obs actions
+    edges = set()  # empty set with elements (x1,y1,x2,y2) with node from   (x1,y1)  and node to (x2,y2)
+                    # (this will be drawn as vectors which uses differences)
+    unvisited = [] # empty list of nodes for which edges needs to be accounted for
+
     for n in prod.init: # this gives a list of initial node tuples (i_q, i_v)
         (i_q, i_v) = n
         print(prod.val[(i_q, i_v)].best_edge)
         # split into obs actions and transitions actions
         obs_actions  = filter(lambda i: i<0, prod.val[(i_q, i_v)].best_edge) # decide to observe a neigborhood
         tr_actions  = filter(lambda i: i>=0, prod.val[(i_q, i_v)].best_edge)  # decide to transition to a new node
+        print('obs_actions',obs_actions)
+        print('tr_actions',tr_actions)
+        # find (x,y)
+        x = np.ravel(prod.firm.nodes[i_v].mean)[0]
+        y = np.ravel(prod.firm.nodes[i_v].mean)[1]
+        nodes[i_v] = (x,y)
+        obs[i_v] = obs.get(i_v,set())|set(obs_actions)
+        edges |= {(i_v,i_next) for i_next in tr_actions}
+        # to find the nodes (composed of i_q,i_v) that have not yet been added and
+        # that are accessible from this node based ont he transition actions, check transitions in prod
+        print(prod[n])
+        unvisited.extend(filter(lambda i: (i not in unvisited) and (i not in nodes), tr_actions))
+
+    while unvisited:
+        n = unvisited.pop(0)
+
+
+
+
+        if i_v < 10:
+            plt.text(np.ravel(prod.firm.nodes[i_v].mean)[0] - 0.04, np.ravel(prod.firm.nodes[i].mean)[1] - 0.05, str(i_v),
+                     color='black', backgroundcolor='grey')
+        else:
+            plt.text(np.ravel(prod.firm.nodes[i_v].mean)[0] - 0.09, np.ravel(prod.firm.nodes[i].mean)[1] - 0.05, str(i_v),
+                     color='black', backgroundcolor='grey')
+
 
         # add this node and the observation edges first
 
-    #     try:
-    #         neigh = prod.edges[i] # unlike the firm based result we are actually not interested in all possible regions
-    #     except KeyError:
-    #         continue
-    #     for j in neigh:
-    #         x = [np.ravel(self.nodes[i].mean)[0], np.ravel(self.nodes[j].mean)[0]]
-    #         y = [np.ravel(self.nodes[i].mean)[1], np.ravel(self.nodes[j].mean)[1]]
-    #         ax.plot(x, y, 'b')
-    # scale = 3
-    # for i in range(len(self.nodes)):
-    #     # ax.plot(self.nodes[i].mean[0], self.nodes[i].mean[1], 'go')
-    #     from matplotlib.patches import Ellipse
-    #     eigvalue, eigvec = np.linalg.eigh(self.nodes[i].cov[0:2, 0:2])
-    #     if eigvalue[0] < eigvalue[1]:
-    #         minor, major = 2 * np.sqrt(scale * eigvalue)
-    #         alpha = np.arctan(eigvec[1, 1] / eigvec[0, 1])
-    #     elif eigvalue[0] > eigvalue[1]:
-    #         major, minor = 2 * np.sqrt(scale * eigvalue)
-    #         alpha = np.arctan(eigvec[1, 0] / eigvec[0, 0])
-    #     else:
-    #         major, minor = 2 * np.sqrt(scale * eigvalue)
-    #         alpha = 0
-    #     ell = Ellipse(xy=(self.nodes[i].mean[0], self.nodes[i].mean[1]),
-    #                   width=major, height=minor, angle=alpha)
-    #     ell.set_facecolor('gray')
-    #     ax.add_artist(ell)
-    #     if i < 10:
-    #         plt.text(np.ravel(self.nodes[i].mean)[0] - 0.04, np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
-    #                  color='black', backgroundcolor='grey')
-    #     else:
-    #         plt.text(np.ravel(self.nodes[i].mean)[0] - 0.09, np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
-    #                  color='black', backgroundcolor='grey')
-    # ax.set_xlim(self.state_space.x_low[0], self.state_space.x_up[0])
-    # ax.set_ylim(self.state_space.x_low[1], self.state_space.x_up[1])
-    # for (name, info) in self.regs.iteritems():
-    #     hatch = False
-    #     fill = True
-    #     if name is not 'null':
-    #         rf.plot_region(ax, info[0], name, info[1], self.output_color[name], hatch=hatch, fill=fill)
-    # # plt.show()
+        try:
+            neigh = prod.edges[i] # unlike the firm based result we are actually not interested in all possible regions
+        except KeyError:
+            continue
+        for j in neigh:
+            x = [np.ravel(self.nodes[i].mean)[0], np.ravel(self.nodes[j].mean)[0]]
+            y = [np.ravel(self.nodes[i].mean)[1], np.ravel(self.nodes[j].mean)[1]]
+            ax.plot(x, y, 'b')
+    scale = 3
+    for i in range(len(self.nodes)):
+        # ax.plot(self.nodes[i].mean[0], self.nodes[i].mean[1], 'go')
+        from matplotlib.patches import Ellipse
+        eigvalue, eigvec = np.linalg.eigh(self.nodes[i].cov[0:2, 0:2])
+        if eigvalue[0] < eigvalue[1]:
+            minor, major = 2 * np.sqrt(scale * eigvalue)
+            alpha = np.arctan(eigvec[1, 1] / eigvec[0, 1])
+        elif eigvalue[0] > eigvalue[1]:
+            major, minor = 2 * np.sqrt(scale * eigvalue)
+            alpha = np.arctan(eigvec[1, 0] / eigvec[0, 0])
+        else:
+            major, minor = 2 * np.sqrt(scale * eigvalue)
+            alpha = 0
+        ell = Ellipse(xy=(self.nodes[i].mean[0], self.nodes[i].mean[1]),
+                      width=major, height=minor, angle=alpha)
+        ell.set_facecolor('gray')
+        ax.add_artist(ell)
+        if i < 10:
+            plt.text(np.ravel(self.nodes[i].mean)[0] - 0.04, np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
+                     color='black', backgroundcolor='grey')
+        else:
+            plt.text(np.ravel(self.nodes[i].mean)[0] - 0.09, np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
+                     color='black', backgroundcolor='grey')
+    ax.set_xlim(self.state_space.x_low[0], self.state_space.x_up[0])
+    ax.set_ylim(self.state_space.x_low[1], self.state_space.x_up[1])
+    for (name, info) in self.regs.iteritems():
+        hatch = False
+        fill = True
+        if name is not 'null':
+            rf.plot_region(ax, info[0], name, info[1], self.output_color[name], hatch=hatch, fill=fill)
+    # plt.show()
