@@ -644,22 +644,17 @@ class spec_Spaths(nx.MultiDiGraph):
         if isinstance(b,np.ndarray): # if no b is given then do it for all of them
             return self._back_up(i_q, i_v, b)
         else:
-            alph_list = np.array([[]])
+            alph_list = []
             best_edges = []
-            i_b = 0
             # Get belief point from value function
             for b in self.val[(i_q, i_v)].b_prod_points:
 
                 alpha_new, best_e, importance = self._back_up(i_q,i_v, b)
-                alph_list += [np.concatenate([alpha_new,np.array([[best_e]])])]
+                alph_list += [alpha_new]
+                best_edges += [best_e]
 
-
-                i_b += 1
-            #alpha_mat =np.matrix(np.concatenate(alph_list, axis=1)) #
-            alpha_mat_v= np.unique(np.array(np.concatenate(alph_list, axis=1)),axis=1)
-
-            alpha_mat = np.matrix(np.delete(alpha_mat_v,-1,0))
-            self.val[(i_q, i_v)].best_edge =  alpha_mat_v[-1,:]
+            alpha_mat = np.matrix(np.unique(np.array(np.concatenate(alph_list, axis=1)),axis=1))
+            self.val[(i_q, i_v)].best_edge =  np.unique(best_edges)
             try:
                 self.sequence[(i_q, i_v)] = not np.allclose(alpha_mat,self.val[(i_q, i_v)].alpha_mat,rtol=1e-03, atol=1e-03)
             except:
@@ -685,14 +680,14 @@ class spec_Spaths(nx.MultiDiGraph):
         epsilon = self.epsilon
         # Set max alpha and best edge to current max/best (need this to avoid invariant policies)
         # Find index of best alpha from gamma set
-        index_alpha_init = np.argmax(self.val[(i_q, i_v)].alpha_mat.T * b)
+        #index_alpha_init = np.argmax(self.val[(i_q, i_v)].alpha_mat.T * b)
         # Save best alpha vector
-        max_alpha_b_e = self.val[(i_q, i_v)].alpha_mat[:, index_alpha_init]
+        max_alpha_b_e = np.full_like(b, 0) #self.val[(i_q, i_v)].alpha_mat[:, index_alpha_init]
         # Save edge corresponding to best alpha vector
-        best_e = self.val[(i_q, i_v)].best_edge[index_alpha_init]
+        best_e = None #self.val[(i_q, i_v)].best_edge[index_alpha_init]
         nf = (i_q, i_v) # source node
         # Foreach edge action
-        for v_e in self.firm.edges[i_v] :
+        for v_e in sorted(self.firm.edges[i_v]):
             # Get probability of reaching goal vertex corresponding to current edge
             # p_reach_goal_node = firm.reach_goal_node_prob[i_v][i_e]
             p_reach_goal_node = 0.99  # TODO Get this from Petter's Barrier Certificate
@@ -729,7 +724,7 @@ class spec_Spaths(nx.MultiDiGraph):
                     index = np.argmax(gamma_e.T * b)
                     alpha_new = alpha_new + p_reach_goal_node * gamma_e[:, index]
             # Update max_alpha and best_edge if this has a greater value
-            if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (alpha_new.T * np.matrix(b)):
+            if (max_alpha_b_e.T * np.matrix(b)) < (alpha_new.T * np.matrix(b)):
                 max_alpha_b_e = alpha_new
                 best_e = v_e
             # if (i_v==42 and i_q==0 and i==7):  # for debugging only
