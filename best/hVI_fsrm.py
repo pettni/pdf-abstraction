@@ -611,18 +611,19 @@ class spec_Spaths(nx.MultiDiGraph):
 
         raise ValueError
 
-    def full_back_up(self):
+    def full_back_up(self, opts_old = None):
         t0 = time.clock()
         print('Do full back-up')
+
         for n in self.sequence:
             # do back up
-            self.back_up(n[0],n[1])
+            self.back_up(n[0],n[1],opts_old=opts_old)
         t1 = time.clock()
         print(t1-t0)
         return any(self.sequence.values())
         # boolean value giving whether or not the backups have converged
 
-    def back_up(self, i_q, i_v, b=None):
+    def back_up(self, i_q, i_v, b=None, opts_old = None):
         '''
         This give the backup over all possible actions at
         a given point b if b is given or for all b points associated to (q,v)
@@ -646,48 +647,51 @@ class spec_Spaths(nx.MultiDiGraph):
         else:
             alph_list = []
             best_edges = []
+            opts = []
             # Get belief point from value function
             for b in self.val[(i_q, i_v)].b_prod_points:
 
-                alpha_new, best_e, importance = self._back_up(i_q,i_v, b)
+                alpha_new, best_e, opt = self._back_up(i_q,i_v, b)
                 alph_list += [alpha_new]
                 best_edges += [best_e]
-
-            alpha_mat = np.matrix(np.unique(np.array(np.concatenate(alph_list, axis=1)),axis=1))
-            self.val[(i_q, i_v)].best_edge =  np.unique(best_edges)
-            try:
-                self.sequence[(i_q, i_v)] = not np.allclose(alpha_mat,self.val[(i_q, i_v)].alpha_mat,rtol=1e-03, atol=1e-03)
-            except:
-                self.sequence[(i_q, i_v)] = True
+                opts += [opt]
 
 
+            if isinstance(opts_old,dict):
+                diff_opt = [abs(j - i) for i, j in zip(opts, opts_old.get((i_q, i_v),[-1]*len(opts)))]
+                self.sequence[(i_q, i_v)] = sum(diff_opt) > (self.epsilon*len(self.val[(i_q, i_v)].b_prod_points))
+            else :
+                opts_old =dict()
 
             if self.sequence[(i_q, i_v)]: # you did change something, all neighbors could be affected
+
                 for n_out in self.successors((i_q, i_v)):
                     if n_out in self.sequence.keys():
                         self.sequence[n_out] = True
-
-            self.val[(i_q, i_v)].alpha_mat = alpha_mat
-
+                #print((i_q, i_v))
+                opts_old[(i_q, i_v)] = opts
+                alpha_mat = np.matrix(np.unique(np.array(np.concatenate(alph_list, axis=1)), axis=1))
+                self.val[(i_q, i_v)].alpha_mat = alpha_mat
+                self.val[(i_q, i_v)].best_edge = np.unique(best_edges)
+            else:
+                print('converged',(i_q, i_v) )
             return
 
 
     def _back_up(self, i_q, i_v, b):
-
-
-
 
         epsilon = self.epsilon
         # Set max alpha and best edge to current max/best (need this to avoid invariant policies)
         # Find index of best alpha from gamma set
         #index_alpha_init = np.argmax(self.val[(i_q, i_v)].alpha_mat.T * b)
         # Save best alpha vector
+        opt = 0
         max_alpha_b_e = np.full_like(b, 0) #self.val[(i_q, i_v)].alpha_mat[:, index_alpha_init]
         # Save edge corresponding to best alpha vector
         best_e = None #self.val[(i_q, i_v)].best_edge[index_alpha_init]
         nf = (i_q, i_v) # source node
         # Foreach edge action
-        for v_e in sorted(self.firm.edges[i_v]):
+        for v_e in self.firm.edges[i_v]:
             # Get probability of reaching goal vertex corresponding to current edge
             # p_reach_goal_node = firm.reach_goal_node_prob[i_v][i_e]
             p_reach_goal_node = 0.99  # TODO Get this from Petter's Barrier Certificate
@@ -724,9 +728,10 @@ class spec_Spaths(nx.MultiDiGraph):
                     index = np.argmax(gamma_e.T * b)
                     alpha_new = alpha_new + p_reach_goal_node * gamma_e[:, index]
             # Update max_alpha and best_edge if this has a greater value
-            if (max_alpha_b_e.T * np.matrix(b)) < (alpha_new.T * np.matrix(b)):
+            if opt < (alpha_new.T * np.matrix(b)).item(0):
                 max_alpha_b_e = alpha_new
                 best_e = v_e
+                opt = (alpha_new.T * np.matrix(b)).item(0)
             # if (i_v==42 and i_q==0 and i==7):  # for debugging only
             # print "obs = " + str(i_o) + "q_z = " + str(q_z)
             # print sum_z.T * b
@@ -748,17 +753,18 @@ class spec_Spaths(nx.MultiDiGraph):
                 # Add the best alpha to the summation
                 sum_o = sum_o + p_reach_goal_node* gamma_o_v[:, index]
             # Check if new alpha has a greater value
-            if (max_alpha_b_e.T * np.matrix(b) + epsilon) < (sum_o.T * np.matrix(b)):
+            if (opt + epsilon) < (sum_o.T * np.matrix(b)).item(0):
                 # Update the max_alpha and best_edge
                 max_alpha_b_e = sum_o
                 best_e = -1 * (self.env.regs.keys().index(key) + 1)  # region 0 will map to edge -1
+                opt = (sum_o.T * np.matrix(b)).item(0)
 
         # Sanity check that alpha <= 1
-        if not (max_alpha_b_e <= 1).all():
-            print('warning ' , max_alpha_b_e, best_e)
-            assert False
+        # if not (max_alpha_b_e <= 1).all():
+        #     print('warning ' , max_alpha_b_e, best_e)
+        #     assert False
 
-        return (max_alpha_b_e, best_e, (max_alpha_b_e > 0).any())
+        return (max_alpha_b_e, best_e, opt)
 
 
     def plot_node(self,node,region, b=None,ax = None):

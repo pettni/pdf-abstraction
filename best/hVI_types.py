@@ -140,6 +140,7 @@ class Env(object):
         :param reg_key: key for a particular region
         :param v_mean:  mean value of a FIRM node
         :return:  (updated belief, simulated observation, index of simulated observation)
+        TODO: return has duplicate term
         '''
         if x_true_reg is not 0 and x_true_reg is not 1:
             raise ValueError("x_true_reg should be 0 or 1")
@@ -155,16 +156,17 @@ class Env(object):
             i_o = x_true_reg
         else:
             i_o = 1-x_true_reg
-        print(O_prod[i_o, :])
         b_ = np.multiply(O_prod[i_o, :].T, b)/(O_prod[i_o, :] * b)
         return (b_, i_o, i_o)
 
-    ''' simulates an observation and returns updated belief without obs_action
-        v_mean = mean value of a FIRM node (uses zero false rate if not passed)
-        b = current belief (product)
-        x_e_true = true label of region (prod space)
-        returns (updated belief, simulated observation, index of simulated observation)'''
     def get_b_o_prod(self, v_mean, b, x_e_true):
+        '''
+         simulates an observation and returns updated belief without obs_action
+        :param v_mean: mean value of a FIRM node (uses zero false rate if not passed)
+        :param b:  current belief (product)
+        :param x_e_true: true label of region (prod space)
+        :return: (updated belief, simulated observation, index of simulated observation)
+        '''
         O = self.get_O_prod(v_mean)
         p_o = np.ravel(O[:, self.x_e.index(x_e_true)]).tolist()
         n_rand = random.random()

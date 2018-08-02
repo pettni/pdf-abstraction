@@ -139,10 +139,12 @@ if __name__ == '__main__':
 
     not_converged = True
     i = 1
+    opts =dict()
     while not_converged:
         print('iteration', i)
-        not_converged = prod_.full_back_up()
+        not_converged = prod_.full_back_up(opts)
         i += 1
+
 
 
     prod_.plot_node([],'r4')
