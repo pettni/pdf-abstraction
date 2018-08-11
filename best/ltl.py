@@ -7,7 +7,10 @@ from best.mdp import MDP, ProductMDP
 
 def formula_to_mdp(formula):
   '''convert a co-safe LTL formula to a DFSA represented as a   
-  special case of an MPD'''
+  special case of an MPD
+  :param formula: string encoding desired LTL formula
+  TODO: Make this work for 'or' operator'''
+
   
   fsa = Fsa()
   fsa.from_formula(formula)

@@ -2,7 +2,8 @@ import numpy as np
 from numpy import linalg as LA
 import math
 from scipy.linalg import solve_discrete_are as dare
-
+from itertools import product, chain
+import random
 
 # Define Belief Space/State
 class Belief_Space(object):
@@ -26,6 +27,20 @@ class State_Space(object):
     def __init__(self, x_low, x_up):
         self.x_low = x_low
         self.x_up = x_up
+        self.grid = None
+
+    def sample_new_state_from_grid(self):
+        ''' Returns a random state  '''
+        if not self.grid:
+            gridxy = [[self.x_low[i] + (self.x_up[i] - self.x_low[i])*(l+1)/8 for l in range(8)] for i in range(len(self.x_low))]
+            self.grid = list(product(*gridxy))
+            print(self.grid)
+
+            random.shuffle(self.grid)
+        mean = self.grid.pop()
+        print(mean)
+        return  State(mean)
+
 
     def sample_new_state(self):
         ''' Returns a random state  '''

@@ -38,6 +38,7 @@ class Env(object):
     _reg = in lower dimensional space (prob of label = 1)
     _prod = in product space '''
     def __init__(self, regs):
+        self._regs = regs
         self.reg_index = OrderedDict()  # saves the position of the region in observation vector
         self.regs = OrderedDict()  # stores only unknown regs
         self.b_reg_init = []
@@ -61,10 +62,23 @@ class Env(object):
         to_print += "Total number of  regions: " + str(self.n_total_regs)
 
         return to_print
+    def get_prop(self,z):
+        '''
+        get atomic proposition for current region
+        :param z:  region key
+        :return:
+        '''
 
-    ''' returns O matrix (2^n_unknown_regs x 2^n_unknown_regs)
-        v_mean = mean value of a FIRM node '''
+
+        return self._regs[z][2]
+
     def get_O_prod(self, v_mean):
+        '''
+        returns O matrix (2^n_unknown_regs x 2^n_unknown_regs)
+        v_mean = mean value of a FIRM node
+        :param v_mean:
+        :return:
+        '''
         regs = self.regs
         false_rate_regs = [self.get_false_rate(val, v_mean) for key, val in regs.iteritems()]
         O = np.matrix(np.ones([2**self.n_unknown_regs, 2**self.n_unknown_regs]))
@@ -77,9 +91,14 @@ class Env(object):
                         O[i_obs, i_x] = O[i_obs, i_x] * false_rate_regs[i_reg]
         return O
 
-    ''' returns [p(o_reg=True|v_mean); p(o_reg=False|v_mean)]  (2 x 2^n_unknown_regs)
-        v_mean = mean value of a FIRM node, uses zero false rate if not passed '''
     def get_O_reg_prob(self, reg_key, v_mean=None):
+        '''
+        returns [p(o_reg=True|v_mean); p(o_reg=False|v_mean)]  (2 x 2^n_unknown_regs)
+        v_mean = mean value of a FIRM node, uses zero false rate if not passed
+        :param reg_key:
+        :param v_mean:
+        :return:
+        '''
         if v_mean is None:
             false_rate = 0
         else:
@@ -99,10 +118,13 @@ class Env(object):
         # O[1, i_x] = O[1, i_x] / sum(O[1, :])
         return O
 
-    ''' returns O matrix (2 x 2)
-        v_mean = mean value of a FIRM node
-        reg_key = key for a particular region '''
     def get_O_reg(self, v_mean, reg_key):
+        '''
+        Compute the probability matrox for the observations
+        :param v_mean: mean value of a FIRM node
+        :param reg_key:   key for a particular region
+        :return: O matrix (2 x 2) =  observation probability matrix
+        '''
         false_rate = self.get_false_rate(self.regs[reg_key], v_mean)
         O = np.matrix([[1-false_rate, false_rate],
                       [false_rate, 1-false_rate]])
@@ -111,12 +133,15 @@ class Env(object):
 
 
     def get_b_o_reg(self, b, x_true_reg, reg_key, v_mean=None):
-        ''' simulates an observation and returns updated belief with obs_action
-            v_mean = mean value of a FIRM node
-            b = current belief (product)
-            x_true_reg = true label of region i.e. being observed \in {0,1}
-            reg_key = key for a particular region
-            returns (updated belief, simulated observation, index of simulated observation)'''
+        '''
+         simulates an observation and returns updated belief with obs_action
+        :param b: current belief (product)
+        :param x_true_reg: true label of region i.e. being observed \in {0,1}
+        :param reg_key: key for a particular region
+        :param v_mean:  mean value of a FIRM node
+        :return:  (updated belief, simulated observation, index of simulated observation)
+        TODO: return has duplicate term
+        '''
         if x_true_reg is not 0 and x_true_reg is not 1:
             raise ValueError("x_true_reg should be 0 or 1")
         if v_mean is None:
@@ -131,16 +156,17 @@ class Env(object):
             i_o = x_true_reg
         else:
             i_o = 1-x_true_reg
-        print(O_prod[i_o, :])
         b_ = np.multiply(O_prod[i_o, :].T, b)/(O_prod[i_o, :] * b)
         return (b_, i_o, i_o)
 
-    ''' simulates an observation and returns updated belief without obs_action
-        v_mean = mean value of a FIRM node (uses zero false rate if not passed)
-        b = current belief (product)
-        x_e_true = true label of region (prod space)
-        returns (updated belief, simulated observation, index of simulated observation)'''
     def get_b_o_prod(self, v_mean, b, x_e_true):
+        '''
+         simulates an observation and returns updated belief without obs_action
+        :param v_mean: mean value of a FIRM node (uses zero false rate if not passed)
+        :param b:  current belief (product)
+        :param x_e_true: true label of region (prod space)
+        :return: (updated belief, simulated observation, index of simulated observation)
+        '''
         O = self.get_O_prod(v_mean)
         p_o = np.ravel(O[:, self.x_e.index(x_e_true)]).tolist()
         n_rand = random.random()

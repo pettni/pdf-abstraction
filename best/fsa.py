@@ -315,4 +315,4 @@ class Fsa(object):
               # next state if bitmap is in inputs else None
               map(lambda e: e[1] if prop_bitmap in e[2]['input'] else None,
               # Get all edges from q
-              self.g.out_edges_iter(q,True)))
+              self.g.out_edges(q,True)))
