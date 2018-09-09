@@ -132,11 +132,11 @@ class SPaths(object):
                                     output_edge = set(self.get_outputs(node, self.nodes[j]))
                                     output_start = set(self.get_outputs(node))
                                     output_end = set(self.get_outputs(self.nodes[j]))
-                                    print "edge = " + str(output_edge)
-                                    print "start = " + str(output_start)
-                                    print "end = " + str(output_end)
+                                    # print "edge = " + str(output_edge)
+                                    # print "start = " + str(output_start)
+                                    # print "end = " + str(output_end)
                                     if output_start == output_end and output_start.issubset(output_edge):
-                                        print "resampling"
+                                        # print "resampling"
                                         resample = True
                                         break
 
