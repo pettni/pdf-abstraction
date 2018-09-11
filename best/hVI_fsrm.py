@@ -6,7 +6,6 @@ that can be used together with the HVI tools.
 from best.fsa import Fsa
 from copy import copy
 import networkx as nx
-import itertools
 from best.mdp import MDP
 from best.hVI_models import Det_SI_Model, State_Space, State
 import best.rss18_functions as rf
@@ -58,19 +57,18 @@ class SPaths(object):
         self.T_list = None
         self.Tz_list = None
 
-    def make_nodes_edges(self, number, edges_dist, init=None):
+    def make_nodes_edges(self, number, edges, init=None):
         t = [time.clock()]
-        self.new_nodes(number, init=init)
+        self.sample_nodes(number, init=init)
         t += [time.clock()]
 
-        self.make_edges(edges_dist)
+        self.make_edges(edges)
         t += [time.clock()]
 
         self.n_particles = 1
         print(np.diff(t))
 
-    def new_nodes(self, n_nodes, means=list(), append=False, init= None):
-        # This function can either creat a graph with n_nodes, or add n_nodes to the graph
+    def sample_nodes(self, n_nodes, means=list(), append=False, init= None):
         # ''' Sample nodes in belief space and also generate node_controllers '''
         # n_nodes = number of nodes to sample in graph
         # append = False erases all previous nodes whereas True adds more nodes to existing graph
@@ -79,54 +77,71 @@ class SPaths(object):
         if not means and n_nodes < len(self.regs):
             raise ValueError('Number of samples cannot be less than n_regs')
 
-        # make a list of nodes
-        nodes = []
+
         if append is False:
             self.nodes = []  # clear previous nodes/edges
             self.edges = OrderedDict()
             self.node_controllers = []
             self.edge_controllers =OrderedDict()
+
+
+        for i in range(n_nodes):
+            # if i == 4:
+            #     import pdb; pdb.set_trace()
+            # Sample Mean
             if means:
-                pass
+                if len(means) is not n_nodes:
+                   raise ValueError('means does not have n_nodes values')
+                node = self.state_space.new_state(means[i])
             else:
-                if isinstance(init, np.ndarray):
-                    nodes += [State(init)] # add first mean for graph node
-                for reg in self.regs:
-                    if (self.regs[reg][2] is not 'obs') or (self.regs[reg][1]<1):
-                        nodes += [self.state_space.sample_new_state_in_reg(self.regs[reg][0])]
-        while means:
-            nodes += [self.state_space.new_state(means.pop(0))]
+                # add sample to every region that is not an obstacle
+                if i == 0 :
+                    if isinstance(init, np.ndarray):
+                        node = State(init)
+                    else:
+                        resample = True
+                        while resample:
+                            resample = False
+                            node = self.state_space.sample_new_state()
 
-        added_nodes = []
-        while n_nodes>0:
+                            for key, value in self.regs.iteritems():
+                                if value[2] is 'obs' and value[0].contains(node.mean):
+                                    resample = True
 
-            if nodes:
-                node = nodes.pop(0) # keep taking first node until empty
-            else:
+                elif i < len(self.regs)+1 and ((self.regs[self.regs.keys()[i-1]][2] is not 'obs') or (self.regs[self.regs.keys()[i-1]][1]<1)):
+                        node = self.state_space.sample_new_state_in_reg(self.regs[self.regs.keys()[i-1]][0])
+                else:
+                    # Implemented rejection sampling to avoid nodes in obs => why would you do that?
+                    # you want to avoid samples in regions that we know to be obstacles,
+                    # but if they could be obstacles and it is not sure, then it makes more sense to keep samples in them
+                    resample = True
+                    while resample:
+                        resample = False
+                        node = self.state_space.sample_new_state()
 
-                # Implemented rejection sampling to avoid nodes in obs => why would you do that? (TODO)
-                # you want to avoid samples in regions that we know to be obstacles,
-                # but if they could be obstacles and it is not sure, then it makes more sense to keep samples in them
-
-                node = self.state_space.sample_new_state()
-
-                if any(map(lambda value: value[2] is 'obs' and value[0].contains(node.mean), self.regs.values())):
-                    continue # now you dont implement this sample
+                        for key, value in self.regs.iteritems():
+                            if value[2] is 'obs' and value[0].contains(node.mean):
+                                resample = True
 
             # Set Co-variance
-            #A = self.motion_model.getA(node)
+            A = self.motion_model.getA(node)
 
-            # todo: is this really needed?
+
             self.nodes.append(node)
             self.node_controllers.append(
                 Node_Controller(self.motion_model, self.obs_model,
                                 node, self.Wx, self.Wu,
                                 self.state_space))
-            added_nodes +=[node]
-            n_nodes += -1
-            return added_nodes
+        # TODO:''' Generate one node in each region '''
+        # j=0
+        # for key in self.regs:
+        #   x_low = self.regs[key][0].bounding_box[0].ravel()
+        #   x_up = self.regs[key][0].bounding_box[1].ravel()
+        #   for i in range(len(self.x_low)):
+        #     self.nodes[n_nodes+j,i] = x_low[i] + (x_up[i] - x_low[i])*np.random.rand(1).ravel()
+        #   j=j+1
 
-    def make_edges(self, dist, nodes=list()):
+    def make_edges(self, dist):
         '''
         Construct edges for self.nodes within distance dist and generate edge controllers
         :param dist: distance (on mean) threshold for neighbors in PRM
@@ -134,40 +149,47 @@ class SPaths(object):
         '''
         self.max_actions = 1  # '''used to construct T'''
         # Can make more efficient
-        if nodes:
-            prod_nodes = itertools.product(nodes,self.nodes)
-        else:
-            prod_nodes = itertools.combinations(self.nodes,2)
-        #to_nodes = self.nodes
+        t = [time.clock()]
+        visited=dict()
+        for i in range(len(self.nodes)):
+            neigh = []
+            edge_controllers = []
+            ti = []
+            for j in range(len(self.nodes)):
+                if i == j:
+                    continue
+                add_edge = False
+                if frozenset({i,j}) in visited:
+                    add_edge = visited[frozenset({i,j})]
+                else:
 
-        for node_i,node_j in prod_nodes:
-            if node_i is node_j:
-                continue
-            dist_nodes = self.state_space.distance_mean(node_i, node_j)
-            if dist_nodes > dist:
-                continue
-                # check whether the kripke condition is satisfied
-            output = set(self.get_outputs(node_i, node_j))
-            output_ends = set(self.get_outputs(node_i))
-            output_ends |= set(self.get_outputs(node_j))
+                    dist_nodes = self.state_space.distance_mean(self.nodes[i], self.nodes[j])
+                    add_edge = dist_nodes < dist
+                    if add_edge:
 
-            if not (output.issubset(output_ends)):
-                continue # kripke not satisfied
+                        # check whether the kripke condition is satisfied
+                        output = set(self.get_outputs(self.nodes[i], self.nodes[j]))
+                        output_ends = set(self.get_outputs(self.nodes[i]))
+                        output_ends |= set(self.get_outputs(self.nodes[j]))
 
-            # by now all conditions are satisfied
-            # add edges in two directions
-            self.edges.setdefault(node_i, []).append(node_j)
-            self.edges.setdefault(node_j, []).append(node_i)
 
-            self.edge_controllers.setdefault(node_i, []).append(
-                Edge_Controller(self.motion_model, self.obs_model, node_i, node_j, self.Wx,
-                                self.Wu, self.state_space))
-            self.edge_controllers.setdefault(node_j, []).append(
-                Edge_Controller(self.motion_model, self.obs_model, node_j, node_i, self.Wx,
-                                self.Wu, self.state_space))
+                        if not(output.issubset(output_ends)):
+                            print(('remove edge',{i,j}))
+                            print(output)
+                            add_edge = False
 
-            if len(self.edges[node_i]) > self.max_actions:
-                self.max_actions = len(self.edges[node_i])
+                    visited[frozenset({i, j})] = add_edge
+
+                if add_edge:
+                    neigh.append(j)
+                    edge_controllers.append(Edge_Controller(self.motion_model,self.obs_model,self.nodes[i],self.nodes[j],self.Wx,self.Wu,self.state_space))
+            if len(neigh) > self.max_actions:
+                self.max_actions = len(neigh)
+
+
+
+            self.edges[i] = neigh
+            self.edge_controllers[i] = edge_controllers
 
     def intersect(self,box,src,dest):
         diff = dest - src
@@ -435,20 +457,9 @@ class Edge_Controller(object):
 
 
 class spec_Spaths(nx.MultiDiGraph):
-    """
-    Cross product between PRM (SPath) and DFA
-    :param
-    """
-    def __init__(self,SPaths_object, formula, env, b_dist='U', n=50):
-        """
-        Initialize cross product of specification (DFA) with PRM graph
-        :param SPaths_object:
-        :param formula: Either Dict with DFA or scLTL spec
-        :param env:
-        :param b_dist:  'U' = uniform distribution with 'n' samples at every node
-                        'PC' = use parent child info to generate belief nodes
-        :param n: max number of belief points in a node.
-        """
+    # includes the SPaths information
+    def __init__(self,SPaths_object, formula,env, n=50):
+
         if isinstance(formula, basestring):
             _dfa, self.dfsa_init, self.dfsa_final, self.proplist = formula_to_mdp(formula)
             self.fsa = Fsa()
@@ -464,25 +475,17 @@ class spec_Spaths(nx.MultiDiGraph):
         # initialize with DFA and SPath object
         self.firm = SPaths_object
         self.env = env
+        probs = [0, 0.2, 0.5, 0.8, 1]  # what is this?
+        self.probs_list = [probs for i in range(env.n_unknown_regs)]
+        self.b_reg_set = [env.get_reg_belief(list(i)) for i in product(*self.probs_list)]
+        b_prod_set = [env.get_product_belief(list(i)) for i in product(*self.probs_list)]
+        # True state of the regs used to simulate trajectories after policy is generated
+        # x_e_true
 
-        if b_dist == 'U':
-            # initialize probability points
-            probs = [0, 0.2, 0.5, 0.8, 1]  # what is this?
-            self.probs_list = [probs for i in range(env.n_unknown_regs)]
-            b_set = [i for i in product(*self.probs_list)]
-            b_set = random.sample(b_set, n)
-            self.b_reg_set = [env.get_reg_belief(list(i)) for i in b_set]
-            self.b_prod_set = [env.get_product_belief(list(i)) for i in b_set]
-            # True state of the regs used to simulate trajectories after policy is generated
-            # x_e_true
-
-            self.b_reg_set += [env.get_reg_belief(self.env.b_reg_init.tolist())]
-            self.b_prod_set += [env.get_product_belief(self.env.b_reg_init.tolist())] # add initial
-        else:
-            assert False #not implemented TODO
-
-        # accuracy requirement for convergence
+        self.b_prod_set = random.sample(b_prod_set, n)
+        self.b_prod_set += [env.get_product_belief(self.env.b_reg_init.tolist())] # add initial
         self.epsilon = 10**-5
+
 
         self.val = dict()
         self.active = dict()
@@ -502,12 +505,6 @@ class spec_Spaths(nx.MultiDiGraph):
 
         super(spec_Spaths, self).__init__(state_label_types=reg_names , edge_label_types=types)
         self.sequence = self.create_prod()
-
-    def add_firm_node(self,n_nodes, dist_edge, means=list()):
-        # add node to PRM/FIrM
-        new_nodes = self.firm.new_nodes(n_nodes, means=means, append=True)
-        # add edges in PRM/FIRM
-        self.firm.make_edges(dist_edge, nodes=new_nodes)
 
 
     def _make_edge_to(self,from_pair,  node_pair, label, unvisited):
@@ -529,15 +526,16 @@ class spec_Spaths(nx.MultiDiGraph):
 
         return unvisited
 
+
     def create_prod(self):
-        # Add only nodes that can actually be reached
+        # Add nodes based on which one can actually be reached
         unvisited = [] # we use this list to keep track of nodes whose outgoing edges have not been included yet
         for (i_q,v) in self.init:
             # add all initial dfa states and initial graph stats (v=0)
             self.add_node((i_q, v))
             unvisited += [(i_q, v)]
 
-        # add a virtual final node (-1,-1) can be used for breath first searches
+        # add a virtual final node (-1,-1) can be used for breath first searchs
             super(spec_Spaths, self).add_node((-1,-1))
             self.active[(-1,-1)] = False
             print('Added virtual final node = {v}'.format(v=(-1,-1)))
@@ -582,6 +580,8 @@ class spec_Spaths(nx.MultiDiGraph):
             if not self.active[u] :
                 u_nodes[u] = False
         return u_nodes
+
+
 
     def add_node(self, n, attr_dict=None, check=True, **attr):
         # add node n to graph
@@ -677,6 +677,7 @@ class spec_Spaths(nx.MultiDiGraph):
                 print('converged',(i_q, i_v) )
             return
 
+
     def _back_up(self, i_q, i_v, b):
 
         epsilon = self.epsilon
@@ -765,6 +766,7 @@ class spec_Spaths(nx.MultiDiGraph):
 
         return (max_alpha_b_e, best_e, opt)
 
+
     def plot_node(self,node,region, b=None,ax = None):
         '''
         Give a one D plot of the value function at a given node by varying the uncertainty of the given region.
@@ -796,8 +798,6 @@ def bfs(graph, start):
     return visited
 
 
-prod_.init = [('0',0,)]
-from copy import copy
 def plot_results(prod,ax):
     '''
     Give a plot of the optimizers of the current graph.
@@ -812,18 +812,17 @@ def plot_results(prod,ax):
     nodes = dict()  # empty dict with nodes as keys and values: (x,y),
     obs = dict()   #  empty dict with nodes as keys, values: set of obs actions
     edges = set()  # empty set with elements (x1,y1,x2,y2) with node from   (x1,y1)  and node to (x2,y2)
-     # list of nodes for which edges needs to be accounted for, initialized with
-                        # a list of initial node tuples (i_q, i_v)
-    unvisited = copy(prod.init)
-    visited = []
-    while unvisited:
-        n = unvisited.pop(0)
-        visited += [n]
+                    # (this will be drawn as vectors which uses differences)
+    unvisited = [] # empty list of nodes for which edges needs to be accounted for
+
+    for n in prod.init: # this gives a list of initial node tuples (i_q, i_v)
         (i_q, i_v) = n
-        opt = np.unique(prod.val[(i_q, i_v)].best_edge)
+        print(prod.val[(i_q, i_v)].best_edge)
         # split into obs actions and transitions actions
-        obs_actions  = filter(lambda i: i<0, opt) # decide to observe a neigborhood
-        tr_actions  = filter(lambda i: i>=0, opt) # decide to transition to a new node
+        obs_actions  = filter(lambda i: i<0, prod.val[(i_q, i_v)].best_edge) # decide to observe a neigborhood
+        tr_actions  = filter(lambda i: i>=0, prod.val[(i_q, i_v)].best_edge)  # decide to transition to a new node
+        print('obs_actions',obs_actions)
+        print('tr_actions',tr_actions)
         # find (x,y)
         x = np.ravel(prod.firm.nodes[i_v].mean)[0]
         y = np.ravel(prod.firm.nodes[i_v].mean)[1]
@@ -832,30 +831,62 @@ def plot_results(prod,ax):
         edges |= {(i_v,i_next) for i_next in tr_actions}
         # to find the nodes (composed of i_q,i_v) that have not yet been added and
         # that are accessible from this node based ont he transition actions, check transitions in prod
+        print(prod[n])
+        unvisited.extend(filter(lambda i: (i not in unvisited) and (i not in nodes), tr_actions))
 
-        for n_next in prod[n]:
-            if n_next[1] in tr_actions:
-                if (not n_next in unvisited) and (not n_next in visited):
-                    unvisited.extend([(n_next)])
-        for i_v in nodes:
-            if i_v < 10:
-                plt.text(nodes[i_v][0] - 0.04, nodes[i_v][1] - 0.05, str(i_v),
-                         color='black', backgroundcolor='grey')
-            else:
-                plt.text(nodes[i_v][0] - 0.09, nodes[i_v][1] - 0.05, str(i_v),
-                         color='black', backgroundcolor='grey')
-    for (start,dest) in edges:
-            plt.plot([nodes[start][0],nodes[dest][0]],[nodes[start][1],nodes[dest][1]],color='black')
-
-            plt.arrow(nodes[start][0],nodes[start][1],.7*(nodes[dest][0]-nodes[start][0]),.7*(nodes[dest][1]-nodes[start][1]), head_width=0.2, head_length=.2, fc='k', ec='k')
+    while unvisited:
+        n = unvisited.pop(0)
 
 
 
-    print('Nodes that can be pruned: {n}'.format(n=sorted(filter(lambda i: not i[1] in nodes, prod.nodes))))
-    ax.set_xlim(prod.firm.state_space.x_low[0], prod.firm.state_space.x_up[0])
-    ax.set_ylim(prod.firm.state_space.x_low[1], prod.firm.state_space.x_up[1])
-    print('number of active nodes = {n}, percent of orig. nodes = {o} %'.format(n=len(nodes),o=100*len(nodes.keys())/len(prod.nodes)))
-    print('number of active edges = {n}, percent of orig. edges = {o} %'.format(n=len(edges),o=100*len(edges)/len(prod.edges),))
+
+        if i_v < 10:
+            plt.text(np.ravel(prod.firm.nodes[i_v].mean)[0] - 0.04, np.ravel(prod.firm.nodes[i].mean)[1] - 0.05, str(i_v),
+                     color='black', backgroundcolor='grey')
+        else:
+            plt.text(np.ravel(prod.firm.nodes[i_v].mean)[0] - 0.09, np.ravel(prod.firm.nodes[i].mean)[1] - 0.05, str(i_v),
+                     color='black', backgroundcolor='grey')
 
 
+        # add this node and the observation edges first
 
+        try:
+            neigh = prod.edges[i] # unlike the firm based result we are actually not interested in all possible regions
+        except KeyError:
+            continue
+        for j in neigh:
+            x = [np.ravel(self.nodes[i].mean)[0], np.ravel(self.nodes[j].mean)[0]]
+            y = [np.ravel(self.nodes[i].mean)[1], np.ravel(self.nodes[j].mean)[1]]
+            ax.plot(x, y, 'b')
+    scale = 3
+    for i in range(len(self.nodes)):
+        # ax.plot(self.nodes[i].mean[0], self.nodes[i].mean[1], 'go')
+        from matplotlib.patches import Ellipse
+        eigvalue, eigvec = np.linalg.eigh(self.nodes[i].cov[0:2, 0:2])
+        if eigvalue[0] < eigvalue[1]:
+            minor, major = 2 * np.sqrt(scale * eigvalue)
+            alpha = np.arctan(eigvec[1, 1] / eigvec[0, 1])
+        elif eigvalue[0] > eigvalue[1]:
+            major, minor = 2 * np.sqrt(scale * eigvalue)
+            alpha = np.arctan(eigvec[1, 0] / eigvec[0, 0])
+        else:
+            major, minor = 2 * np.sqrt(scale * eigvalue)
+            alpha = 0
+        ell = Ellipse(xy=(self.nodes[i].mean[0], self.nodes[i].mean[1]),
+                      width=major, height=minor, angle=alpha)
+        ell.set_facecolor('gray')
+        ax.add_artist(ell)
+        if i < 10:
+            plt.text(np.ravel(self.nodes[i].mean)[0] - 0.04, np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
+                     color='black', backgroundcolor='grey')
+        else:
+            plt.text(np.ravel(self.nodes[i].mean)[0] - 0.09, np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
+                     color='black', backgroundcolor='grey')
+    ax.set_xlim(self.state_space.x_low[0], self.state_space.x_up[0])
+    ax.set_ylim(self.state_space.x_low[1], self.state_space.x_up[1])
+    for (name, info) in self.regs.iteritems():
+        hatch = False
+        fill = True
+        if name is not 'null':
+            rf.plot_region(ax, info[0], name, info[1], self.output_color[name], hatch=hatch, fill=fill)
+    # plt.show()
