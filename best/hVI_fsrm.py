@@ -69,12 +69,11 @@ class SPaths(object):
         self.n_particles = 1
         print(np.diff(t))
 
-    def sample_nodes(self, n_nodes, means=list(), append=False, init=None, min_dist=1.7):
+    def new_nodes(self, n_nodes, means=list(), append=False, init= None):
+        # This function can either creat a graph with n_nodes, or add n_nodes to the graph
         # ''' Sample nodes in belief space and also generate node_controllers '''
         # n_nodes = number of nodes to sample in graph
         # append = False erases all previous nodes whereas True adds more nodes to existing graph
-        # min_dist = Samples within min_dist range will be rejected unless they produce non-NULL outputs
-        #            can be set to 0.0 to disable pruning
 
         # TODO: Implement append to sample nodes incrementally
         if not means and n_nodes < len(self.regs):
@@ -87,12 +86,6 @@ class SPaths(object):
             self.edges = OrderedDict()
             self.node_controllers = []
             self.edge_controllers =OrderedDict()
-
-
-        for i in range(n_nodes):
-            # if i == 13:
-            #     import pdb; pdb.set_trace()
-            # Sample Mean
             if means:
                 pass
             else:
@@ -110,71 +103,30 @@ class SPaths(object):
             if nodes:
                 node = nodes.pop(0) # keep taking first node until empty
             else:
-                # add sample to every region that is not an obstacle
-                if i == 0 :
-                    if isinstance(init, np.ndarray):
-                        node = State(init)
-                    else:
-                        resample = True
-                        while resample:
-                            resample = False
-                            node = self.state_space.sample_new_state()
 
-                            for key, value in self.regs.iteritems():
-                                if value[2] is 'obs' and value[0].contains(node.mean):
-                                    resample = True
-                elif i < len(self.regs) and ((self.regs[self.regs.keys()[i-1]][2] is not 'obs') or (self.regs[self.regs.keys()[i-1]][1]<1)):
-                        node = self.state_space.sample_new_state_in_reg(self.regs[self.regs.keys()[i-1]][0])
-                else:
-                    # Implemented rejection sampling to avoid nodes in obs => why would you do that?
-                    # you want to avoid samples in regions that we know to be obstacles,
-                    # but if they could be obstacles and it is not sure, then it makes more sense to keep samples in them
-                    resample = True
-                    while resample:
-                        resample = False
-                        node = self.state_space.sample_new_state()
+                # Implemented rejection sampling to avoid nodes in obs => why would you do that? (TODO)
+                # you want to avoid samples in regions that we know to be obstacles,
+                # but if they could be obstacles and it is not sure, then it makes more sense to keep samples in them
 
-                        for key, value in self.regs.iteritems():
-                            if value[2] is 'obs' and value[0].contains(node.mean):
-                                resample = True
+                node = self.state_space.sample_new_state()
 
-                        if resample is False:
-                            # Reject sample if it is too close any previous sample and has null outputs
-                            for j in range(i):
-                                dist_nodes = self.state_space.distance_mean(node, self.nodes[j])
-                                if dist_nodes < min_dist:
-                                    output_edge = set(self.get_outputs(node, self.nodes[j]))
-                                    output_start = set(self.get_outputs(node))
-                                    output_end = set(self.get_outputs(self.nodes[j]))
-                                    # print "edge = " + str(output_edge)
-                                    # print "start = " + str(output_start)
-                                    # print "end = " + str(output_end)
-                                    if output_start == output_end and output_start.issubset(output_edge):
-                                        # print "resampling"
-                                        resample = True
-                                        break
+                if any(map(lambda value: value[2] is 'obs' and value[0].contains(node.mean), self.regs.values())):
+                    continue # now you dont implement this sample
 
             # Set Co-variance
-            A = self.motion_model.getA(node)
+            #A = self.motion_model.getA(node)
+
+            # todo: is this really needed?
             self.nodes.append(node)
             self.node_controllers.append(
                 Node_Controller(self.motion_model, self.obs_model,
                                 node, self.Wx, self.Wu,
                                 self.state_space))
+            added_nodes +=[node]
+            n_nodes += -1
+            return added_nodes
 
-        dist_nodes = self.state_space.distance_mean(self.nodes[8], self.nodes[13])
-        print "distance  = " + str(dist_nodes)
-        print "output = " + str(set(self.get_outputs(self.nodes[8], self.nodes[13])))
-        # TODO:''' Generate one node in each region '''
-        # j=0
-        # for key in self.regs:
-        #   x_low = self.regs[key][0].bounding_box[0].ravel()
-        #   x_up = self.regs[key][0].bounding_box[1].ravel()
-        #   for i in range(len(self.x_low)):
-        #     self.nodes[n_nodes+j,i] = x_low[i] + (x_up[i] - x_low[i])*np.random.rand(1).ravel()
-        #   j=j+1
-
-    def make_edges(self, dist):
+    def make_edges(self, dist, nodes=list()):
         '''
         Construct edges for self.nodes within distance dist and generate edge controllers
         :param dist: distance (on mean) threshold for neighbors in PRM
@@ -904,3 +856,6 @@ def plot_results(prod,ax):
     ax.set_ylim(prod.firm.state_space.x_low[1], prod.firm.state_space.x_up[1])
     print('number of active nodes = {n}, percent of orig. nodes = {o} %'.format(n=len(nodes),o=100*len(nodes.keys())/len(prod.nodes)))
     print('number of active edges = {n}, percent of orig. edges = {o} %'.format(n=len(edges),o=100*len(edges)/len(prod.edges),))
+
+
+
