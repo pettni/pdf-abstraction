@@ -844,7 +844,7 @@ def bfs(graph, start):
     return visited
 
 
-prod_.init = [('0',0,)]
+#prod_.init = [('0',0,)]
 from copy import copy
 def plot_results(prod,ax):
     '''
