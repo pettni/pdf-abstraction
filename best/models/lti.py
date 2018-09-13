@@ -2,7 +2,6 @@ import numpy as np
 import itertools
 import polytope as pc
 from numpy import linalg as LA
-import matplotlib.pyplot as plt
 import control
 
 from scipy.stats import norm

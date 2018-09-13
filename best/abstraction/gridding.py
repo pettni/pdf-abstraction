@@ -81,12 +81,10 @@ class Abstraction(object):
       T_pl = sp.coo_matrix((vals, (n0, npl)), shape=(self.N, self.N))
       T_list.append(T_pl)
 
-    output_trans = lambda s: self.x_low + self.eta_list/2 + self.eta_list * np.unravel_index(s, self.n_list)
-
     self.pomdp = POMDP(T_list, 
                        input_names=[name_prefix + '_u'], 
                        state_name=name_prefix + '_s', 
-                       output_trans=output_trans, 
+                       output_trans=self.s_to_x, 
                        output_name=name_prefix + '_x')
 
 
