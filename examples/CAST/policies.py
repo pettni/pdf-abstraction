@@ -1,8 +1,8 @@
 class CassiePolicy:
   
-  def __init__(self, ltlpol, rover_abstr):
+  def __init__(self, ltlpol, abstraction):
     self.ltlpol = ltlpol
-    self.rover_abstr = rover_abstr
+    self.abstraction = abstraction
 
     self.t = 0
     self.s_ab = None
@@ -10,7 +10,7 @@ class CassiePolicy:
   def __call__(self, x_rov, s_map, APs):
     self.ltlpol.report_aps(APs)
 
-    s_ab = self.rover_abstr.x_to_s(x_rov)
+    s_ab = self.abstraction.x_to_s(x_rov)
     
     if s_ab != self.s_ab and self.s_ab != None:
       self.t +=  1
@@ -21,10 +21,10 @@ class CassiePolicy:
     if u_ab == (0,):
       self.t += 1
 
-    return self.rover_abstr.interface(u_ab, s_ab, x_rov), val
+    return self.abstraction.interface(u_ab, s_ab, x_rov), val
 
   def get_value(self, x, s_map):
-    s_ab = self.rover_abstr.x_to_s(x)
+    s_ab = self.abstraction.x_to_s(x)
     t_act = min(self.t, len(self.ltlpol.val)-1)
     return self.ltlpol.val[t_act][(s_ab,) + tuple(s_map) + (self.ltlpol.dfsa_state,)]
 
@@ -39,18 +39,18 @@ class CassiePolicy:
 
 class UAVPolicy:
   
-  def __init__(self, pol_list, val_list, uav_abstr):
+  def __init__(self, pol_list, val_list, abstraction):
     self.pol_list = pol_list
     self.val_list = val_list
     self.ft = False
-    self.uav_abstr = uav_abstr
+    self.abstraction = abstraction
 
     self.t = 0
     self.s_ab = None
       
   def __call__(self, x_cop, s_map):
         
-    s_ab = self.uav_abstr.x_to_s(x_cop)
+    s_ab = self.abstraction.x_to_s(x_cop)
 
     if s_ab != self.s_ab and self.s_ab != None:
       self.t +=  1
@@ -67,7 +67,7 @@ class UAVPolicy:
       if u_ab == (0,):
         # stay in cell
         self.t += 1 
-    return self.uav_abstr.interface(u_ab, s_ab, x_cop), val
+    return self.abstraction.interface(u_ab, s_ab, x_cop), val
 
   def reset(self):
     self.ft = False
