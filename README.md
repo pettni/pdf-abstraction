@@ -18,6 +18,10 @@ For development (create links to source code, no need to reinstall after making 
 Run tests:
 
     nosetests
+    
+To use ROS-based controllers, in addition these packages are needed
+
+    pip install rospkg catkin-tools pyyaml
 
 ## POMDP branch
 
@@ -26,10 +30,10 @@ Run tests:
  - Novel POMDP class
  - New connection structure (graph instead of recursive parallel/serial)
  - Switched to Python 3
+ - Convert old examples (RSS18) to new format
 
 ### TODO
 
- - Convert old examples (RSS18) to new format
  - Base class for policies, solvers return subclasses
  - Competing types of value iteration: 
     * [x] sparse tables (for MDPs)
