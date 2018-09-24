@@ -6,6 +6,7 @@ that can be used together with the HVI tools.
 from best.fsa import Fsa
 from copy import copy
 import networkx as nx
+import itertools
 from best.mdp import MDP
 from best.hVI_models import Det_SI_Model, State_Space, State
 import best.rss18_functions as rf
@@ -24,10 +25,12 @@ from itertools import product
 import random
 from best.hVI_types import Env, Gamma
 import logging
+from copy import copy
+
 logger = logging.getLogger(__name__)
 
 class SPaths(object):
-    '''
+    """
     Construct Roadmap object with
     belief_space, motion_model: Refer to classes in models.py
     # Wx = quadratic cost matrix of state used in LQR
@@ -36,7 +39,7 @@ class SPaths(object):
     # regs_outputs = Mapping from regs info[2] to integer of output; e.g. regs_output = {'blue':0, 'green':1, 'red':2}
     # output_color = e.g. output_color = {-1:'black', 0:'blue', 1:'green', 2:'red'}
     # ax = handle for plotting stuff, can be generated as: fig = plt.figure(0); ax = fig.add_subplot(111, aspect='equal')
-    '''
+    """
     def __init__(self, state_space, motion_model, Wx, Wu, regs, output_color, ax):
         self.state_space = state_space
         # verify that the motion model is deterministic
@@ -60,31 +63,32 @@ class SPaths(object):
         self.T_list = None
         self.Tz_list = None
 
-    def make_nodes_edges(self, number, edges, init=None):
+    def make_nodes_edges(self, number, edges_dist, init=None):
         t = [time.clock()]
         self.sample_nodes(number, init=init)
         t += [time.clock()]
 
-        self.make_edges(edges)
+        self.make_edges(edges_dist)
         t += [time.clock()]
 
         self.n_particles = 1
 
 
     def sample_nodes(self, n_nodes, means=list(), append=False, init=None, min_dist=1.7):
-        ''' Sample nodes in belief space and also generate node_controllers
+        """
+        Sample nodes in belief space and also generate node_controllers
          :param n_nodes  = number of nodes to sample in graph
          :param append = False erases all previous nodes whereas True adds more nodes to existing graph
          :param min_dist = Samples within min_dist range will be rejected unless they produce non-NULL outputs
                    can be set to 0.0 to disable pruning
-
-         '''
+        """
 
         # TODO: Implement append to sample nodes incrementally
         if not means and n_nodes < len(self.regs):
             raise ValueError('Number of samples cannot be less than n_regs')
 
-
+        # make a list of nodes
+        nodes = []
         if append is False:
             self.nodes = []  # clear previous nodes/edges
             self.edges = OrderedDict()
@@ -134,7 +138,7 @@ class SPaths(object):
                 #             break
                 # if resample == True :
                 #     continue
-                # This does NOT work, it makes everything break!!
+                # TODO: This does NOT work, it makes everything break!!
 
 
 
@@ -162,33 +166,34 @@ class SPaths(object):
             prod_nodes = itertools.combinations(self.nodes,2)
         #to_nodes = self.nodes
 
-                    dist_nodes = self.state_space.distance_mean(self.nodes[i], self.nodes[j])
-                    add_edge = dist_nodes < dist
-                    if add_edge:
+        for node_i,node_j in prod_nodes:
+            if node_i is node_j:
+                continue
+            dist_nodes = self.state_space.distance_mean(node_i, node_j)
+            if dist_nodes > dist:
+                continue
+                # check whether the kripke condition is satisfied
+            output = set(self.get_outputs(node_i, node_j))
+            output_ends = set(self.get_outputs(node_i))
+            output_ends |= set(self.get_outputs(node_j))
 
-                        # check whether the kripke condition is satisfied
-                        output = set(self.get_outputs(self.nodes[i], self.nodes[j]))
-                        output_ends = set(self.get_outputs(self.nodes[i]))
-                        output_ends |= set(self.get_outputs(self.nodes[j]))
+            if not (output.issubset(output_ends)):
+                continue # kripke not satisfied
 
+            # by now all conditions are satisfied
+            # add edges in two directions
+            self.edges.setdefault(node_i, []).append(node_j)
+            self.edges.setdefault(node_j, []).append(node_i)
 
-                        if not(output.issubset(output_ends)):
-                            print(('remove edge',{i,j}))
-                            print(output)
-                            add_edge = False
+            self.edge_controllers.setdefault(node_i, []).append(
+                Edge_Controller(self.motion_model, self.obs_model, node_i, node_j, self.Wx,
+                                self.Wu, self.state_space))
+            self.edge_controllers.setdefault(node_j, []).append(
+                Edge_Controller(self.motion_model, self.obs_model, node_j, node_i, self.Wx,
+                                self.Wu, self.state_space))
 
-                    visited[frozenset({i, j})] = add_edge
-
-                if add_edge:
-                    neigh.append(j)
-                    edge_controllers.append(Edge_Controller(self.motion_model,self.obs_model,self.nodes[i],self.nodes[j],self.Wx,self.Wu,self.state_space))
-            if len(neigh) > self.max_actions:
-                self.max_actions = len(neigh)
-
-
-
-            self.edges[i] = neigh
-            self.edge_controllers[i] = edge_controllers
+            if len(self.edges[node_i]) > self.max_actions:
+                self.max_actions = len(self.edges[node_i])
 
     def intersect(self,box,src,dest):
         diff = dest - src
@@ -456,9 +461,20 @@ class Edge_Controller(object):
 
 
 class spec_Spaths(nx.MultiDiGraph):
-    # includes the SPaths information
-    def __init__(self,SPaths_object, formula,env, n=50):
-
+    """
+    Cross product between PRM (SPath) and DFA
+    :param
+    """
+    def __init__(self,SPaths_object, formula, env, b_dist='U', n=50):
+        """
+        Initialize cross product of specification (DFA) with PRM graph
+        :param SPaths_object:
+        :param formula: Either Dict with DFA or scLTL spec
+        :param env:
+        :param b_dist:  'U' = uniform distribution with 'n' samples at every node
+                        'PC' = use parent child info to generate belief nodes
+        :param n: max number of belief points in a node.
+        """
         if isinstance(formula, basestring):
             _dfa, self.dfsa_init, self.dfsa_final, self.proplist = formula_to_mdp(formula)
             self.fsa = Fsa()
@@ -474,17 +490,25 @@ class spec_Spaths(nx.MultiDiGraph):
         # initialize with DFA and SPath object
         self.firm = SPaths_object
         self.env = env
-        probs = [0, 0.2, 0.5, 0.8, 1]  # what is this?
-        self.probs_list = [probs for i in range(env.n_unknown_regs)]
-        self.b_reg_set = [env.get_reg_belief(list(i)) for i in product(*self.probs_list)]
-        b_prod_set = [env.get_product_belief(list(i)) for i in product(*self.probs_list)]
-        # True state of the regs used to simulate trajectories after policy is generated
-        # x_e_true
 
-        self.b_prod_set = random.sample(b_prod_set, n)
-        self.b_prod_set += [env.get_product_belief(self.env.b_reg_init.tolist())] # add initial
+        if b_dist == 'U':
+            # initialize probability points
+            probs = [0, 0.2, 0.5, 0.8, 1]  # what is this?
+            self.probs_list = [probs for i in range(env.n_unknown_regs)]
+            b_set = [i for i in product(*self.probs_list)]
+            b_set = random.sample(b_set, n)
+            self.b_reg_set = [env.get_reg_belief(list(i)) for i in b_set]
+            self.b_prod_set = [env.get_product_belief(list(i)) for i in b_set]
+            # True state of the regs used to simulate trajectories after policy is generated
+            # x_e_true
+
+            self.b_reg_set += [env.get_reg_belief(self.env.b_reg_init.tolist())]
+            self.b_prod_set += [env.get_product_belief(self.env.b_reg_init.tolist())] # add initial
+        else:
+            assert False #not implemented TODO
+
+        # accuracy requirement for convergence
         self.epsilon = 10**-5
-
 
         self.val = dict()
         self.active = dict()
@@ -506,6 +530,12 @@ class spec_Spaths(nx.MultiDiGraph):
         super(spec_Spaths, self).__init__(state_label_types=reg_names , edge_label_types=types)
         self.sequence = self.create_prod()
 
+    def add_firm_node(self,n_nodes, dist_edge, means=list()):
+        # add node to PRM/FIrM
+        new_nodes = self.firm.new_nodes(n_nodes, means=means, append=True)
+        # add edges in PRM/FIRM
+        self.firm.make_edges(dist_edge, nodes=new_nodes)
+
 
     def _make_edge_to(self,from_pair,  node_pair, label, unvisited):
         if not node_pair in self.nodes():
@@ -526,16 +556,15 @@ class spec_Spaths(nx.MultiDiGraph):
 
         return unvisited
 
-
     def create_prod(self):
-        # Add nodes based on which one can actually be reached
+        # Add only nodes that can actually be reached
         unvisited = [] # we use this list to keep track of nodes whose outgoing edges have not been included yet
         for (i_q,v) in self.init:
             # add all initial dfa states and initial graph stats (v=0)
             self.add_node((i_q, v))
             unvisited += [(i_q, v)]
 
-        # add a virtual final node (-1,-1) can be used for breath first searchs
+        # add a virtual final node (-1,-1) can be used for breath first searches
             super(spec_Spaths, self).add_node((-1,-1))
             self.active[(-1,-1)] = False
             print('Added virtual final node = {v}'.format(v=(-1,-1)))
@@ -580,8 +609,6 @@ class spec_Spaths(nx.MultiDiGraph):
             if not self.active[u] :
                 u_nodes[u] = False
         return u_nodes
-
-
 
     def add_node(self, n, attr_dict=None, check=True, **attr):
         # add node n to graph
@@ -795,33 +822,33 @@ def bfs(graph, start):
     return visited
 
 
-#prod_.init = [('0',0,)]
-from copy import copy
 def plot_results(prod,ax):
     '''
     Give a plot of the optimizers of the current graph.
     Based on the firm graph, but nodes now include also info on the state of the DFA
     :param prod: product of DFA and FIRM
     :type prod: spec_Spaths
+    :param ax: axes object
     :return:
     '''
     # TODO TODO FiniSH WHERE I STOPPED CODING >>> make sure to only plot directed edges for possible optimal actions.
     # build the nodes from the once that are actually reachable:
     # start from the initial node
     nodes = dict()  # empty dict with nodes as keys and values: (x,y),
-    obs = dict()   #  empty dict with nodes as keys, values: set of obs actions
-    edges = set()  # empty set with elements (x1,y1,x2,y2) with node from   (x1,y1)  and node to (x2,y2)
-                    # (this will be drawn as vectors which uses differences)
-    unvisited = [] # empty list of nodes for which edges needs to be accounted for
-
-    for n in prod.init: # this gives a list of initial node tuples (i_q, i_v)
+    obs = dict()    # empty dict with nodes as keys, values: set of obs actions
+    edges = set()   # empty set with elements (x1,y1,x2,y2) with node from   (x1,y1)  and node to (x2,y2)
+    # list of nodes for which edges needs to be accounted for, initialized with
+                        # a list of initial node tuples (i_q, i_v)
+    unvisited = copy(prod.init)
+    visited = []
+    while unvisited:
+        n = unvisited.pop(0)
+        visited += [n]
         (i_q, i_v) = n
-        print(prod.val[(i_q, i_v)].best_edge)
+        opt = np.unique(prod.val[(i_q, i_v)].best_edge)
         # split into obs actions and transitions actions
-        obs_actions  = filter(lambda i: i<0, prod.val[(i_q, i_v)].best_edge) # decide to observe a neigborhood
-        tr_actions  = filter(lambda i: i>=0, prod.val[(i_q, i_v)].best_edge)  # decide to transition to a new node
-        print('obs_actions',obs_actions)
-        print('tr_actions',tr_actions)
+        obs_actions  = filter(lambda i: i<0, opt) # decide to observe a neigborhood
+        tr_actions  = filter(lambda i: i>=0, opt) # decide to transition to a new node
         # find (x,y)
         x = np.ravel(i_v.mean)[0]
         y = np.ravel(i_v.mean)[1]
@@ -831,19 +858,12 @@ def plot_results(prod,ax):
         # to find the nodes (composed of i_q,i_v) that have not yet been added and
         # that are accessible from this node based ont he transition actions, check transitions in prod
         print(prod[n])
-        unvisited.extend(filter(lambda i: (i not in unvisited) and (i not in nodes), tr_actions))
+        for n_next in prod[n]:
+            if n_next[1] in tr_actions:
+                if (not n_next in unvisited) and (not n_next in visited):
+                    unvisited.extend([(n_next)])
 
-        # for n_next in prod[n]:
-        #     if n_next[1] in tr_actions:
-        #         if (not n_next in unvisited) and (not n_next in visited):
-        #             unvisited.extend([(n_next)])
-        # for i_v in nodes:
-        #     if i_v < 10:
-        #         plt.text(nodes[i_v][0] - 0.04, nodes[i_v][1] - 0.05, str(i_v),
-        #                  color='black', backgroundcolor='grey')
-        #     else:
-        #         plt.text(nodes[i_v][0] - 0.09, nodes[i_v][1] - 0.05, str(i_v),
-        #                  color='black', backgroundcolor='grey')
+
     for (start,dest) in edges:
             plt.plot([nodes[start][0],nodes[dest][0]],[nodes[start][1],nodes[dest][1]],color='black')
 
@@ -854,54 +874,45 @@ def plot_results(prod,ax):
                       fc='k', ec='k')
 
 
-
-        if i_v < 10:
-            plt.text(np.ravel(prod.firm.nodes[i_v].mean)[0] - 0.04, np.ravel(prod.firm.nodes[i].mean)[1] - 0.05, str(i_v),
-                     color='black', backgroundcolor='grey')
-        else:
-            plt.text(np.ravel(prod.firm.nodes[i_v].mean)[0] - 0.09, np.ravel(prod.firm.nodes[i].mean)[1] - 0.05, str(i_v),
-                     color='black', backgroundcolor='grey')
-
-
-        # add this node and the observation edges first
-
-        try:
-            neigh = prod.edges[i] # unlike the firm based result we are actually not interested in all possible regions
-        except KeyError:
-            continue
-        for j in neigh:
-            x = [np.ravel(self.nodes[i].mean)[0], np.ravel(self.nodes[j].mean)[0]]
-            y = [np.ravel(self.nodes[i].mean)[1], np.ravel(self.nodes[j].mean)[1]]
-            ax.plot(x, y, 'b')
-    scale = 3
-    for i in range(len(self.nodes)):
-        # ax.plot(self.nodes[i].mean[0], self.nodes[i].mean[1], 'go')
-        from matplotlib.patches import Ellipse
-        eigvalue, eigvec = np.linalg.eigh(self.nodes[i].cov[0:2, 0:2])
-        if eigvalue[0] < eigvalue[1]:
-            minor, major = 2 * np.sqrt(scale * eigvalue)
-            alpha = np.arctan(eigvec[1, 1] / eigvec[0, 1])
-        elif eigvalue[0] > eigvalue[1]:
-            major, minor = 2 * np.sqrt(scale * eigvalue)
-            alpha = np.arctan(eigvec[1, 0] / eigvec[0, 0])
-        else:
-            major, minor = 2 * np.sqrt(scale * eigvalue)
-            alpha = 0
-        ell = Ellipse(xy=(self.nodes[i].mean[0], self.nodes[i].mean[1]),
-                      width=major, height=minor, angle=alpha)
-        ell.set_facecolor('gray')
-        ax.add_artist(ell)
-        if i < 10:
-            plt.text(np.ravel(self.nodes[i].mean)[0] - 0.04, np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
-                     color='black', backgroundcolor='grey')
-        else:
-            plt.text(np.ravel(self.nodes[i].mean)[0] - 0.09, np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
-                     color='black', backgroundcolor='grey')
-    ax.set_xlim(self.state_space.x_low[0], self.state_space.x_up[0])
-    ax.set_ylim(self.state_space.x_low[1], self.state_space.x_up[1])
-    for (name, info) in self.regs.iteritems():
-        hatch = False
-        fill = True
-        if name is not 'null':
-            rf.plot_region(ax, info[0], name, info[1], self.output_color[name], hatch=hatch, fill=fill)
-    # plt.show()
+    #     # add this node and the observation edges first
+    #
+    #     try:
+    #         neigh = prod.edges[i] # unlike the firm based result we are actually not interested in all possible regions
+    #     except KeyError:
+    #         continue
+    #     for j in neigh:
+    #         x = [np.ravel(self.nodes[i].mean)[0], np.ravel(self.nodes[j].mean)[0]]
+    #         y = [np.ravel(self.nodes[i].mean)[1], np.ravel(self.nodes[j].mean)[1]]
+    #         ax.plot(x, y, 'b')
+    # scale = 3
+    # for i in range(len(self.nodes)):
+    #     # ax.plot(self.nodes[i].mean[0], self.nodes[i].mean[1], 'go')
+    #     from matplotlib.patches import Ellipse
+    #     eigvalue, eigvec = np.linalg.eigh(self.nodes[i].cov[0:2, 0:2])
+    #     if eigvalue[0] < eigvalue[1]:
+    #         minor, major = 2 * np.sqrt(scale * eigvalue)
+    #         alpha = np.arctan(eigvec[1, 1] / eigvec[0, 1])
+    #     elif eigvalue[0] > eigvalue[1]:
+    #         major, minor = 2 * np.sqrt(scale * eigvalue)
+    #         alpha = np.arctan(eigvec[1, 0] / eigvec[0, 0])
+    #     else:
+    #         major, minor = 2 * np.sqrt(scale * eigvalue)
+    #         alpha = 0
+    #     ell = Ellipse(xy=(self.nodes[i].mean[0], self.nodes[i].mean[1]),
+    #                   width=major, height=minor, angle=alpha)
+    #     ell.set_facecolor('gray')
+    #     ax.add_artist(ell)
+    #     if i < 10:
+    #         plt.text(np.ravel(self.nodes[i].mean)[0] - 0.04, np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
+    #                  color='black', backgroundcolor='grey')
+    #     else:
+    #         plt.text(np.ravel(self.nodes[i].mean)[0] - 0.09, np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
+    #                  color='black', backgroundcolor='grey')
+    # ax.set_xlim(self.state_space.x_low[0], self.state_space.x_up[0])
+    # ax.set_ylim(self.state_space.x_low[1], self.state_space.x_up[1])
+    # for (name, info) in self.regs.iteritems():
+    #     hatch = False
+    #     fill = True
+    #     if name is not 'null':
+    #         rf.plot_region(ax, info[0], name, info[1], self.output_color[name], hatch=hatch, fill=fill)
+    # # plt.show()
