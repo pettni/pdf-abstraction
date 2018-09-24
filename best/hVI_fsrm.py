@@ -153,7 +153,7 @@ class SPaths(object):
             n_nodes += -1
         return added_nodes
 
-    def make_edges(self, dist):
+    def make_edges(self, dist,nodes=list()):
         '''
         Construct edges for self.nodes within distance dist and generate edge controllers
         :param dist: distance (on mean) threshold for neighbors in PRM
