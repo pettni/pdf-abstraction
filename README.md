@@ -118,16 +118,19 @@ Then, we initialize the SPath object,
     firm = SPaths(r2_bs, motion_model, Wx, Wu, regs, output_color, ax)
 
 which takes as arguments:
-  - belief_space, motion_model: Refer to classes in models.py
-  - Wx = quadratic cost matrix of state used in LQR
-  - Wu = quadratic cost matrix of input used in LQR
-  - regs = the ordered dictionary with regions
-  - regs_outputs = Mapping from regs info [2] to integer of output; e.g. regs_output = {'blue':0, 'green':1, 'red':2}-->
-  - output_color = e.g. output_color = {-1:'black', 0:'blue', 1:'green', 2:'red'}-->
-  - ax = handle for plotting stuff, can be generated as: fig = plt.figure(0); ax = fig.add_subplot(111, aspect='equal')-->
+- belief_space, motion_model: Refer to classes in models.py
+- Wx = quadratic cost matrix of state used in LQR
+- Wu = quadratic cost matrix of input used in LQR
+- regs = the ordered dictionary with regions
+- regs_outputs = Mapping from regs info [2] to integer of output; e.g. regs_output = {'blue':0, 'green':1, 'red':2}-->
+- output_color = e.g. output_color = {-1:'black', 0:'blue', 1:'green', 2:'red'}-->
+- ax = handle for plotting stuff, can be generated as: fig = plt.figure(0); ax = fig.add_subplot(111, aspect='equal')-->
 
+Afterwards we generate 40 nodes and edges between nodes with distance less than 3.
+The initial state is (-4.5,0) and is the first state that is ampled.
 
     firm.make_nodes_edges(40, 3, init=np.array([[-4.5],[0]]))
     firm.compute_output_prob()
     firm.plot(ax)
 
+All uncertain regions are also sampled at least once.
