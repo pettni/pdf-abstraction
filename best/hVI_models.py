@@ -145,6 +145,13 @@ class State(Belief_State):
         else:
             self.cov = np.mat(cov)
 
+    def __str__(self):
+        return self.mean.__str__()
+
+    def __repr__(self):
+        return "<node at x:%s y:%s>" % (np.ravel(self.mean)[0], np.ravel(self.mean)[1])
+
+
 # Define Motion Models
 class Motion_Model(object):
 

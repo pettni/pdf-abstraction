@@ -70,7 +70,7 @@ class SPaths(object):
         t += [time.clock()]
 
         self.n_particles = 1
-        print(np.diff(t))
+
 
     def sample_nodes(self, n_nodes, means=list(), append=False, init=None, min_dist=1.7):
         ''' Sample nodes in belief space and also generate node_controllers
@@ -109,7 +109,6 @@ class SPaths(object):
 
         added_nodes = []
         while n_nodes>0:
-            print(n_nodes)
             if nodes:
                 node = nodes.pop(0) # keep taking first node until empty
             else:
@@ -117,7 +116,6 @@ class SPaths(object):
                 # you want to avoid samples in regions that we know to be obstacles,
                 # but if they could be obstacles and it is not sure, then it makes more sense to keep samples in them
                 node = self.state_space.sample_new_state()
-                resample = False
                 if any(map(lambda value: value[2] is 'obs' and value[0].contains(node.mean), self.regs.values())):
                     continue  # now you dont implement this sample
 
@@ -296,7 +294,7 @@ class SPaths(object):
                 y = [np.ravel(traj[i])[1], np.ravel(traj[i+1])[1]]
             # if color == 'white':
             #     color = 'black'
-            self.ax.plot(x, y, color, ms=20, linewidth=3.0)
+            return self.ax.plot(x, y, color, ms=20, linewidth=3.0)
 
 
     def plot(self, ax):
@@ -514,7 +512,8 @@ class spec_Spaths(nx.MultiDiGraph):
         self.active = dict()
 
         # values will point to values of _*_label_def below
-        self.init = [(state,0) for (state, key) in self.fsa.init.items() if key == 1]
+        firm_init =  self.firm.nodes[0] # TODO: find the actual value
+        self.init = [(state,firm_init) for (state, key) in self.fsa.init.items() if key == 1]
 
         types = [
             {'name': 'input',
@@ -575,7 +574,7 @@ class spec_Spaths(nx.MultiDiGraph):
             for v_next in self.firm.edges[i_v]:
                 # TODO complete this with obs and region labels
                 # compute output of that vertex
-                list_labels = self.firm.get_outputs(self.firm.nodes[v_next])
+                list_labels = self.firm.get_outputs(v_next)
 
                 # if null is included in the current labels then remove it
                 try:
@@ -611,7 +610,7 @@ class spec_Spaths(nx.MultiDiGraph):
 
     def add_node(self, n, attr_dict=None, check=True, **attr):
         # add node n to graph
-        list_labels = self.firm.get_outputs(self.firm.nodes[n[1]])
+        list_labels = self.firm.get_outputs(n[1])
         if len(list_labels) > 1:
             list_labels.remove('null')
 
@@ -638,14 +637,12 @@ class spec_Spaths(nx.MultiDiGraph):
         raise ValueError
 
     def full_back_up(self, opts_old = None):
-        t0 = time.clock()
         print('Do full back-up')
 
         for n in self.sequence:
             # do back up
             self.back_up(n[0],n[1],opts_old=opts_old)
-        t1 = time.clock()
-        print(t1-t0)
+
         return any(self.sequence.values())
         # boolean value giving whether or not the backups have converged
 
@@ -766,7 +763,7 @@ class spec_Spaths(nx.MultiDiGraph):
         # Foreach obs action (iterate through every region that we can observe)
         for key, info in  self.env.regs.iteritems():
             # Get observation matrix as defined in the paper
-            O = self.env.get_O_reg_prob(key, self.firm.nodes[i_v].mean)
+            O = self.env.get_O_reg_prob(key, i_v.mean)
             # Initialize sum over observations to zero
             sum_o = np.zeros([2 ** self.env.n_unknown_regs, 1])
             # Iterate over possible observations/Labels (True, False)
@@ -818,7 +815,6 @@ def bfs(graph, start):
             add_to = list((set(graph.predecessors(vertex)) - set(visited))- set(queue))
             queue += add_to
 
-    print('visited', visited)
     return visited
 
 
@@ -851,29 +847,33 @@ def plot_results(prod,ax):
         obs_actions  = filter(lambda i: i<0, opt) # decide to observe a neigborhood
         tr_actions  = filter(lambda i: i>=0, opt) # decide to transition to a new node
         # find (x,y)
-        x = np.ravel(prod.firm.nodes[i_v].mean)[0]
-        y = np.ravel(prod.firm.nodes[i_v].mean)[1]
+        x = np.ravel(i_v.mean)[0]
+        y = np.ravel(i_v.mean)[1]
         nodes[i_v] = (x,y)
         obs[i_v] = obs.get(i_v,set())|set(obs_actions)
         edges |= {(i_v,i_next) for i_next in tr_actions}
         # to find the nodes (composed of i_q,i_v) that have not yet been added and
         # that are accessible from this node based ont he transition actions, check transitions in prod
 
-        for n_next in prod[n]:
-            if n_next[1] in tr_actions:
-                if (not n_next in unvisited) and (not n_next in visited):
-                    unvisited.extend([(n_next)])
-        for i_v in nodes:
-            if i_v < 10:
-                plt.text(nodes[i_v][0] - 0.04, nodes[i_v][1] - 0.05, str(i_v),
-                         color='black', backgroundcolor='grey')
-            else:
-                plt.text(nodes[i_v][0] - 0.09, nodes[i_v][1] - 0.05, str(i_v),
-                         color='black', backgroundcolor='grey')
+        # for n_next in prod[n]:
+        #     if n_next[1] in tr_actions:
+        #         if (not n_next in unvisited) and (not n_next in visited):
+        #             unvisited.extend([(n_next)])
+        # for i_v in nodes:
+        #     if i_v < 10:
+        #         plt.text(nodes[i_v][0] - 0.04, nodes[i_v][1] - 0.05, str(i_v),
+        #                  color='black', backgroundcolor='grey')
+        #     else:
+        #         plt.text(nodes[i_v][0] - 0.09, nodes[i_v][1] - 0.05, str(i_v),
+        #                  color='black', backgroundcolor='grey')
     for (start,dest) in edges:
             plt.plot([nodes[start][0],nodes[dest][0]],[nodes[start][1],nodes[dest][1]],color='black')
 
-            plt.arrow(nodes[start][0],nodes[start][1],.7*(nodes[dest][0]-nodes[start][0]),.7*(nodes[dest][1]-nodes[start][1]), head_width=0.2, head_length=.2, fc='k', ec='k')
+            plt.arrow(nodes[start][0],nodes[start][1],
+                      .7*(nodes[dest][0]-nodes[start][0]),
+                      .7*(nodes[dest][1]-nodes[start][1]),
+                      head_width=0.2, head_length=.2,
+                      fc='k', ec='k')
 
 
 
