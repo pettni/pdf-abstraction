@@ -28,13 +28,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 class SPaths(object):
-    # belief_space, motion_model: Refer to classes in models.py
+    '''
+    Construct Roadmap object with
+    belief_space, motion_model: Refer to classes in models.py
     # Wx = quadratic cost matrix of state used in LQR
     # Wu = quadratic cost matrix of input used in LQR
     # regs = same as RSS definition
     # regs_outputs = Mapping from regs info[2] to integer of output; e.g. regs_output = {'blue':0, 'green':1, 'red':2}
     # output_color = e.g. output_color = {-1:'black', 0:'blue', 1:'green', 2:'red'}
     # ax = handle for plotting stuff, can be generated as: fig = plt.figure(0); ax = fig.add_subplot(111, aspect='equal')
+    '''
     def __init__(self, state_space, motion_model, Wx, Wu, regs, output_color, ax):
         self.state_space = state_space
         # verify that the motion model is deterministic
@@ -60,7 +63,7 @@ class SPaths(object):
 
     def make_nodes_edges(self, number, edges_dist, init=None):
         t = [time.clock()]
-        self.new_nodes(number, init=init)
+        self.sample_nodes(number, init=init)
         t += [time.clock()]
 
         self.make_edges(edges_dist)
@@ -70,11 +73,13 @@ class SPaths(object):
         print(np.diff(t))
 
     def sample_nodes(self, n_nodes, means=list(), append=False, init=None, min_dist=1.7):
-        # ''' Sample nodes in belief space and also generate node_controllers '''
-        # n_nodes = number of nodes to sample in graph
-        # append = False erases all previous nodes whereas True adds more nodes to existing graph
-        # min_dist = Samples within min_dist range will be rejected unless they produce non-NULL outputs
-        #            can be set to 0.0 to disable pruning
+        ''' Sample nodes in belief space and also generate node_controllers
+         :param n_nodes  = number of nodes to sample in graph
+         :param append = False erases all previous nodes whereas True adds more nodes to existing graph
+         :param min_dist = Samples within min_dist range will be rejected unless they produce non-NULL outputs
+                   can be set to 0.0 to disable pruning
+
+         '''
 
         # TODO: Implement append to sample nodes incrementally
         if not means and n_nodes < len(self.regs):
@@ -89,90 +94,64 @@ class SPaths(object):
             self.edge_controllers =OrderedDict()
 
 
-        for i in range(n_nodes):
-            # if i == 13:
-            #     import pdb; pdb.set_trace()
-            # Sample Mean
-            if means:
-                pass
-            else:
-                if isinstance(init, np.ndarray):
-                    nodes += [State(init)] # add first mean for graph node
-                for reg in self.regs:
-                    if (self.regs[reg][2] is not 'obs') or (self.regs[reg][1]<1):
-                        nodes += [self.state_space.sample_new_state_in_reg(self.regs[reg][0])]
+
+        if means: #=> if you already have a precomputed node to add use that one first.
+            pass
+        elif not append: # first use init
+            if isinstance(init, np.ndarray):
+                nodes += [State(init)] # add first mean for graph node
+            for reg in self.regs:
+                if (self.regs[reg][2] is not 'obs') or (self.regs[reg][1]<1):
+                    nodes += [self.state_space.sample_new_state_in_reg(self.regs[reg][0])]
+
         while means:
             nodes += [self.state_space.new_state(means.pop(0))]
 
         added_nodes = []
         while n_nodes>0:
-
+            print(n_nodes)
             if nodes:
                 node = nodes.pop(0) # keep taking first node until empty
             else:
-                # add sample to every region that is not an obstacle
-                if i == 0 :
-                    if isinstance(init, np.ndarray):
-                        node = State(init)
-                    else:
-                        resample = True
-                        while resample:
-                            resample = False
-                            node = self.state_space.sample_new_state()
+                # Implemented rejection sampling to avoid nodes in obs => why would you do that?
+                # you want to avoid samples in regions that we know to be obstacles,
+                # but if they could be obstacles and it is not sure, then it makes more sense to keep samples in them
+                node = self.state_space.sample_new_state()
+                resample = False
+                if any(map(lambda value: value[2] is 'obs' and value[0].contains(node.mean), self.regs.values())):
+                    continue  # now you dont implement this sample
 
-                            for key, value in self.regs.iteritems():
-                                if value[2] is 'obs' and value[0].contains(node.mean):
-                                    resample = True
-                elif i < len(self.regs) and ((self.regs[self.regs.keys()[i-1]][2] is not 'obs') or (self.regs[self.regs.keys()[i-1]][1]<1)):
-                        node = self.state_space.sample_new_state_in_reg(self.regs[self.regs.keys()[i-1]][0])
-                else:
-                    # Implemented rejection sampling to avoid nodes in obs => why would you do that?
-                    # you want to avoid samples in regions that we know to be obstacles,
-                    # but if they could be obstacles and it is not sure, then it makes more sense to keep samples in them
-                    resample = True
-                    while resample:
-                        resample = False
-                        node = self.state_space.sample_new_state()
+                # # Reject sample if it is too close any previous sample and has null outputs
+                # for node_j in added_nodes:
+                #     dist_nodes = self.state_space.distance_mean(node, node_j)
+                #     if dist_nodes < min_dist:
+                #         output_edge = set(self.get_outputs(node, node_j))
+                #         output_start = set(self.get_outputs(node))
+                #         output_end = set(self.get_outputs(node_j))
+                #
+                #         if output_start == output_end and output_start.issubset(output_edge):
+                #             print "discard this sample"
+                #             print "edge = " + str(output_edge)
+                #             print "start = " + str(output_start)
+                #             print "end = " + str(output_end)
+                #             resample = True
+                #             break
+                # if resample == True :
+                #     continue
+                # This does NOT work, it makes everything break!!
 
-                        for key, value in self.regs.iteritems():
-                            if value[2] is 'obs' and value[0].contains(node.mean):
-                                resample = True
 
-                        if resample is False:
-                            # Reject sample if it is too close any previous sample and has null outputs
-                            for j in range(i):
-                                dist_nodes = self.state_space.distance_mean(node, self.nodes[j])
-                                if dist_nodes < min_dist:
-                                    output_edge = set(self.get_outputs(node, self.nodes[j]))
-                                    output_start = set(self.get_outputs(node))
-                                    output_end = set(self.get_outputs(self.nodes[j]))
-                                    # print "edge = " + str(output_edge)
-                                    # print "start = " + str(output_start)
-                                    # print "end = " + str(output_end)
-                                    if output_start == output_end and output_start.issubset(output_edge):
-                                        # print "resampling"
-                                        resample = True
-                                        break
 
             # Set Co-variance
-            A = self.motion_model.getA(node)
             self.nodes.append(node)
             self.node_controllers.append(
                 Node_Controller(self.motion_model, self.obs_model,
                                 node, self.Wx, self.Wu,
                                 self.state_space))
 
-        dist_nodes = self.state_space.distance_mean(self.nodes[8], self.nodes[13])
-        print "distance  = " + str(dist_nodes)
-        print "output = " + str(set(self.get_outputs(self.nodes[8], self.nodes[13])))
-        # TODO:''' Generate one node in each region '''
-        # j=0
-        # for key in self.regs:
-        #   x_low = self.regs[key][0].bounding_box[0].ravel()
-        #   x_up = self.regs[key][0].bounding_box[1].ravel()
-        #   for i in range(len(self.x_low)):
-        #     self.nodes[n_nodes+j,i] = x_low[i] + (x_up[i] - x_low[i])*np.random.rand(1).ravel()
-        #   j=j+1
+            added_nodes += [node]
+            n_nodes += -1
+        return added_nodes
 
     def make_edges(self, dist):
         '''
@@ -181,7 +160,6 @@ class SPaths(object):
         :return:
         '''
         self.max_actions = 1  # '''used to construct T'''
-        # Can make more efficient
         if nodes:
             prod_nodes = itertools.product(nodes,self.nodes)
         else:
