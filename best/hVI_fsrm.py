@@ -98,7 +98,6 @@ class SPaths(object):
                    can be set to 0.0 to disable pruning
         """
 
-        # TODO: Implement append to sample nodes incrementally
         if not means and n_nodes < len(self.regs):
             raise ValueError('Number of samples cannot be less than n_regs')
 
@@ -151,7 +150,6 @@ class SPaths(object):
                 #             break
                 # if resample == True :
                 #     continue
-                # TODO: This does NOT work, it makes everything break!!
 
             assert not min_dist
             # not implemented
@@ -248,9 +246,11 @@ class SPaths(object):
         return np.max(u) <= np.min(v)
 
     def compute_output_prob(self):
-        '''Compute the probability over output set for each edge in the FIRM graph
+        """Compute the probability over output set for each edge in the FIRM graph
+        For the deterministic model, this will assign Boolean truth values to potential labellings
+        TODO: relate this to our choice of Kripke structure
         :return:
-        '''
+        """
         for (node, edge_controllers) in self.edge_controllers.iteritems():
             output_prob_edges = []
             for edge_controller in edge_controllers:
@@ -333,33 +333,22 @@ class SPaths(object):
         :param ax:  handle to plot
         :return:
         """
-        for i in range(len(self.nodes)):
+        for node_i in self.nodes:
             try:
-                neigh = self.edges[i]
+                neigh = self.edges[node_i]
             except KeyError:
+                print("error in self.edges")
                 continue
-            for j in neigh:
-                x = [np.ravel(self.nodes[i].mean)[0], np.ravel(self.nodes[j].mean)[0]]
-                y = [np.ravel(self.nodes[i].mean)[1], np.ravel(self.nodes[j].mean)[1]]
+            for node_j in neigh:
+                x = [np.ravel(node_i.mean)[0], np.ravel(node_j.mean)[0]]
+                y = [np.ravel(node_i.mean)[1], np.ravel(node_j.mean)[1]]
                 ax.plot(x, y, 'b')
+
+
+
         scale = 3
         for i in range(len(self.nodes)):
-            # ax.plot(self.nodes[i].mean[0], self.nodes[i].mean[1], 'go')
-            from matplotlib.patches import Ellipse
-            eigvalue, eigvec = np.linalg.eigh(self.nodes[i].cov[0:2, 0:2])
-            if eigvalue[0] < eigvalue[1]:
-                minor, major = 2 * np.sqrt(scale * eigvalue)
-                alpha = np.arctan(eigvec[1, 1] / eigvec[0, 1])
-            elif eigvalue[0] > eigvalue[1]:
-                major, minor = 2 * np.sqrt(scale * eigvalue)
-                alpha = np.arctan(eigvec[1, 0] / eigvec[0, 0])
-            else:
-                major, minor = 2 * np.sqrt(scale * eigvalue)
-                alpha = 0
-            ell = Ellipse(xy=(self.nodes[i].mean[0], self.nodes[i].mean[1]),
-                          width=major, height=minor, angle=alpha)
-            ell.set_facecolor('gray')
-            ax.add_artist(ell)
+            # including the code in the following lines in the previous for loop doesnt work
             if i < 10:
                 plt.text(np.ravel(self.nodes[i].mean)[0] - 0.04, np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
                          color='black', backgroundcolor='grey')
@@ -380,7 +369,7 @@ class SPaths(object):
         Unknown function, not clear what this does at all....
 
         Construct T by treating index of neigh as action number
-        TODO: Update this for Hybrid-PBVI MDP definition
+        Update this for Hybrid-PBVI MDP definition
         TODO: (Sofie) => this is not used is it?
         # [R] MDP = abstraction'
         :return:
@@ -417,7 +406,7 @@ class Node_Controller(object):
 
         :param motion_model: Deterministic motion model
         :type motion_model: Det_SI_Model
-        :param obs_model: TODO: figure out why this is not just zero or None?
+        :param obs_model: This is  None for the deterministic models, see  best/hVI_fsrm.py:56
         :param node: Node in the roadmap at which this controller is implemented
         :param Wx: The weight factor for LQR for the state
         :param Wu: The weight matrix for the input
@@ -554,7 +543,7 @@ class spec_Spaths(nx.MultiDiGraph):
         # initialize the belief points
         if b_dist == 'U':
             # initialize probability points
-            probs = [0, 0.2, 0.5, 0.8, 1]    #  for the individual dimensions
+            probs = [0, 0.2, 0.5, 0.8, 1]    # forthe individual dimensions
             #  probs is a predefined set of belief points
             # TODO: make this an argument of the function
             # that can be used as a default
@@ -570,7 +559,7 @@ class spec_Spaths(nx.MultiDiGraph):
             self.b_reg_set += [env.get_reg_belief(self.env.b_reg_init.tolist())]
             self.b_prod_set += [env.get_product_belief(self.env.b_reg_init.tolist())]  # add initial
         else:
-            assert False   # not implemented TODO
+            assert False   # not implemented TODO: extra feature
 
         # accuracy requirement for convergence
         self.epsilon = 10**-5
@@ -579,7 +568,7 @@ class spec_Spaths(nx.MultiDiGraph):
         self.active = dict()
 
         # values will point to values of _*_label_def below
-        firm_init =  self.firm.nodes[0] # TODO: find the actual value
+        firm_init = self.firm.nodes[0]
         self.init = [(state,firm_init) for (state, key) in self.fsa.init.items() if key == 1]
 
         types = [
@@ -655,20 +644,18 @@ class spec_Spaths(nx.MultiDiGraph):
             print('Added virtual final node = {v}'.format(v=(-1,-1)))
 
         while len(unvisited) > 0:
-            (i_q,i_v) = unvisited.pop(0)
-            # TODO Add edges start from initial node
+            (i_q, i_v) = unvisited.pop(0)
             for v_next in self.firm.edges[i_v]:
-                # TODO complete this with obs and region labels
                 # compute output of that vertex
                 list_labels = self.firm.get_outputs(v_next)
-
-                # if null is included in the current labels then remove it
                 try:
                     list_labels.remove('null')
-                except ValueError: pass
+                except ValueError:
+                    pass
 
                 try:
-                    bit_prop = self.fsa.bitmap_of_props((self.env.get_prop(list_labels[0]),)) # assume only one label at a time
+                    bit_prop = self.fsa.bitmap_of_props((self.env.get_prop(list_labels[0]),))
+                    # assume only one label at a time
 
                 except IndexError:
                     bit_prop = 0
@@ -874,7 +861,7 @@ class spec_Spaths(nx.MultiDiGraph):
             # import pdb; pdb.set_trace()
 
         # Foreach obs action (iterate through every region that we can observe)
-        for key, info in  self.env.regs.iteritems():
+        for key, info in self.env.regs.iteritems():
             # Get observation matrix as defined in the paper
             O = self.env.get_O_reg_prob(key, i_v.mean)
             # Initialize sum over observations to zero
@@ -899,9 +886,9 @@ class spec_Spaths(nx.MultiDiGraph):
         #     print('warning ' , max_alpha_b_e, best_e)
         #     assert False
 
-        return (max_alpha_b_e, best_e, opt)
+        return max_alpha_b_e, best_e, opt
 
-    def plot_node(self,node,region, b=None,ax = None):
+    def plot_node(self, node, region, b=None, ax=None):
         """
         Give a one D plot of the value function at a given node by varying the uncertainty of the given region.
         Not implemented !

@@ -46,6 +46,13 @@ compute a policy with guaranteed probability that the property is satisfied.
 
 ----
 # Example of using hVi
+ Currently working examples:
+ - Rocksample.ipynb (working):
+    Make sure that when you run this notebook, you have installed this package first.
+ - Toy [hVI_main] (NOT working and deprecated):
+    TODO: Sofie figure out what is going on here
+ - RSS [hVI_main] (NOT working)
+    TODO: Sofie: Figure out what is going on.
 
 ## Configure the environment
 
@@ -115,7 +122,7 @@ Since we'll need a picture to look at, we first initialize that.
 
 Then, we initialize the SPath object,
 
-    firm = SPaths(r2_bs, motion_model, Wx, Wu, regs, output_color, ax)
+    prm = SPaths(r2_bs, motion_model, Wx, Wu, regs, output_color, ax)
 
 which takes as arguments:
 - belief_space, motion_model: Refer to classes in models.py
@@ -129,8 +136,9 @@ which takes as arguments:
 Afterwards we generate 40 nodes and edges between nodes with distance less than 3.
 The initial state is (-4.5,0) and is the first state that is ampled.
 
-    firm.make_nodes_edges(40, 3, init=np.array([[-4.5],[0]]))
-    firm.compute_output_prob()
-    firm.plot(ax)
+    prm.make_nodes_edges(40, 3, init=np.array([[-4.5],[0]]))
+    prm.plot(ax)
 
 All uncertain regions are also sampled at least once.
+
+

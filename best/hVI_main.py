@@ -17,15 +17,14 @@ import multiprocessing
 from itertools import product
 import time
 
-''' TODO:
-- Smarter expansion of belief set to make algorithm anytime
-'''
+# TODO: Smarter expansion of belief set to make algorithm anytime
 
-''' Configuration Parameters '''
+
+#  Configuration Parameters
 random.seed(rand_seed)
 np.random.seed(rand_seed)
 
-''' Setup Motion and Observation Models '''
+#  Setup Motion and Observation Models
 # Define Motion and Observation Model
 Wx = np.eye(2)
 Wu = np.eye(2)

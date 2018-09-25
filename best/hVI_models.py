@@ -118,12 +118,13 @@ class Rn_Belief_Space(Belief_Space):
 class Belief_State(object):
 
     def __init__(self, mean, cov=None):
-        raise NotImplementedError
+        pass
 
 
 class Rn_Belief_State(Belief_State):
 
     def __init__(self, mean, cov=None):
+        super(Rn_Belief_State, self).__init__(mean, cov)
         self.mean = np.mat(mean)
         if self.mean.shape[0] == 1:
             self.mean = self.mean.T
@@ -131,19 +132,19 @@ class Rn_Belief_State(Belief_State):
             self.cov = np.zeros([len(mean), len(mean)])
         else:
             self.cov = np.mat(cov)
-
 
 
 class State(Belief_State):
-
+    """The state space of a deterministic model"""
     def __init__(self, mean, cov=None):
+        super(State, self).__init__(mean, cov)
         self.mean = np.mat(mean)
         if self.mean.shape[0] == 1:
             self.mean = self.mean.T
         if cov is None:
             self.cov = np.zeros([len(mean), len(mean)])
         else:
-            self.cov = np.mat(cov)
+            raise ValueError
 
     def __str__(self):
         return self.mean.__str__()
@@ -180,14 +181,22 @@ class Motion_Model(object):
 
 
 class Det_SI_Model(Motion_Model):
-    ''' Single Integrator Model '''
+    """ This is a simple single integrator model:
+    [[x],[y]] = [[1, 0],[0,1]] [[x],[y]] + [[1, 0],[0,1]] u (in continuous time)
+    """
 
-    def __init__(self, dt):
+    def __init__(self, dt, statespace=State_Space([-1, -1], [1, 1])):
+        """ Initialize the deterministic dynamic model
+
+    :param dt: time discretization of this original continuous model
+    :param statespace: Statespace of the mode
+    :type statespace: State_Space
+    """
         self.dt = dt
         self.max_speed = 0.5
         self.A = np.eye(2)
         self.B = dt * np.eye(2)
-        self.state_space = State_Space([-1, -1], [1, 1])
+        self.state_space = statespace
 
         self.Ls = None
         self.Wx = None
