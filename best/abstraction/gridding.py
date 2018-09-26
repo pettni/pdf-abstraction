@@ -11,20 +11,42 @@ from best.abstraction.simrel import eps_err
 
 class Abstraction(object):
 
-  def __init__(self, x_low, x_up, n_list, name_prefix=''):
-    ''' Create abstraction of \prod_i [x_low[i], x_up[i]] with n_list[i] discrete states 
-      in dimension i, and with 1-step movements'''
-
+  def __init__(self, x_low, x_up):
     self.x_low = np.array(x_low, dtype=np.double).flatten()
     self.x_up = np.array(x_up, dtype=np.double).flatten()
+
+  @property
+  def dim(self):
+    return len(self.x_low)
+
+  def polytopic_predicate(self, x, poly):
+    '''evaluate a polytopic predicate at x'''
+    return {x in poly}
+
+  @property
+  def N(self):
+    raise NotImplementedError
+
+  def s_to_x(self, s):
+    raise NotImplementedError
+
+  def x_to_s(self, x):
+    raise NotImplementedError
+
+  def interface(self, u_ab, s_ab, x):
+    raise NotImplementedError
+
+class Grid(Abstraction):
+
+  def __init__(self, x_low, x_up, n_list, name_prefix=''):
+    ''' Create grid abstraction of \prod_i [x_low[i], x_up[i]] with n_list[i] discrete states 
+      in dimension i, and with 1-step movements'''
+    super().__init__(x_low, x_up)
+
     self.n_list = n_list
     self.eta_list = (self.x_up - self.x_low)/np.array(self.n_list)
 
     self.abstract(name_prefix)
-
-  @property
-  def dim(self):
-    return len(self.n_list)
 
   @property
   def N(self):
@@ -40,10 +62,6 @@ class Abstraction(object):
         raise Exception('x outside abstraction domain')
     midx = (np.array(x).flatten() - self.x_low)/self.eta_list
     return np.ravel_multi_index( tuple(map(np.int, midx)), self.n_list)
-
-  def polytopic_predicate(self, x, poly):
-    '''evaluate a polytopic predicate at x'''
-    return {x in poly}
 
   def interface(self, u_ab, s_ab, x):
     '''return target point for given abstract control and action'''
@@ -88,7 +106,7 @@ class Abstraction(object):
                        output_name=name_prefix + '_x')
 
 
-class LTIAbstraction(Abstraction):
+class LTIGrid(Grid):
 
   def __init__(self, lti_syst, eta, un=3, T2x=None, MKeps=None):
     '''Construct a grid abstraction of a LTI Gaussian system
@@ -126,8 +144,9 @@ class LTIAbstraction(Abstraction):
     lx -= remainx/2
     ux += remainx/2
 
-    self.x_low = lx.flatten()
-    self.x_up = ux.flatten()
+    self.x_low = lx
+    self.x_up = ux
+
     self.eta_list = eta.flatten()
     self.n_list = tuple(np.ceil((self.x_up - self.x_low)/self.eta_list).astype(int))
 
@@ -147,7 +166,7 @@ class LTIAbstraction(Abstraction):
       Pmat = np.zeros((self.N+1, self.N+1))
       for s in range(self.N):
 
-        s_diag = super(LTIAbstraction, self).s_to_x(s)
+        s_diag = super(LTIGrid, self).s_to_x(s)
         mean = np.dot(lti_syst.a, s_diag) + np.dot(lti_syst.b, self.ud_to_u(ud))  # Ax
 
         P = np.ravel(grid_cdf_nd(mean, lti_syst.W, self.x_low, self.x_up, self.eta_list))
@@ -174,21 +193,21 @@ class LTIAbstraction(Abstraction):
       return None # the dummy state
     if s < 0 or s > len(self):
       raise Exception('s={} outside range'.format(s))
-    return self.transform_d_o(super(LTIAbstraction, self).s_to_x(s))
+    return self.transform_d_o(super(LTIGrid, self).s_to_x(s))
 
   def x_to_s(self, x):
     '''compute closest abstract state'''
     x_diag = self.transform_o_d(x.flatten())
     if np.any(x_diag < self.x_low) or np.any(x_diag > self.x_up):
       return None  # outside domain
-    return super(LTIAbstraction, self).x_to_s(x_diag)
+    return super(LTIGrid, self).x_to_s(x_diag)
 
   def x_to_all_s(self, x):
     '''compute abstract states that are related to x via simulation relation'''
 
     # we do stepping in diagonal space
     x_diag = self.transform_o_d(x.flatten())
-    ret = set([super(LTIAbstraction, self).x_to_s(x_diag)])  # closest one
+    ret = set([super(LTIGrid, self).x_to_s(x_diag)])  # closest one
 
     sz = len(ret)
 
@@ -208,7 +227,7 @@ class LTIAbstraction(Abstraction):
 
         if (x_t - x_diag).dot(self.M).dot(x_t - x_diag) > self.eps**2:
           continue # not in relation
-        ret |= set([ super(LTIAbstraction, self).x_to_s(x_t) ])
+        ret |= set([ super(LTIGrid, self).x_to_s(x_t) ])
       
       if len(ret) == sz:
         # nothing new was added
@@ -251,7 +270,7 @@ class LTIAbstraction(Abstraction):
 
     if (self.eps is None) or (self.eps == 0):
       # no epsilon error
-      return super(LTIAbstraction, self).polytopic_predicate(x, poly)
+      return super(LTIGrid, self).polytopic_predicate(x, poly)
 
     else:
       # must account for epsilon

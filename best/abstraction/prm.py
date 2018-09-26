@@ -1,85 +1,97 @@
-from best.mdp import MDP
 import numpy as np
-from numpy import linalg as LA
-import matplotlib.pyplot as plt
 import scipy.sparse as sp
+from scipy.linalg import norm
+import networkx as nx
 
-class FIRM(object):
+import polytope as pc
 
-  def __init__(self, x_low, x_up, regs):
-    ''' Create a FIRM graph with n_nodes in [x_low, x_up]; informed sampling in regs '''
-    np.random.seed(12)
-    self.x_low = x_low
-    self.x_up = x_up
-    self.regs = regs
-    self.nodes = []
-    self.edges = {}
-    self.T_list = None
-    self.sample_nodes(60)
-    self.make_edges(2)
+from best.abstraction.gridding import Abstraction
+from best.models.pomdp import POMDP
 
-  def abstract(self):
-    ''' Construct T by treating index of neigh as action number '''
-    nodes_start_list=[[] for i in range(self.max_actions)]
-    nodes_end_list=[[] for i in range(self.max_actions)]
-    vals_list=[[] for i in range(self.max_actions)]
-    for i in range(self.nodes.shape[0]):
-      neigh=self.edges[i]
-      for j in range(len(neigh)):
-        nodes_start_list[j].append(i)
-        nodes_end_list[j].append(neigh[j])
-        vals_list[j].append(1)
-    self.T_list = []
-    for i in range(self.max_actions):
-      self.T_list.append(sp.coo_matrix((vals_list[i],(nodes_start_list[i], nodes_end_list[i])),shape=(self.nodes.shape[0],self.nodes.shape[0])))
-    output_fcn = lambda s: self.nodes[s]
-    return MDP(self.T_list, output_name='xc', output_fcn=output_fcn)
+class PRM(Abstraction):
 
-  def sample_nodes(self, n_nodes, append=False):
-    ''' Generate n_nodes Nodes by randomly sampling in [x_low, x_up] '''
-    # TODO: Implement append to sample nodes incrementally
-    if append == False:
-      self.nodes = np.zeros((n_nodes+len(self.regs), len(self.x_low)))
-      self.edges = {} # clear previous edges
-    for i in range(len(self.x_low)):
-      self.nodes[0:n_nodes,i] = self.x_low[i] + (self.x_up[i] - self.x_low[i])*np.random.rand(n_nodes).ravel()
-    ''' Generate one node in each region '''
-    j=0
-    for key in self.regs:
-      x_low = self.regs[key][0].bounding_box[0].ravel()
-      x_up = self.regs[key][0].bounding_box[1].ravel()
-      for i in range(len(self.x_low)):
-        self.nodes[n_nodes+j,i] = x_low[i] + (x_up[i] - x_low[i])*np.random.rand(1).ravel()
-      j=j+1
+  def __init__(self, x_low, x_up, num_nodes, min_dist=0, max_dist=np.Inf, informed_samples=[], name_prefix=''):
+    ''' Create a PRM graph with n_nodes in [x_low, x_up]; informed sampling in informed_samples '''
+    super().__init__(x_low, x_up)
 
-  def make_edges(self, dist):
-    ''' Construct edges for self.nodes within distance dist '''
-    self.max_actions = 1 #'''used to construct T'''
-    # Can make more efficient
-    for i in range(self.nodes.shape[0]):
-      neigh=[]
-      for j in range(self.nodes.shape[0]):
-        if self.distance(self.nodes[i,:], self.nodes[j,:]) < dist :
-          neigh.append(j)
-      if len(neigh)>self.max_actions:
-        self.max_actions = len(neigh)
-      self.edges[i]=neigh
+    self.G = nx.Graph()
+    self.min_dist = min_dist
+    self.max_dist = max_dist
+    
+    self.sample_nodes(num_nodes, informed_samples)
+    self.abstract(name_prefix)
+
+  @property
+  def N(self):
+    '''number of nodes in PRM'''
+    return len(self.G)
+
+  @property
+  def M(self):
+    '''maximal node degree in PRM'''
+    return max(d for _, d in self.G.degree)
+
+  def s_to_x(self, s):
+    '''center of node s'''
+    return self.G[s]['xc']
+
+  def x_to_s(self, x):
+    '''closest node to point x'''
+    dist_list = [self.distance(self.G.nodes[n]['xc'], x) for n in range(self.N)]
+    return np.argmin(dist_list)
+
+  def sample_nodes(self, n_nodes, informed_samples=[]):
+    '''add n_nodes nodes by random or informed sampling'''
+    N0 = self.N
+    fail_counter = 0
+    sample_counter = 0
+
+    while self.N < N0 + n_nodes and fail_counter < 100:
+      if sample_counter < len(informed_samples):
+        # informed sampling in regs
+        xc = informed_samples[sample_counter]
+      else:
+        xc = self.x_low + (self.x_up - self.x_low) * np.random.rand(self.dim).ravel()
+        
+      sample_counter += 1
+      
+      dist_list = [self.distance(self.G.nodes[n]['xc'], xc) for n in range(self.N)]
+      if len(dist_list) == 0 or np.min(dist_list) > self.min_dist:
+        n0 = self.N
+        self.G.add_node(n0, xc=xc)
+        for n1 in self.G.nodes():
+          d01 = self.distance(xc, self.G.nodes[n1]['xc'])
+          if d01 < self.max_dist:
+            self.G.add_edge(n0, n1, dist=d01)
+      else:
+        fail_counter += 1
+
+    if fail_counter == 100:
+      warning('could not place', n_nodes, 'nodes')
 
   def distance(self, node1, node2):
-      return LA.norm(node1-node2)
+      return norm(node1-node2)
+
+  def get_kth_neighbor(self, node1, k):
+    '''get successor of kth outgoing edge from node1'''
+    neigh_list = sorted(self.G[node1])
+    if k < len(neigh_list):
+      return neigh_list[k]
+    else:
+      return node1
+
+  def abstract(self, name_prefix=''):
+    ''' represent graph as MDP by treating index of neigh as action number '''
+    T_list = []
+    n0_list = range(self.N)
+    val_list = np.ones(self.N)
+    for m in range(self.M):
+      n1_list = [self.get_kth_neighbor(n0, m) for n0 in n0_list]
+      T_list.append(sp.coo_matrix((val_list, (n0_list, n1_list)), shape=(self.N, self.N)))
+    output_trans = lambda n: self.G.nodes[n]['xc']
+    self.mdp = POMDP(T_list, output_name=name_prefix + '_x', output_trans=output_trans)
 
   def plot(self, ax):
-      ''' Plot the FIRM graph '''
-      for i in range(self.nodes.shape[0]):
-        neigh=self.edges[i]
-        for j in neigh:
-          x = [self.nodes[i,0],self.nodes[j,0]]
-          y = [self.nodes[i,1],self.nodes[j,1]]
-          ax.plot(x, y, 'b')
-      ax.plot(self.nodes[...,0], self.nodes[...,1], 'go')
-      ax.set_xlim(self.x_low[0], self.x_up[0])
-      ax.set_ylim(self.x_low[1], self.x_up[1])
-
-#firm = FIRM([-1,-1],[1,1])
-#firm.plot()
-#firm.abstract()
+    '''plot the PRM graph'''
+    pos = {n: self.G.nodes[n]['xc'] for n in self.G.nodes()}
+    nx.draw_networkx(ax=ax, G=self.G, pos=pos)
