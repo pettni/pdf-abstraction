@@ -31,6 +31,17 @@ class PRM(Abstraction):
     '''maximal node degree in PRM'''
     return max(d for _, d in self.G.degree)
 
+  @property
+  def costs(self):
+    # small cost for not doing anything
+    costs = 0.01*np.ones((self.M, self.N))
+    for n0 in self.G.nodes():
+      for m in range(self.M):
+        n1 = self.get_kth_neighbor(n0, m)
+        if n1 != n0:
+          costs[m, n0] = self.distance(self.G.nodes[n0]['xc'], self.G.nodes[n1]['xc'])
+    return costs
+
   def s_to_x(self, s):
     '''center of node s'''
     return self.G[s]['xc']

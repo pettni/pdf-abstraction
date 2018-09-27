@@ -98,7 +98,7 @@ def solve_reach_constrained(network, accept, constraints=[], horizon=np.Inf, del
   return val_list, pol_list
 
 
-def solve_min_cost(network, costs, target, M=np.Inf, prec=1e-5,verbose =False):
+def solve_min_cost(network, costs, target, M=np.Inf, prec=1e-5, verbose =False):
   '''minimize expected cost to reach target set
       
       min   E( \sum_{t=0}^T costs(u(t), x(t)) )
@@ -135,14 +135,11 @@ def solve_min_cost(network, costs, target, M=np.Inf, prec=1e-5,verbose =False):
     if verbose:
       print('iteration {}, time {:.2f}'.format(it, time.time()-start))
 
-    # Calculate Q(u_free, x)
     Q = costs + network.bellman(V).reshape((-1,) + network.N)
-    Q = np.fmin(target0[np.newaxis, ...], Q)
-
-    V_new = Q.min(axis=0)
+    V_new = np.fmin(Q.min(axis=0), target0)
 
     if np.all(np.isfinite(V_new) == np.isfinite(V)) and \
-       np.all( np.abs(V_new[np.isfinite(V_new)] - V[np.isfinite(V)]) < prec ):
+       np.all(np.abs(V_new[np.isfinite(V)] - V[np.isfinite(V)]) < prec):
       break
 
     V = V_new

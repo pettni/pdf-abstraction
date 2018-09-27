@@ -214,7 +214,7 @@ class POMDP:
     return Q
 
   def evolve_observe(self, state, m_tuple):
-    '''draw a successor new_staet for (state, m_tuple) and get observation obs'''
+    '''draw a successor new_state for (state, m_tuple) and get observation obs'''
     succ_prob = np.asarray(self.T(m_tuple).getrow(state).todense()).ravel()
     new_state = np.random.choice(range(self.N), size=1, p=list(succ_prob))[0]
     obs_prob = np.asarray(self.Z(m_tuple).getrow(new_state).todense()).ravel()
@@ -463,7 +463,7 @@ class POMDPNetwork:
         # cast to higher dim
         conn_mat = conn_mat.reshape(new_shape)
 
-        W = np.maximum(1-conn_mat, W).min(axis=dim_u)
+        W = np.maximum(np.amax(W)*(1-conn_mat), W).min(axis=dim_u)
         slice_names.remove(input)
 
     # reshuffle so inputs appear in order
@@ -476,21 +476,18 @@ class POMDPNetwork:
     all_inputs = dict(zip(self.input_names, inputs))
     all_states = dict()
     all_outputs = dict()
-    print("asd")
 
     for name, pomdp in self.forward_iter():
 
       # index of current state
       idx = self.state_names.index(name)
-      print("hi2")
 
       # find inputs to current pomdp and evolve
       pomdp_input_tuple = tuple(all_inputs[input_name] for input_name in pomdp.input_names)
-      print(pomdp_input_tuple)
       new_state, new_output = pomdp.evolve_observe(state[idx], pomdp_input_tuple)
-      print("asd")
       all_outputs[pomdp.output_name] = new_output
       all_states[pomdp.state_name] = new_state
+
 
       # add any intermediate input that is a function calculated outputs
       for outputs, input, conn_mat, _ in self.connections:
@@ -501,8 +498,6 @@ class POMDPNetwork:
 
     return [all_states[state] for state in self.state_names], \
            self.transform_output([all_outputs[output] for output in self.output_names])
-
-
 
   # OpenAI baselines fcns
   def step(self, inputs):

@@ -8,24 +8,29 @@ import polytope as pc
 
 from best.models.pomdp import POMDP, POMDPNetwork
 from best.solvers.valiter import *
-from best.abstraction.gridding import Abstraction
+from best.abstraction.gridding import Grid
+from best.abstraction.prm import PRM
 
 from problem_definition import get_prob
 from policies import *
 
 def synthesize_plan(prob):
 
-    cassie_abstr = Abstraction(prob['xmin'], prob['xmax'], prob['discretization'], name_prefix='c')
-    uav_abstr = Abstraction(prob['xmin'], prob['xmax'], prob['discretization'], name_prefix='u')
+    cassie_abstr = Grid(prob['xmin'], prob['xmax'], prob['discretization'], name_prefix='c')
+
+    informed_samples = [r.chebXc for r,_,_ in prob['regs'].values()] + [prob['uav_x0'], prob['uav_xT']]
+    uav_prm = PRM(prob['xmin'], prob['xmax'], num_nodes=12, min_dist=0.5, max_dist=2, 
+                  informed_samples=informed_samples, name_prefix='u')
+
     env_list = [environment_belief_model(info[1], name) for (name, info) in prob['regs'].items()]
 
     # Construct cassie-env network
     cassie_env_network = POMDPNetwork([cassie_abstr.pomdp] + env_list)
     for item in prob['regs'].items():
         cassie_env_network.add_connection(['c_x'], '{}_u'.format(item[0]), get_cassie_env_conn(item))
-        
+
     # Construct uav-env network
-    uav_env_network = POMDPNetwork([uav_abstr.pomdp] + env_list)
+    uav_env_network = POMDPNetwork([uav_prm.mdp] + env_list)
     for item in prob['regs'].items():
         uav_env_network.add_connection(['u_x'], '{}_u'.format(item[0]), get_uav_env_conn(item))
 
@@ -35,20 +40,17 @@ def synthesize_plan(prob):
                                      horizon=prob['cas_T'], verbose=True)
 
     # solve uav exploration problem
-    init_cas = cassie_abstr.x_to_s(prob['cas_x0'])
-    init_dfsa = cassie_ltlpol.dfsa_init
-    v_max = np.max(cassie_ltlpol.val[0].flatten())
-    idx = np.logical_or(cassie_ltlpol.val[0][init_cas, ..., init_dfsa] > v_max-prob['prob_margin'],
-                        cassie_ltlpol.val[0][init_cas, ..., init_dfsa] < prob['prob_margin'])
-    Vacc = np.zeros(uav_env_network.N)
-    Vacc[:, idx] = 1
-    Vcon = np.zeros(uav_env_network.N)
-    Vcon[uav_abstr.x_to_s(prob['uav_xT']), :] = 1
-    val_uav_list, pol_uav_list = solve_reach_constrained(uav_env_network, 
-                                                         Vacc, [(Vcon, 0.95)], 
-                                                         horizon=prob['uav_T'], verbose=True)
+    idx = np.logical_or(cassie_ltlpol.val[0][cassie_abstr.x_to_s(prob['cas_x0']), ..., cassie_ltlpol.dfsa_init] > 1-prob['prob_margin'],
+                        cassie_ltlpol.val[0][cassie_abstr.x_to_s(prob['cas_x0']), ..., cassie_ltlpol.dfsa_init] < prob['prob_margin'])
 
-    return UAVPolicy(pol_uav_list, val_uav_list, uav_abstr), CassiePolicy(cassie_ltlpol, cassie_abstr)
+    target = np.zeros(uav_env_network.N)
+    target[uav_prm.x_to_s(prob['uav_xT'])][idx] = 1
+
+    costs = uav_prm.costs.reshape(uav_prm.costs.shape + (1,)*(1+len(uav_env_network.N) - 2))
+
+    val_uav, pol_uav = solve_min_cost(uav_env_network, costs, target, M=100, verbose=True)
+
+    return UAVPolicy(pol_uav, val_uav, uav_prm), CassiePolicy(cassie_ltlpol, cassie_abstr)
 
 def plot_problem(prob):
     fig = plt.figure()
@@ -87,7 +89,7 @@ def plot_value_uav(uav_policy, prob):
 
     def uav_value(x, mapstate):  
         scop = uav_policy.abstraction.x_to_s(x)
-        return uav_policy.val_list[0][(scop,) + tuple(mapstate)]
+        return uav_policy.val[(scop,) + tuple(mapstate)]
 
     def my_init_cvalue(x, y):
         return uav_value(np.array([x, y]), map_init)
@@ -120,7 +122,6 @@ def get_cassie_env_conn(region):
   return conn
 
 def get_uav_env_conn(region):
-  name = region[0]
   poly = region[1][0]
   def conn(cx):
     if is_adjacent(poly, cx, 0):
@@ -182,18 +183,20 @@ def get_predicates(regions):
   return predicates
 
 def main():
-    prob = get_prob()
 
-    plot_problem(prob)
+  np.random.seed(4)
 
-    uav_policy, cas_policy = synthesize_plan(prob)
+  prob = get_prob()
+  plot_problem(prob)
 
-    plot_value_cassie(cas_policy, prob)
-    plt.show()
+  uav_policy, cas_policy = synthesize_plan(prob)
 
-    plot_value_uav(uav_policy, prob)
-    plt.show()
+  plot_value_cassie(cas_policy, prob)
+  plt.show()
+
+  plot_value_uav(uav_policy, prob)
+  plt.show()
 
 if __name__ == '__main__':
-    main()
+  main()
 

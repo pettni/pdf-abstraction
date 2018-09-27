@@ -39,40 +39,18 @@ class CassiePolicy:
 
 class UAVPolicy:
   
-  def __init__(self, pol_list, val_list, abstraction):
-    self.pol_list = pol_list
-    self.val_list = val_list
-    self.ft = False
+  def __init__(self, pol, val, abstraction):
+    self.pol = pol
+    self.val = val
     self.abstraction = abstraction
-
-    self.t = 0
-    self.s_ab = None
       
   def __call__(self, x_cop, s_map):
         
     s_ab = self.abstraction.x_to_s(x_cop)
+    val = self.val[(s_ab,) + tuple(s_map)]
+    u_ab = (self.pol[(s_ab,) + tuple(s_map)],)  # input is 1-tuple
 
-    if s_ab != self.s_ab and self.s_ab != None:
-      self.t +=  1
-
-    if self.t >= len(self.pol_list):
-      self.ft = True
-      u_ab = (0,)
-      val = self.val_list[-1][(s_ab,) + tuple(s_map)]
-
-    else:
-      self.s_ab = s_ab
-      val = self.val_list[self.t][(s_ab,) + tuple(s_map)]
-      u_ab = (self.pol_list[self.t][0][(s_ab,) + tuple(s_map)],)  # input is 1-tuple
-      if u_ab == (0,):
-        # stay in cell
-        self.t += 1 
     return self.abstraction.interface(u_ab, s_ab, x_cop), val
-
-  def reset(self):
-    self.ft = False
-    self.t = 0
-    self.s_ab = None
   
   def finished(self):
     return self.ft

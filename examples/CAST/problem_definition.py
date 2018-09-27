@@ -6,13 +6,13 @@ import numpy as np
 def get_prob():
 
 	prob = {}
-	prob['cas_T'] = 15
+	prob['cas_T'] = 20
 	prob['uav_T'] = 30
 	prob['cas_x0'] = np.array([0.25, 0.75])
 	prob['uav_x0'] = np.array([0.25, 3.25])
-	prob['uav_xT'] = np.array([0.25, 3.25])
+	prob['uav_xT'] = np.array([0.25, 3.26])
 
-	prob['prob_margin'] = 0.1
+	prob['prob_margin'] = 0.01
 
 	prob['formula'] = '( ( ! fail U sampleA ) & ( ! fail U sampleB ) ) | ( ! fail U ( sampleC ) )'
 
