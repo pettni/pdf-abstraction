@@ -2,7 +2,10 @@
 
 import socket
 import struct
+import struct
 import numpy as np
+
+import matlab.engine
 
 import rospy
 from geometry_msgs.msg import PoseStamped
@@ -16,6 +19,10 @@ SIM = True
 
 UDP_IP = '127.0.0.1'
 UDP_PORT = 1560
+
+MATLAB_QUADROTOR_PATH = r'/mnt/c/Users/petter/coding/quadrotor/lib'
+
+MISSION_ALTITUDE = 0.5   # meters
 
 if SIM:
   UAV_POSE_TOPIC = '/MATLAB_UAV'
@@ -64,22 +71,39 @@ def uav_to_optitrack(coordinate):
   else:
     return coordinate + np.array([0, 0])
 
-def send_target(xy_target, altitude, sock):
-  target = np.array([xy_target[0], xy_target[1], altitude])
+def fit_poly_matlab(eng, t_ivals, xyz_ivals):
+  t_ivals_m = matlab.double(list(t_ivals))
+  x_ivals_m = matlab.double(list(xyz_ivals[0,:]))
+  y_ivals_m = matlab.double(list(xyz_ivals[1,:]))
+  z_ivals_m = matlab.double(list(xyz_ivals[2,:]))
 
-  print("changing target to", target)
+  d_m = matlab.double([10])
+  r_m = matlab.double([4])
 
-  header = struct.pack('BB', ord('F'), ord('C'))
+  x_res_m = eng.optimize1d(t_ivals_m, x_ivals_m, d_m, r_m, nargout=2)
+  y_res_m = eng.optimize1d(t_ivals_m, y_ivals_m, d_m, r_m, nargout=2)
+  z_res_m = eng.optimize1d(t_ivals_m, z_ivals_m, d_m, r_m, nargout=2)
 
-  uint32s = [2, 1, 1, 1] # num_t num_x num_y num_z
-  uint32s_bytes = struct.pack('{}I'.format(len(uint32s)), *uint32s) 
+  udp_message_m = eng.pack_udp_message(t_ivals_m, x_res_m[0], y_res_m[0], z_res_m[0], nargout=1)
+  udp_message = [udp_message_m[0][i] for i in range(udp_message_m.size[1])]
+  udp_message_b = struct.pack('B', ord('F')) + struct.pack('{}B'.format(len(udp_message)), *udp_message)
 
-  float32s = [0., 1., target[0], target[1], target[2]] # t0 t1 x y z
-  float32s_bytes = struct.pack('{}f'.format(len(float32s)), *float32s)
+  return udp_message_b
 
-  msg = header + uint32s_bytes + float32s_bytes
-  msg += compute_ckhsum(msg[1:])
+def send_target(eng, uav_current, uav_target, sock):
 
+  xyz_ivals = np.array([[uav_current[0], uav_target[0]],
+                        [uav_current[1], uav_target[1]],
+                        [uav_current[2], uav_target[2]]])
+
+  v_des = 0.3   # 0.3 m/s
+
+  t_des = np.linalg.norm(xyz_ivals[:,0] - xyz_ivals[:,1]) / v_des
+  t_ivals = np.array([0, t_des])
+
+  print("changing target to", xyz_ivals[:,1])
+
+  msg = fit_poly_matlab(eng, t_ivals, xyz_ivals)
   sock.sendto(msg, (UDP_IP, UDP_PORT))
 
 def compute_ckhsum(msg):
@@ -88,8 +112,11 @@ def compute_ckhsum(msg):
   return chksum
 
 class Planner(object):
-  def __init__(self):
+  def __init__(self, matlab_eng):
     self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    np.random.seed(4)
+
     self.uav_policy, self.rover_policy = synthesize_plan(prob)
     self.s_map = prob['env_x0']            # state of map exploration (0 false, 1 unknown, 2 positive)
 
@@ -97,26 +124,60 @@ class Planner(object):
     self.uav_pos_pl = None                 # planning frame position
     self.uav_target_pl = prob['uav_x0']    # planning frame target
 
+    self.matlab_eng = matlab_eng
+
+    self.state = 0   # 0: not started,  1: executing,  2: landed                 
+
   def uav_callback(self, msg):
     uav_pos_ot = np.array([msg.pose.position.x, msg.pose.position.y])
     self.uav_pos_pl = optitrack_to_planning(uav_pos_ot)
     self.s_map = reveal_map(self.s_map, self.uav_pos_pl)
 
   def update_uav_target(self):
-    if self.uav_pos_pl is not None:
-      new_uav_target_pl, new_val = self.uav_policy(self.uav_pos_pl, self.s_map)
-      if np.any(new_uav_target_pl != self.uav_target_pl) or self.uav_policy.finished():
-        new_uav_target_ot = planning_to_optitrack(new_uav_target_pl)
-        print("current exploration probability", new_val)
-        print("current mission probability", self.rover_policy.get_value(self.cas_pos_pl, self.s_map))
-        send_target(optitrack_to_uav(new_uav_target_ot), 0.5 if not self.uav_policy.finished() else 0, self.sock)
-        self.uav_target_pl = new_uav_target_pl
+    # state machine
+    # state = 0 : not started
+    #         1 : executing
+    #         2 : finished
+    if self.state == 0:
+      if self.uav_pos_pl is not None:
+        self.state = 1
+      
+    if self.state == 1:
+
+      if self.uav_policy.finished():
+        # if finished, land
+        cur_pos_ot = planning_to_optitrack(self.uav_pos_pl)
+        uav_current = np.hstack([optitrack_to_uav(cur_pos_ot), MISSION_ALTITUDE])
+        uav_target  = np.array([uav_current[0], uav_current[1], 0])
+        send_target(self.matlab_eng, uav_current, uav_target, self.sock)
+
+        self.state = 2
+
+      else:
+        # execute mission
+        new_uav_target_pl, new_val = self.uav_policy(self.uav_pos_pl, self.s_map)
+
+        if np.any(new_uav_target_pl != self.uav_target_pl):
+
+          cur_pos_ot        = planning_to_optitrack(self.uav_pos_pl)
+          new_uav_target_ot = planning_to_optitrack(new_uav_target_pl)
+
+          print("estimated path remaining", new_val)
+          print("current mission probability", self.rover_policy.get_value(self.cas_pos_pl, self.s_map))
+
+          uav_current = np.hstack([optitrack_to_uav(cur_pos_ot), MISSION_ALTITUDE])
+          uav_target  = np.hstack([optitrack_to_uav(new_uav_target_ot), MISSION_ALTITUDE])
+
+          send_target(self.matlab_eng, uav_current, uav_target, self.sock)
+          self.uav_target_pl = new_uav_target_pl
 
 def main():
-
   plot_problem(prob)
 
-  planner = Planner()
+  matlab_eng = matlab.engine.start_matlab()
+  matlab_eng.addpath(MATLAB_QUADROTOR_PATH, nargout=0)
+
+  planner = Planner(matlab_eng)
   rospy.Subscriber(UAV_POSE_TOPIC, PoseStamped, planner.uav_callback)
   rospy.init_node('best_planner', anonymous=True)
   rate = rospy.Rate(0.5)
@@ -125,6 +186,8 @@ def main():
   while not rospy.is_shutdown():
     planner.update_uav_target()
     rate.sleep()
+
+  matlab_eng.quit()
 
 if __name__ == '__main__':
   main()

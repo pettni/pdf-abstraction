@@ -129,7 +129,6 @@ def get_uav_env_conn(region):
     return {0}
   return conn
 
-
 def environment_belief_model(p0, name):
   # Create map belief MDP with prior p0
   if p0 == 0:
