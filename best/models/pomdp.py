@@ -203,23 +203,22 @@ class POMDP:
 
       self._Tmat_csr[key_m] = norms_mat.dot(new_mat)
 
-  def bellman(self, W, d):
+  def bellman(self, W, d=0):
     '''calculate Q function via one Bellman step
        Q(u, x) = \sum_x' T(x' | x, u) W(x')  '''
 
     Q = np.zeros(self.M + W.shape, dtype=DTYPE)
     for m_tuple in product(*[list(range(k)) for k in self.M]):
-      Q[m_tuple] = sparse_tensordot(self.T(m_tuple), W, d)
+      Q[m_tuple] += sparse_tensordot(self.T(m_tuple), W, d)
 
     return Q
 
   def evolve_observe(self, state, m_tuple):
     '''draw a successor new_staet for (state, m_tuple) and get observation obs'''
     succ_prob = np.asarray(self.T(m_tuple).getrow(state).todense()).ravel()
-    new_state = np.random.choice(range(self.N), 1, p=succ_prob)[0]
-
+    new_state = np.random.choice(range(self.N), size=1, p=list(succ_prob))[0]
     obs_prob = np.asarray(self.Z(m_tuple).getrow(new_state).todense()).ravel()
-    obs = np.random.choice(range(self.O), 1, p=obs_prob)[0]
+    obs = np.random.choice(range(self.O), 1, p=list(obs_prob))[0]
     return new_state, obs
 
 class POMDPNetwork:
@@ -477,16 +476,19 @@ class POMDPNetwork:
     all_inputs = dict(zip(self.input_names, inputs))
     all_states = dict()
     all_outputs = dict()
+    print("asd")
 
     for name, pomdp in self.forward_iter():
 
       # index of current state
       idx = self.state_names.index(name)
+      print("hi2")
 
       # find inputs to current pomdp and evolve
       pomdp_input_tuple = tuple(all_inputs[input_name] for input_name in pomdp.input_names)
+      print(pomdp_input_tuple)
       new_state, new_output = pomdp.evolve_observe(state[idx], pomdp_input_tuple)
-
+      print("asd")
       all_outputs[pomdp.output_name] = new_output
       all_states[pomdp.state_name] = new_state
 
