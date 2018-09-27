@@ -5,7 +5,7 @@ from best.models.lti import LTI
 from best.abstraction.gridding import *
 
 def test_grid():
-  abstr = Abstraction([-1, -1], [1, 1], [5, 5])
+  abstr = Grid([-1, -1], [1, 1], [5, 5])
   for s in range(5*5):
     np.testing.assert_equal(s, abstr.x_to_s(abstr.s_to_x(s)))
 
@@ -92,7 +92,7 @@ def test_tranformation():
                 [-0.,      -0.99996]])
   eps = 1.4142261558177154
 
-  abstr = LTIAbstraction(sys_lti, d, un=4, MKeps = (M, K, eps))
+  abstr = LTIGrid(sys_lti, d, un=4, MKeps = (M, K, eps))
 
 
   xx = 20 * np.random.rand(2,10) - 10
@@ -128,7 +128,7 @@ def test_lti():
                 [-0.,      -0.99996]])
   eps = 1.4142261558177154
 
-  abstr = LTIAbstraction(sys_lti, d, un=4, MKeps = (M, K, eps))
+  abstr = LTIGrid(sys_lti, d, un=4, MKeps = (M, K, eps))
 
   for s in range(0, len(abstr), 7):
     np.testing.assert_equal( abstr.x_to_s(abstr.s_to_x(s) ), s )

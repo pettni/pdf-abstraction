@@ -7,67 +7,16 @@ from best import DTYPE, DTYPE_ACTION, DTYPE_OUTPUT
 from best.logic.translate import formula_to_pomdp
 
 def solve_reach(network, accept, horizon=np.Inf, delta=0, prec=1e-5, verbose=False):
-  '''solve reachability problem
-  Inputs:
-  - network: a POMDPNetwork
-  - accept: function defining target set
-  - horizon: reachability horizon (standard is infinite-horizon)
-  - delta: failure probability in each step
-  - prec: termination tolerance (inifinite-horizon case)
+  return solve_reach_constrained(network, accept, horizon=horizon, delta=delta, prec=prec, verbose=verbose)
 
-  Outputs::
-  - val_list: array [V0 V1 .. VT] of value functions
-
-  The infinite-horizon problem has a stationary value function and policy. In this
-  case the return argument has length 2, i.e. val_list = [V0 VT]
-  '''
-
-  V_accept = accept.astype(DTYPE, copy=False)
-
-  it = 0
-  start = time.time()
-
-  V = np.fmax(V_accept, np.zeros(network.N, dtype=DTYPE))
-
-  val_list = []
-  pol_list = []
-  val_list.insert(0, V)
-
-  while it < horizon:
-
-    if verbose:
-      print('iteration {}, time {:.2f}'.format(it, time.time()-start))
-
-    # Calculate Q(u_free, x)
-    Q = network.bellman(V).reshape((-1,) + network.N)
-
-    # Max over accept set
-    Q = np.fmax(V_accept[np.newaxis, ...], np.maximum(Q - delta, 0))
-
-    # Max over free actions
-    P_new = np.unravel_index(Q.argmax(axis=0).astype(DTYPE_ACTION, copy=False), network.M)
-    V_new = Q.max(axis=0)
-
-
-    if horizon < np.Inf:
-      val_list.insert(0, V_new)
-      pol_list.insert(0, P_new)
-
-    if horizon == np.Inf and np.amax(np.abs(V_new - V)) < prec:
-      val_list.insert(0, V_new)
-      pol_list.insert(0, P_new)
-      break
-
-    V = V_new
-    it += 1
-
-  print('finished after {:.2f}s and {} iterations'.format(time.time()-start, it))
-
-  return val_list, pol_list
-
-
-def solve_reach_constrained(network, accept, constraints, horizon=np.Inf, delta=0, prec=1e-5, verbose=False):
+def solve_reach_constrained(network, accept, constraints=[], horizon=np.Inf, delta=0, prec=1e-5, verbose=False):
   '''solve constrained reachability problem
+      
+      max   P( x(t) \in accept )
+      s.t.  P( x(t) \in Vcon_i ) > thresh_i
+
+    for some t in 0, ..., horizon
+
   Inputs:
   - network: a POMDPNetwork
   - accept: function defining target set
@@ -95,7 +44,11 @@ def solve_reach_constrained(network, accept, constraints, horizon=np.Inf, delta=
     if thresh > 0:
       V = np.fmin(V, Vcon)
       
-  Vcon_list, thresh_list = zip(*constraints)
+  if len(constraints) > 0:
+    Vcon_list, thresh_list = zip(*constraints)
+  else:
+    Vcon_list = []
+    thresh_list = []
 
   val_list = []
   pol_list = []
@@ -143,6 +96,63 @@ def solve_reach_constrained(network, accept, constraints, horizon=np.Inf, delta=
   print('finished after {:.2f}s and {} iterations'.format(time.time()-start, it))
 
   return val_list, pol_list
+
+
+def solve_min_cost(network, costs, target, M=np.Inf, prec=1e-5,verbose =False):
+  '''minimize expected cost to reach target set
+      
+      min   E( \sum_{t=0}^T costs(u(t), x(t)) )
+      s.t.  x(t) \in Vcon_i
+
+    for some t in 0, ..., horizon
+
+  Inputs:
+  - network: a POMDPNetwork
+  - costs: matrix of size network.M + network.N with instantaneous costs
+  - target: set to reach
+  - M: a priori upper bound on cost, if too small solution is invalid, if equal to inf algorithm does 
+       not work unless there exists a finite horizon with P( x(T) \in target ) = 1
+  - prec: termination tolerance
+
+  Outputs::
+  - val_list: array [V0 V1 .. VT] of value functions
+
+  The infinite-horizon problem has a stationary value function and policy. In this
+  case the return argument has length 2, i.e. val_list = [V0 VT]
+  '''
+
+  it = 0
+  start = time.time()
+
+  # inf at target, otherwise zero
+  target0 = M * np.ones(network.N, dtype=DTYPE)
+  target0[target > 0] = 0
+
+  # expected cost to reach target
+  V = target0
+
+  while True:
+    if verbose:
+      print('iteration {}, time {:.2f}'.format(it, time.time()-start))
+
+    # Calculate Q(u_free, x)
+    Q = costs + network.bellman(V).reshape((-1,) + network.N)
+    Q = np.fmin(target0[np.newaxis, ...], Q)
+
+    V_new = Q.min(axis=0)
+
+    if np.all(np.isfinite(V_new) == np.isfinite(V)) and \
+       np.all( np.abs(V_new[np.isfinite(V_new)] - V[np.isfinite(V)]) < prec ):
+      break
+
+    V = V_new
+    it += 1
+
+  V_new[V_new >= M] = np.Inf
+
+  print('finished after {:.2f}s and {} iterations'.format(time.time()-start, it))
+
+  return V_new, np.unravel_index( Q.argmin(axis=0).astype(DTYPE_ACTION, copy=False), network.M)
 
 
 def solve_ltl_cosafe(network, formula, predicates, delta=0., horizon=np.Inf, verbose=False):
