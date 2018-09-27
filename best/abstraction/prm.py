@@ -42,9 +42,14 @@ class PRM(Abstraction):
           costs[m, n0] = self.distance(self.G.nodes[n0]['xc'], self.G.nodes[n1]['xc'])
     return costs
 
+  def interface(self, u_ab, s_ab, x):
+    '''return target point for given abstract control and action'''
+    sp, _ = self.mdp.evolve_observe(s_ab, u_ab)
+    return self.s_to_x( sp )
+
   def s_to_x(self, s):
     '''center of node s'''
-    return self.G[s]['xc']
+    return self.G.nodes[s]['xc']
 
   def x_to_s(self, x):
     '''closest node to point x'''

@@ -43,14 +43,20 @@ class UAVPolicy:
     self.pol = pol
     self.val = val
     self.abstraction = abstraction
+    self.ft = False
       
   def __call__(self, x_cop, s_map):
         
     s_ab = self.abstraction.x_to_s(x_cop)
     val = self.val[(s_ab,) + tuple(s_map)]
-    u_ab = (self.pol[(s_ab,) + tuple(s_map)],)  # input is 1-tuple
+    if val == 0:
+      self.ft = True
+    u_ab = (self.pol[0][(s_ab,) + tuple(s_map)],)  # input is 1-tuple
 
     return self.abstraction.interface(u_ab, s_ab, x_cop), val
   
   def finished(self):
     return self.ft
+
+  def reset(self):
+    self.ft = False
