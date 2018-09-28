@@ -4,7 +4,6 @@ This file gives the class for the generation of a sampling based path planner
 that can be used together with the HVI tools.
 """
 from best.fsa import Fsa
-from copy import copy
 import networkx as nx
 import itertools
 from best.mdp import MDP
@@ -22,6 +21,7 @@ import random
 from best.hVI_types import Env, Gamma
 import logging
 from copy import copy
+import warnings
 
 logger = logging.getLogger(__name__)
 
@@ -496,7 +496,6 @@ class Edge_Controller(object):
 
         :param b0: initial belief
         """
-        assert False, "Not implemented"
         # traj = [self.node_i]
         traj = [b0]
         for t in range(self.N-1):
@@ -751,7 +750,8 @@ class spec_Spaths(nx.MultiDiGraph):
         :param i_q: node in DFA
         :param i_v: node in firm
         :param b: belief point can either be a vector or None
-        :param opts_old: aux variable
+        :param opts_old: aux variable with previous computed values of the nodes.
+         This is used to eliminate nodes that have converged from the sequence of to be backed-up nodes
         """
 
         if self.active[(i_q, i_v)] == False or self.sequence[(i_q, i_v)] == False:
@@ -931,7 +931,7 @@ def bfs(graph, start):
     return visited
 
 
-def plot_results(prod, ax):
+def plot_optimizers(prod, ax):
     """
     Give a plot of the optimizers of the current graph.
     Based on the firm graph, but nodes now include also info on the state of the DFA
@@ -1024,3 +1024,99 @@ def plot_results(prod, ax):
     #     if name is not 'null':
     #         rf.plot_region(ax, info[0], name, info[1], self.output_color[name], hatch=hatch, fill=fill)
     # # plt.show()
+
+def simulate(Spath, regs, n=100, fig=None, obs_action=False):
+    """
+    Give a simulation of the current policy starting from the initial belief points
+
+    :type regs: Regions dictionary
+    :param obs_action: obs_action true or false
+    :param fig: figure handle (optional)
+    :param Spath: the specification road map
+    :type Spath: spec_Spaths
+    :param n: the time horizon of the optimization,  default =100
+    :return: trajectory, v_list, vals, act_list
+    """
+    if fig:
+        pass
+    else:
+        fig = plt.figure()
+
+    b = Spath.env.b_prod_init # initial belief points
+    if len(Spath.init)>1:
+        warnings.warn("Warning only first initial state is simulated")
+
+    (q,v) = Spath.init[0]
+
+    # initialize
+    traj = []
+    v_list =[v]
+    act_list =[]
+    vals = []
+
+    for t in range(n):
+        # Get best edge
+        alpha_new, best_e, opt = Spath._back_up(q, v, b)
+        vals += [opt]
+
+        if obs_action is True and best_e < 0:
+            reg_key = Spath.env.regs.keys()[-1 * (best_e + 1)]
+            (b_, o, i_o) = Spath.env.get_b_o_reg(b, Spath.env.regs[reg_key][3], reg_key, v.mean)
+            b = b_
+            act_list += ["Observing = " +reg_key ]
+            print "Observing " +reg_key + " at vertex" + str(v) + " q = " + str(q)
+            continue
+
+        # Simulate trajectory under edges
+        edge_controller = Spath.firm.edge_controllers[v][Spath.firm.edges[v].index(best_e)]
+        traj_e = edge_controller.simulate_trajectory(edge_controller.node_i)
+        traj_n = Spath.firm.node_controllers[Spath.firm.nodes.index(edge_controller.node_j)].simulate_trajectory(traj_e[-1])
+        # traj_i = [(b, i, q) for i in traj_e + traj_n]
+        traj_i = traj_e + traj_n
+        traj = traj + traj_i
+        # Get q', v', q' and loop
+        z = Spath.get_output_traj(traj_e + traj_n)
+        v_ = best_e
+        act_list += [best_e]
+
+        if obs_action is False:
+            print "TODO: Implement backup without obs_action"
+        else:
+            if regs[z][2] is 'null':
+                b_ = b
+                q_ = q
+            elif regs[z][2] is 'obs' or regs[z][2] is 'sample1':
+                q_ = None
+                b_ = None
+                # if region is known
+                if regs[z][1] == 1 or regs[z][1] == 0:
+                    # if label is true
+                    if regs[z][1] == 1:
+                        q_ = Spath.fsa.next_states_of_fsa(q,regs[z][2])
+                        b_ = b
+                # else update belief by simulating an observation
+                else:
+
+                    (b_, o, i_o) = Spath.env.get_b_o_reg(b, Spath.env.regs[z][3], z)
+                    # if true label is true then do transition in DFA
+                    # We are assuming that we get zero false rate when we pass through the region
+
+                    if regs[z][3] is 1:
+                        q_ = Spath.fsa.next_states_of_fsa(q,(Spath.env.regs[z][2],))
+                if q_ is None:
+                    q_ = q
+                if b_ is None:
+                    b_ = b
+        print "going from vertex " + str(v) + " to vertex " + str(v_) + " q = " + str(q)
+
+        b = b_ # old value becomes new value
+        q = q_ # old value becomes new value
+        v = v_  # old value becomes new value
+        v_list += [v]
+        if q in list(Spath.dfsa_final) or q == list(Spath.dfsa_final):
+            print('break')
+            break
+
+    return traj, v_list, vals, act_list
+
+

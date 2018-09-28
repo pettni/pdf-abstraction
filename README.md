@@ -56,18 +56,23 @@ compute a policy with guaranteed probability that the property is satisfied.
 
 ## Configure the environment
 
-Define Regions
+Construct **the environment**.
+
+    # Construct belief-MDP for env
+    env = Env(regs)
+
+with **regs** an ordered dictionary, whose last element is the state space domain. Some examples are given below: obstacles
 
     regs = OrderedDict()
     pi = rf.vertex_to_poly(np.array([[2, 0], [3, 0], [3, 1], [2, 1]]))
     regs['ri'] = (pi, 1, 'obs')
 
-   - Regions that are added first have a higher priority
+Potential sample regions for a rover:
 
     a1 = rf.vertex_to_poly(np.array([[4, 0], [5, 0], [5, 1], [4, 1]]))
     regs['a1'] = (a1, 0.9, 'sample1', 1)
 
-  In ``(a1, 0.9, 'sample1', 1)`` the 4th value required when the 2nd is less than 1,
+In ``(a1, 0.9, 'sample1', 1)`` the 4th value required when the 2nd is less than 1,
    and it  is either 0 = doesnt exist or 1 = exists.
 
 As a last step define the *null* region, this region encompasses the full state space. Given last, it has lowest priority and is only assigned to states that are not a member of any of the other polytopes.
@@ -76,12 +81,7 @@ As a last step define the *null* region, this region encompasses the full state 
     p = rf.vertex_to_poly(np.array([[-3, -5], [-3, 5], [5, -5], [5, 5]]))
     regs['null'] = (p, 1.0, 'null')
 
-Construct **the environment**.
 
-    # Construct belief-MDP for env
-    env = Env(regs)
-
-The command `print(env)` will print information about this environment.
 
 
 ## Configure the robot dynamics
@@ -139,6 +139,85 @@ The initial state is (-4.5,0) and is the first state that is ampled.
     prm.make_nodes_edges(40, 3, init=np.array([[-4.5],[0]]))
     prm.plot(ax)
 
-All uncertain regions are also sampled at least once.
+The resulting graph looks like for example the following figure
+
+<img src="prm_graph_01.png" width="500" title="PRM" alt="PRM figure " md-pos="5027-5046" />
 
 
+## Define specification
+
+Generate the specification DFA directly, first define the labels
+
+    from best.fsa import Fsa
+    props = ['obs', 'sample1', 'sample2']
+    props = dict(zip(props, map(lambda x: 2 ** x, range(0, len(props)))))
+    print(props)
+
+Then define the DFA
+
+    fsa = Fsa()
+    vars(Fsa)
+    fsa.g.add_node(0)
+    fsa.g.add_node('trap')
+    fsa.g.add_node(1)
+    fsa.g.add_edge(0,1, weight=0, input={props['sample1'],props['sample2'],props['sample2']+props['sample1']})
+    fsa.g.add_edge(0,0, weight=0, input={0})
+    fsa.g.add_edge(0,'trap', weight=0, input={props['obs']})
+
+    fsa.props=props
+    fsa.final = {1}
+    fsa.init = dict({0:1})
+
+    #fsa.g.add_edge(src, dest, weight=0, input=bitmaps, guard=guard, label=guard)
+
+An alternative is to work with Formulas given in LTL
+
+    from best.ltl import formula_to_mdp
+
+    fsaform = Fsa()
+    form = '! obs U sample'
+    fsaform.from_formula(form)
+    vars(fsa.g)
+    print(fsaform.g.edges(data=True))
+
+The specification FSA can be passed through a dictionary as follows
+
+    formula_fsa = dict()
+    formula_fsa['fsa'] = fsa
+    formula_fsa['init'] = dict({0:1})
+    formula_fsa['final'] = {1}
+    formula_fsa['prop'] = props
+
+This is then used to define the cross product between the roadmap and the specification
+
+    prod_ = spec_Spaths(prm, formula_fsa,env,n=125)
+
+Here
+- **spec_SPath** is the class for this specifiation based roadmaps
+- **prm** is the roadmap
+- **formula_fsm** is either a formula or a dictionary
+- **n** is the maximum number of belief points in each of the nodes of the specification-based roadmap.
+
+# Doing back-ups
+
+Initiate the backups and do them untiall all nodes have converged.
+
+    not_converged = True
+    max_it = 30   #  do 30 iterations
+    i = 0
+    n = prod_.init[0]
+
+    while not_converged:
+        print('iteration', i)
+        not_converged = prod_.full_back_up(opts)
+        opt = np.unique(prod_.val[n].best_edge)
+
+        if i > max_it:
+            not_converged = False
+        i += 1
+
+For the specification roadmap, with given belief points the backups can be done with the command "full_back_up". Opt_old is used eliminate nodes for the next back up.
+If node values have not changed, than they will only be backed-up in the next sequence if one of their neighbors values changed.
+
+
+# Simulate trajectory
