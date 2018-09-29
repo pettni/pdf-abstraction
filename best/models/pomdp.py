@@ -35,7 +35,7 @@ class POMDP:
       output_name: identifier for output
 
     Alphabets:
-      inputs: range(M)
+      inputs: range(m1) x range(m2) ... x range(mM)
       states: range(N)
       outputs: range(O)
 
@@ -73,9 +73,11 @@ class POMDP:
       self._Tmat_coo[m_tuple] = sp.coo_matrix(T[key], dtype=DTYPE)
 
     if Z == []:
+      # MDP
       self._Zmat_csr = []
       self._Zmat_coo = []
     elif len(Z) == 1:
+      # does not depend on input
       self._Zmat_csr = [sp.csr_matrix(Z[0], dtype=DTYPE)]
       self._Zmat_coo = [sp.coo_matrix(Z[0], dtype=DTYPE)]
     else:
@@ -141,6 +143,11 @@ class POMDP:
     '''percentage of transitions'''
     return float(self.nnz) / (self.N**2 * sum(self.M))
 
+  def m_tuple_iter(self):
+    '''iterate over all inputs'''
+    for m_tuple in product(*[list(range(k)) for k in self.M]):
+      yield m_tuple
+
   def transform_output(self, o):
     '''return transformed output'''
     if self._output_trans is None:
@@ -160,11 +167,19 @@ class POMDP:
   def Z(self, m_tuple):
     '''output matrix for action tuple m_tuple'''
     if self._Zmat_csr == []:
+      # MDP
       return sp.identity(self.N, dtype=DTYPE, format='csr')
     if type(self._Zmat_csr) is not dict:
-      return self._Zmat_csr
+      # not depending on input
+      return self._Zmat_csr[0]
     else:
+      # input-dependent
       return self._Zmat_csr[m_tuple]
+
+  def Tuz(self, m_tuple, z):
+    '''belief transition matrix T^{u,z} = P ( x', z | x, u )'''
+    Z_row = self.Z(m_tuple).getcol(z).todense().transpose()  # [1 x n]
+    return self.T(m_tuple) * sp.spdiags(Z_row, 0, self.N, self.N)
 
   def check(self):
     for m_tuple in self._Tmat_csr.keys():
@@ -206,11 +221,9 @@ class POMDP:
   def bellman(self, W, d=0):
     '''calculate Q function via one Bellman step
        Q(u, x) = \sum_x' T(x' | x, u) W(x')  '''
-
     Q = np.zeros(self.M + W.shape, dtype=DTYPE)
     for m_tuple in product(*[list(range(k)) for k in self.M]):
       Q[m_tuple] += sparse_tensordot(self.T(m_tuple), W, d)
-
     return Q
 
   def evolve_observe(self, state, m_tuple):
@@ -275,6 +288,10 @@ class POMDPNetwork:
   def observable(self):
     return all(pomdp.observable for  pomdp in self.pomdps.values())
 
+  @property
+  def deterministic(self):
+    return all(det for _,_,_,det in self.connections)
+  
   def transform_output(self, o_tuple):
     return tuple(pomdp.transform_output(o) for (pomdp, o) in zip(self.pomdps.values(), o_tuple))
 
@@ -487,7 +504,6 @@ class POMDPNetwork:
       new_state, new_output = pomdp.evolve_observe(state[idx], pomdp_input_tuple)
       all_outputs[pomdp.output_name] = new_output
       all_states[pomdp.state_name] = new_state
-
 
       # add any intermediate input that is a function calculated outputs
       for outputs, input, conn_mat, _ in self.connections:

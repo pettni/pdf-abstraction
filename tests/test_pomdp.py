@@ -41,3 +41,19 @@ def test_evolve():
   np.testing.assert_array_less(abs(n0 -n2), 100)
 
 
+def test_Tuz():
+
+  T0 = np.array([[0, 0.5, 0.5], [0, 1, 0], [0.7, 0, 0.3]])
+  Z0 = np.array([[0.5, 0.5], [0, 1], [1, 0]])
+
+  pomdp = POMDP([T0], [Z0])
+
+  Tuz = pomdp.Tuz((0,), 0).todense()   # probability of going to s and seeing z
+  Tuz_r = np.array([[0, 0, 0.5], [0, 0, 0], [0.35, 0, 0.3]])
+
+  np.testing.assert_almost_equal(Tuz, Tuz_r)
+
+  Tuz = pomdp.Tuz((0,), 1).todense()   # probability of going to s and seeing z
+  Tuz_r = np.array([[0, 0.5, 0], [0, 1, 0], [0.35, 0, 0]])
+
+  np.testing.assert_almost_equal(Tuz, Tuz_r)
