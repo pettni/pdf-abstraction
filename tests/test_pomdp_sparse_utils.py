@@ -3,7 +3,7 @@ import sparse
 from best.models.pomdp import POMDP, POMDPNetwork
 from best.models.pomdp_sparse_utils import *
 
-def test_update_distr():
+def test_propagate_distr():
 
   T00 = np.array([[0, 0.5, 0.5], [0, 1, 0], [0.7, 0, 0.3]])
   T01 = np.array([[0, 0,     1], [0, 0, 1], [0, 0, 1]])
@@ -16,22 +16,22 @@ def test_update_distr():
   pomdp = POMDP({ (0,0): T00, (0,1): T01, (1,0): T10, (1,1): T11 }, [Z0], input_names=['u1', 'u2'])
 
   D1_ux = sparse.COO([[0, 0, 1], [0, 1, 1], [0, 0, 0]], [1, 0, 0], shape = (2, 2, 3))
-  D1_xz = update_distribution(pomdp, D1_ux)
+  D1_xz = propagate_distribution(pomdp, D1_ux)
   D1_xz_r = np.array([[0, 0], [0, 0.5], [0.5, 0]])
   np.testing.assert_almost_equal(D1_xz.todense(), D1_xz_r)
 
   D2_ux = sparse.COO([[0, 0, 1], [0, 1, 1], [0, 0, 0]], [0, 1, 0], shape = (2, 2, 3))
-  D2_xz = update_distribution(pomdp, D2_ux)
+  D2_xz = propagate_distribution(pomdp, D2_ux)
   D2_xz_r = np.array([[0, 0], [0, 0], [1, 0]])
   np.testing.assert_almost_equal(D2_xz.todense(), D2_xz_r)
 
   D3_ux = sparse.COO([[0, 0, 1], [0, 1, 1], [0, 0, 0]], [0, 0, 1], shape = (2, 2, 3))
-  D3_xz = update_distribution(pomdp, D3_ux)
+  D3_xz = propagate_distribution(pomdp, D3_ux)
   D3_xz_r = np.array([[0.5, 0.5], [0, 0], [0, 0]])
   np.testing.assert_almost_equal(D3_xz.todense(), D3_xz_r)
 
   D4_ux = sparse.COO([[0, 0, 1], [0, 1, 1], [0, 0, 0]], [0.33, 0.33, 0.34], shape = (2, 2, 3))
-  D4_xz = update_distribution(pomdp, D4_ux)
+  D4_xz = propagate_distribution(pomdp, D4_ux)
   np.testing.assert_almost_equal(D4_xz.todense(), 0.33 * D1_xz_r + 0.33 * D2_xz_r + 0.34 * D3_xz_r)
 
 def test_diag():
@@ -65,7 +65,7 @@ def test_network_distribution():
   # distribution over u1 x1 x2
   D_ux = sparse.COO([ [0], [0], [0] ], [1], shape=(1, 3, 3))
 
-  D_xz = update_network_distribution(network, D_ux)
+  D_xz = propagate_network_distribution(network, D_ux)
 
   D_xz_r = sparse.COO([ [1, 2], [1, 2], [0, 1], [1, 2] ], [0.5, 0.5], shape=(3,3,2,3))
 
