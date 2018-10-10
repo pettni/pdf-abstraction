@@ -31,13 +31,17 @@ def compute_ckhsum(msg):
   chksum = struct.pack('B', sum(msg) % 256)
   return chksum
 
-def segway_to_platform(segway_pose):
-  x = segway_pose.x - 0.07 * np.cos(segway_pose.theta)
-  y = segway_pose.y - 0.07 * np.sin(segway_pose.theta)
+def rob_to_platform(rob_pose):
+  x = rob_pose[0] - 0.07 * np.cos(rob_pose[2])
+  y = rob_pose[1] - 0.07 * np.sin(rob_pose[2])
   z = 0.96
   return x,y,z
 
-class Commander:
+def is_landed(uav_pose, rob_pose):
+  x,y,z = rob_to_platform(rob_pose)
+  return uav_pose[2] < z + 0.02
+
+class UAVCMD:
 
   def __init__(self, IP, PORT):
     self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -46,6 +50,7 @@ class Commander:
     self.PORT = PORT
     self.matlab_eng = matlab.engine.start_matlab()
     self.matlab_eng.addpath(MATLAB_QUADROTOR_PATH, nargout=0)
+
 
   def send_command(self, cmd_type, cmd_b=b''):
     # send UDP type-cmd_type command to UAV
@@ -71,16 +76,26 @@ class Commander:
     self.sock.sendto(udp_msg, (self.IP, self.PORT));
     self.cmd_nr = (self.cmd_nr + 1) % 256
 
-  def land_on_platform(self, segway_pose):
-    x,y,z = segway_to_platform(segway_pose)
-    self.send_command('X', struct.pack('fff', x, y, z))
+  def land_on_platform(self, rob_pose, speed = []):
+    x,y,z = rob_to_platform(rob_pose)
+    print("sending land at", x, y, z, "for robot pose", rob_pose)
+    if len(speed) > 0:
+      self.send_command('X', struct.pack('ffff', x, y, z, speed))
+    else:
+      self.send_command('X', struct.pack('fff', x, y, z))
 
-  def takeoff(self):
-    self.send_command('S')
+  def takeoff(self, speed = []):
+    if len(speed) > 0:
+      self.send_command('S', struct.pack('f', speed))
+    else:
+      self.send_command('S')
 
   def trajectory(self, t_ivals, xyz_ivals):
     cmd = fit_poly_matlab(self.matlab_eng, t_ivals, xyz_ivals)
     self.send_command('F', cmd)
 
-  def goto(self, x, y, z):
-    self.send_command('G', struct.pack('fff', x, y, z))
+  def goto(self, x, y, z, speed = []):
+    if len(speed) > 0:
+      self.send_command('G', struct.pack('ffff', x, y, z, speed))
+    else:
+      self.send_command('G', struct.pack('fff', x, y, z))

@@ -59,7 +59,7 @@ class Grid(Abstraction):
   def x_to_s(self, x):
     '''closest abstract state to x'''
     if not np.all(x.flatten() < self.x_up) and np.all(x.flatten() > self.x_low):
-        raise Exception('x outside abstraction domain')
+        raise Exception(x, 'x outside abstraction domain', self.x_low, self.x_up)
     midx = (np.array(x).flatten() - self.x_low)/self.eta_list
     return np.ravel_multi_index( tuple(map(np.int, midx)), self.n_list)
 

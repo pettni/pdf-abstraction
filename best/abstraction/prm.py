@@ -83,7 +83,7 @@ class PRM(Abstraction):
         fail_counter += 1
 
     if fail_counter == 100:
-      warning('could not place', n_nodes, 'nodes')
+      print('warning: could not place', n_nodes, 'nodes')
 
   def distance(self, node1, node2):
       return norm(node1-node2)

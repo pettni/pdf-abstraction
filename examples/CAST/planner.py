@@ -11,17 +11,13 @@ from best.solvers.valiter import *
 from best.abstraction.gridding import Grid
 from best.abstraction.prm import PRM
 
-from problem_definition import get_prob
+from prob_simple import get_prob
 from policies import *
 
-def synthesize_plan(prob):
+
+def plan_mission(prob):
 
     cassie_abstr = Grid(prob['xmin'], prob['xmax'], prob['discretization'], name_prefix='c')
-
-    informed_samples = [r.chebXc for r,_,_ in prob['regs'].values()] + [prob['uav_x0'], prob['uav_xT']]
-    uav_prm = PRM(prob['xmin'], prob['xmax'], num_nodes=12, min_dist=0.5, max_dist=2, 
-                  informed_samples=informed_samples, name_prefix='u')
-
     env_list = [environment_belief_model(info[1], name) for (name, info) in prob['regs'].items()]
 
     # Construct cassie-env network
@@ -29,28 +25,42 @@ def synthesize_plan(prob):
     for item in prob['regs'].items():
         cassie_env_network.add_connection(['c_x'], '{}_u'.format(item[0]), get_cassie_env_conn(item))
 
+
+    # solve cassie LTL problem
+    predicates = get_predicates(prob['regs'])
+    cassie_ltlpol = solve_ltl_cosafe(cassie_env_network, prob['formula'], predicates,
+                                     horizon=prob['cas_T'], delta=prob['step_margin'], verbose=False)
+
+    return CassiePolicy(cassie_ltlpol, cassie_abstr)
+
+def plan_exploration(prob, cassie_policy):
+
+    cassie_abstr = cassie_policy.abstraction
+    cassie_ltlpol = cassie_policy.ltlpol
+
+    informed_samples = [r.chebXc for r,_,_ in prob['regs'].values()] + [prob['uav_x0'], prob['uav_xT']]
+    uav_prm = PRM(prob['xmin'], prob['xmax'], num_nodes=12, min_dist=0.5, max_dist=2, 
+                  informed_samples=informed_samples, name_prefix='u')
+
+    env_list = [environment_belief_model(info[1], name) for (name, info) in prob['regs'].items()]
+
     # Construct uav-env network
     uav_env_network = POMDPNetwork([uav_prm.mdp] + env_list)
     for item in prob['regs'].items():
         uav_env_network.add_connection(['u_x'], '{}_u'.format(item[0]), get_uav_env_conn(item))
 
-    # solve cassie LTL problem
-    predicates = get_predicates(prob['regs'])
-    cassie_ltlpol = solve_ltl_cosafe(cassie_env_network, prob['formula'], predicates,
-                                     horizon=prob['cas_T'], verbose=True)
-
     # solve uav exploration problem
-    idx = np.logical_or(cassie_ltlpol.val[0][cassie_abstr.x_to_s(prob['cas_x0']), ..., cassie_ltlpol.dfsa_init] > 1-prob['prob_margin'],
-                        cassie_ltlpol.val[0][cassie_abstr.x_to_s(prob['cas_x0']), ..., cassie_ltlpol.dfsa_init] < prob['prob_margin'])
+    idx = np.logical_or(cassie_ltlpol.val[0][cassie_abstr.x_to_s(prob['cas_x0']), ..., cassie_ltlpol.dfsa_init] > prob['accept_margin'],
+                        cassie_ltlpol.val[0][cassie_abstr.x_to_s(prob['cas_x0']), ..., cassie_ltlpol.dfsa_init] < prob['reject_margin'])
 
     target = np.zeros(uav_env_network.N)
     target[uav_prm.x_to_s(prob['uav_xT'])][idx] = 1
 
     costs = uav_prm.costs.reshape(uav_prm.costs.shape + (1,)*(1+len(uav_env_network.N) - 2))
 
-    val_uav, pol_uav = solve_min_cost(uav_env_network, costs, target, M=100, verbose=True)
+    val_uav, pol_uav = solve_min_cost(uav_env_network, costs, target, M=100, verbose=False)
 
-    return UAVPolicy(pol_uav, val_uav, uav_prm), CassiePolicy(cassie_ltlpol, cassie_abstr)
+    return UAVPolicy(pol_uav, val_uav, uav_prm)
 
 def plot_problem(prob):
     fig = plt.figure()
@@ -60,23 +70,22 @@ def plot_problem(prob):
     for i, (name, info) in enumerate(prob['regs'].items()):
         plot_region(ax, info[0], name, info[1], info[2], alpha=0.5, hatch=False, fill=True if prob['REALMAP'][i] or info[1] == 1 else False)
         
-    ax.text(prob['cas_x0'][0], prob['cas_x0'][1], '$\\xi_c^0$')
-
-    ax.add_patch(patches.Rectangle(prob['uav_xT'][:2]-0.25, 0.5, 0.5, fill=False))
-    ax.text( prob['uav_x0'][0], prob['uav_x0'] [1], '$\\xi_u^0$')
-
     plt.show()
 
 def plot_value_cassie(cas_policy, prob):
     def my_value(x, mapstate):    
-        s_abstr = cas_policy.abstraction.x_to_s(x)
-        _, val = cas_policy.ltlpol((s_abstr,) + tuple(mapstate))
+        val = cas_policy.get_value(x, tuple(mapstate))
         return val
 
     def my_init_value(x, y):
         return my_value(np.array([x, y]), prob['env_x0'])
 
-    xx, yy = np.meshgrid(np.arange(0.01, 5.99, 0.1), np.arange(0.01, 3.99, 0.1))
+    x_low = cas_policy.abstraction.x_low
+    x_up = cas_policy.abstraction.x_up
+
+    xx, yy = np.meshgrid(np.arange(x_low[0]+0.01, x_up[0]-0.01, 0.1), 
+                        np.arange(x_low[1]+0.01, x_up[1]-0.01, 0.1))
+
     vals = np.vectorize(my_init_value)(xx, yy)
 
     plt.pcolor(xx, yy, vals, vmin=0, vmax=1)
@@ -94,7 +103,11 @@ def plot_value_uav(uav_policy, prob):
     def my_init_cvalue(x, y):
         return uav_value(np.array([x, y]), map_init)
 
-    xx, yy = np.meshgrid(np.arange(0.01, 5.99, 0.1), np.arange(0.01, 3.99, 0.1))
+    x_low = uav_policy.abstraction.x_low
+    x_up = uav_policy.abstraction.x_up
+
+    xx, yy = np.meshgrid(np.arange(x_low[0]+0.01, x_up[0]-0.01, 0.1), 
+                        np.arange(x_low[1]+0.01, x_up[1]-0.01, 0.1))
     vals = np.vectorize(my_init_cvalue)(xx, yy)
 
     plt.pcolor(xx, yy, vals)
@@ -152,16 +165,17 @@ def get_predicates(regions):
 
   predicates = dict()
 
-  # fail predicate
-  risk_names = list(filter(lambda name: name[0] == 'r', regions.keys()))
-  risk_inputs = ['c_x'] + ['{}_b'.format(name) for name in risk_names]
+  if any([name[0] == 'r' for name in regions.keys()]):
+    # fail predicate
+    risk_names = list(filter(lambda name: name[0] == 'r', regions.keys()))
+    risk_inputs = ['c_x'] + ['{}_b'.format(name) for name in risk_names]
 
-  def risk_predicate(names, rx, *nargs):
-    conds = [is_adjacent(regions[name][0], rx, 0) and nargs[i] > 0  
-             for (i, name) in enumerate(names)]
-    return {any(conds)}
+    def risk_predicate(names, rx, *nargs):
+      conds = [is_adjacent(regions[name][0], rx, 0) and nargs[i] > 0  
+               for (i, name) in enumerate(names)]
+      return {any(conds)}
 
-  predicates['fail'] = (risk_inputs, partial(risk_predicate, risk_names))
+    predicates['fail'] = (risk_inputs, partial(risk_predicate, risk_names))
 
   # sample predicates
   sample_types = set([name[0] for name in regions.keys()]) - set('r')
@@ -188,7 +202,9 @@ def main():
   prob = get_prob()
   plot_problem(prob)
 
-  uav_policy, cas_policy = synthesize_plan(prob)
+  cas_policy = plan_mission(prob)
+
+  uav_policy = plan_exploration(prob, cas_policy)
 
   plot_value_cassie(cas_policy, prob)
   plt.show()
