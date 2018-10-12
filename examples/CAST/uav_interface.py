@@ -82,10 +82,13 @@ class UAVCMD:
   def land_on_platform(self, rob_pose, speed = None):
     x,y,z = rob_to_platform(rob_pose)
     print("sending land at", x, y, z, "for robot pose", rob_pose)
-    if speed is not None:
-      self.send_command('X', struct.pack('ffff', x, y, z, speed))
-    else:
-      self.send_command('X', struct.pack('fff', x, y, z))
+    yaw = rob_pose[2]
+    if speed is None:
+      speed = 0.1
+    self.send_command('X', struct.pack('fffff', x, y, z, speed, yaw))
+
+  def land(self):
+    self.send_command('Q')
 
   def takeoff(self, speed = None):
     if speed is not None:
