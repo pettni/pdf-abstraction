@@ -22,6 +22,7 @@ UDP_PORT = 1560
 MATLAB_QUADROTOR_PATH = r'/mnt/c/Users/petter/coding/quadrotor/lib'
 UAV_ALTITUDE = 1.5  # m
 UAV_SPEED = 0.5     # m/s
+
 if SIM:
   UAV_POSE_TOPIC = '/MATLAB_UAV'
   ROB_POSE_TOPIC = '/MATLAB_ROB'
@@ -192,7 +193,9 @@ def main():
 
   rospy.Subscriber(UAV_POSE_TOPIC, PoseStamped, planner.uav_callback)
   rospy.Subscriber(ROB_POSE_TOPIC, PoseStamped, planner.rob_callback)
+  
   rospy.init_node('best_planner', anonymous=True)
+  
   rate = rospy.Rate(0.5)
 
   while not (rospy.is_shutdown() or planner.state == 'done'):

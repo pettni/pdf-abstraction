@@ -59,33 +59,36 @@ class UAVCMD:
     #
     #  F: uint8 F
     #  C: uint8 C
-    #  T: uint8 'cmd_type'
-    #  K: uint8 counter
-    #  L: uint32 number of bytes in cmd
-    #  cmd_b: data 
-    #  chksum: checksum of everything after F
+    #  T: uint8 'cmd_type'                      1   byte
+    #  K: uint8 counter                         1   byte
+    #  L: uint32 number of bytes in cmd         4   byte
+    #  cmd_b: data                              4xL byte
+    #  00: two empty padding bytes              2   byte
+    #  chksum: checksum of everything after F   1   byte
 
     if len(cmd_type) > 1:
       raise Exception('type must be char')
 
-    udp_header = struct.pack('BBB', ord('C'), ord(cmd_type), self.cmd_nr) \
-                 + struct.pack('I', len(cmd_b));
-    udp_chksum = compute_ckhsum(udp_header + cmd_b)
+    udp_header = struct.pack('B', ord('C'));
 
-    udp_msg = struct.pack('B', ord('F')) + udp_header + cmd_b + udp_chksum
+    udp_content = struct.pack('BB', ord(cmd_type), self.cmd_nr) \
+                  + struct.pack('I', len(cmd_b)) + cmd_b + b'\x00\x00'
+    udp_chksum = compute_ckhsum(udp_header + udp_content)
+
+    udp_msg = struct.pack('B', ord('F')) + udp_header + udp_content + udp_chksum
     self.sock.sendto(udp_msg, (self.IP, self.PORT));
     self.cmd_nr = (self.cmd_nr + 1) % 256
 
-  def land_on_platform(self, rob_pose, speed = []):
+  def land_on_platform(self, rob_pose, speed = None):
     x,y,z = rob_to_platform(rob_pose)
     print("sending land at", x, y, z, "for robot pose", rob_pose)
-    if len(speed) > 0:
+    if speed is not None:
       self.send_command('X', struct.pack('ffff', x, y, z, speed))
     else:
       self.send_command('X', struct.pack('fff', x, y, z))
 
-  def takeoff(self, speed = []):
-    if len(speed) > 0:
+  def takeoff(self, speed = None):
+    if speed is not None:
       self.send_command('S', struct.pack('f', speed))
     else:
       self.send_command('S')
@@ -94,8 +97,8 @@ class UAVCMD:
     cmd = fit_poly_matlab(self.matlab_eng, t_ivals, xyz_ivals)
     self.send_command('F', cmd)
 
-  def goto(self, x, y, z, speed = []):
-    if len(speed) > 0:
+  def goto(self, x, y, z, speed = None):
+    if speed is not None:
       self.send_command('G', struct.pack('ffff', x, y, z, speed))
     else:
       self.send_command('G', struct.pack('fff', x, y, z))
