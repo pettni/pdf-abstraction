@@ -20,7 +20,7 @@ from itertools import product
 import random
 from best.hVI_types import Env, Gamma
 import logging
-from copy import copy
+from copy import copy, deepcopy
 import warnings
 
 logger = logging.getLogger(__name__)
@@ -168,6 +168,13 @@ class SPaths(object):
             added_nodes += [node]
             n_nodes += -1
         return added_nodes
+
+    def prune_nodes(self):
+        # due to the current structure of the nodes and edges actually pruning FIRM would be computationally intensive.
+        #  Therefore we have not implemented it. To enable a good implementation,
+        #  the SPaths object should inherent nodes and edges and its handles from the networkx packages.
+        # right now , nodes will be removed or pruned from the product structure only.
+        raise NotImplementedError
 
     def make_edges(self, dist, nodes=list(), give_connected=False):
         """
@@ -733,6 +740,26 @@ class spec_Spaths(nx.MultiDiGraph):
         super(spec_Spaths, self).remove_node(n)
         self.active.__delitem__(n)
         self.val.__delitem__(n)
+        print('removed node')
+
+    def prune(self, keep_list=None, rem_list=None):
+        if keep_list:
+            old_nodes = deepcopy(self.nodes)
+            for node in old_nodes:
+                if node in keep_list:
+                    pass
+                else:
+                    if node in self.nodes:
+                        self.remove_node(node)
+
+            raise NotImplementedError
+
+        elif rem_list:
+            raise NotImplementedError
+        else:
+            raise ValueError
+
+
 
     def find_edge(self, n, input_let, v=None):
         """ Find an edge based on the input letters
@@ -965,7 +992,7 @@ def bfs(graph, start):
     return visited
 
 
-def plot_optimizers(prod, ax):
+def plot_optimizers(prod, ax, showplot=True):
     """
     Give a plot of the optimizers of the current graph.
     Based on the firm graph, but nodes now include also info on the state of the DFA
@@ -1004,65 +1031,26 @@ def plot_optimizers(prod, ax):
             if n_next[1] in tr_actions:
                 if (n_next not in unvisited) and (not n_next in visited):
                     unvisited.extend([(n_next)])
+    if showplot:
+        for node in nodes:
+            ax.plot(nodes[node][0],nodes[node][1],'b')
 
-    for (start, dest) in edges:
-            plt.plot([nodes[start][0],nodes[dest][0]],[nodes[start][1],nodes[dest][1]],color='black')
+        for (start, dest) in edges:
+                plt.plot([nodes[start][0],nodes[dest][0]],[nodes[start][1],nodes[dest][1]],color='black')
 
-            plt.arrow(nodes[start][0],nodes[start][1],
-                      .7*(nodes[dest][0]-nodes[start][0]),
-                      .7*(nodes[dest][1]-nodes[start][1]),
-                      head_width=0.2, head_length=.2,
-                      fc='k', ec='k')
-    #     # add this node and the observation edges first
-    #
-    #     try:
-    #         neigh = prod.edges[i] # unlike the firm based result we are actually
-    #  not interested in all possible regions
-    #     except KeyError:
-    #         continue
-    #     for j in neigh:
-    #         x = [np.ravel(self.nodes[i].mean)[0], np.ravel(self.nodes[j].mean)[0]]
-    #         y = [np.ravel(self.nodes[i].mean)[1], np.ravel(self.nodes[j].mean)[1]]
-    #         ax.plot(x, y, 'b')
-    # scale = 3
-    # for i in range(len(self.nodes)):
-    #     # ax.plot(self.nodes[i].mean[0], self.nodes[i].mean[1], 'go')
-    #     from matplotlib.patches import Ellipse
-    #     eigvalue, eigvec = np.linalg.eigh(self.nodes[i].cov[0:2, 0:2])
-    #     if eigvalue[0] < eigvalue[1]:
-    #         minor, major = 2 * np.sqrt(scale * eigvalue)
-    #         alpha = np.arctan(eigvec[1, 1] / eigvec[0, 1])
-    #     elif eigvalue[0] > eigvalue[1]:
-    #         major, minor = 2 * np.sqrt(scale * eigvalue)
-    #         alpha = np.arctan(eigvec[1, 0] / eigvec[0, 0])
-    #     else:
-    #         major, minor = 2 * np.sqrt(scale * eigvalue)
-    #         alpha = 0
-    #     ell = Ellipse(xy=(self.nodes[i].mean[0], self.nodes[i].mean[1]),
-    #                   width=major, height=minor, angle=alpha)
-    #     ell.set_facecolor('gray')
-    #     ax.add_artist(ell)
-    #     if i < 10:
-    #         plt.text(np.ravel(self.nodes[i].mean)[0] - 0.04,
-    # np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
-    #                  color='black', backgroundcolor='grey')
-    #     else:
-    #         plt.text(np.ravel(self.nodes[i].mean)[0] - 0.09,
-    #  np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
-    #                  color='black', backgroundcolor='grey')
-    # ax.set_xlim(self.state_space.x_low[0], self.state_space.x_up[0])
-    # ax.set_ylim(self.state_space.x_low[1], self.state_space.x_up[1])
-    # for (name, info) in self.regs.iteritems():
-    #     hatch = False
-    #     fill = True
-    #     if name is not 'null':
-    #         rf.plot_region(ax, info[0], name, info[1], self.output_color[name], hatch=hatch, fill=fill)
-    # # plt.show()
+                plt.arrow(nodes[start][0],nodes[start][1],
+                          .7*(nodes[dest][0]-nodes[start][0]),
+                          .7*(nodes[dest][1]-nodes[start][1]),
+                          head_width=0.2, head_length=.2,
+                          fc='k', ec='k')
+    return nodes, edges, visited
 
-def simulate(Spath,regs, time_n=100,fig=None, obs_action=True):
+
+def simulate(Spath,regs, time_n=100, fig=None, obs_action=True):
     """
     Give a simulation of the current policy starting from the initial belief points
 
+    :param time_n: total simulation time
     :type regs: Regions dictionary
     :param obs_action: obs_action true or false
     :param fig: figure handle (optional)

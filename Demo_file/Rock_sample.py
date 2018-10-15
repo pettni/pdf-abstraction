@@ -139,7 +139,9 @@ while not_converged:
 
 from best.hVI_fsrm import plot_optimizers, simulate
 
-plot_optimizers(prod_,ax)
+nodes, edges, visited = plot_optimizers(prod_,ax)
+
+prod_.prune(keep_list=visited)
 
 simulate(prod_, regs)
 
