@@ -752,7 +752,6 @@ class spec_Spaths(nx.MultiDiGraph):
                     if node in self.nodes:
                         self.remove_node(node)
 
-            raise NotImplementedError
 
         elif rem_list:
             raise NotImplementedError
