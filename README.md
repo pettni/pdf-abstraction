@@ -221,3 +221,7 @@ If node values have not changed, than they will only be backed-up in the next se
 
 
 # Simulate trajectory
+
+Compute
+
+    traj, v_list, vals, act_list =  simulate(prod_, regs)

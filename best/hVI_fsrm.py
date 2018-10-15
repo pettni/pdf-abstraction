@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 class SPaths(object):
     """
-    Road-map class
+    Roadmap class
     """
 
     def __init__(self, state_space, motion_model, Wx, Wu, regs, output_color, ax):
@@ -63,6 +63,8 @@ class SPaths(object):
         self.ax = ax
         self.nodes = []
         self.node_controllers = []
+        # TODO the use of ordered dicts here is potentially slowing everything down.
+        #
         self.edges = OrderedDict()  # key=node_id and value=list of node_ids of neighbors
         self.edge_controllers = OrderedDict()
         self.edge_output_prob = OrderedDict()
@@ -99,7 +101,8 @@ class SPaths(object):
         """
 
         if not means and n_nodes < len(self.regs):
-            raise ValueError('Number of samples cannot be less than n_regs')
+            if append is False:
+                raise ValueError('Number of samples cannot be less than n_regs')
 
         # make a list of nodes
         nodes = []
@@ -166,19 +169,26 @@ class SPaths(object):
             n_nodes += -1
         return added_nodes
 
-    def make_edges(self, dist, nodes=list()):
+    def make_edges(self, dist, nodes=list(), give_connected=False):
         """
         Construct edges for self.nodes within distance dist and generate edge controllers
 
         :param dist: distance (on mean) threshold for neighbors in PRM
         :param nodes: list of nodes from which edges are still missing.
         Default is none, in which case all nodes have missing edges.
+        :param give_connected: Give the parent nodes newly connected to the nodes
         :return:
         """
-        self.max_actions = 1  # '''used to construct T'''
+        unvisited = []  # these are nodes whose outgoing edges need to be checked again in the specification roadmap.
+        # Therefore they are unvisited for the product creation.
+
+        self.max_actions = 1
         if nodes:
             prod_nodes = itertools.product(nodes, self.nodes)
+
         else:
+            if give_connected:
+                raise ValueError  # can only be true when nodes is not empty
             prod_nodes = itertools.combinations(self.nodes, 2)
         # to_nodes = self.nodes
 
@@ -210,6 +220,10 @@ class SPaths(object):
 
             if len(self.edges[node_i]) > self.max_actions:
                 self.max_actions = len(self.edges[node_i])
+            if give_connected:
+                unvisited += [node_j]
+        if give_connected:
+            return unvisited
 
     def intersect(self, box, src, dest):
         """
@@ -587,16 +601,16 @@ class spec_Spaths(nx.MultiDiGraph):
         """
         Add a node to the specification roadmap directly.
             - Node will be added as a ROADMAP node and in this specification roadmap
-            TODO: Adding roadmap nodes is still untested
         :param n_nodes: Number of new nodes to be added
         :param dist_edge: The minimal distance between two connected nodes
         :param means: an optional list of means from which the new road map nodes are selected
         :return:  Updated ROADMAP and SPEC-ROADMAP
         """
         # add node to PRM/FIRM
-        new_nodes = self.firm.new_nodes(n_nodes, means=means, append=True)
+        new_nodes = self.firm.sample_nodes(n_nodes, means=means, append=True)
         # add edges in PRM/FIRM
-        self.firm.make_edges(dist_edge, nodes=new_nodes)
+        unvisited = self.firm.make_edges(dist_edge, nodes=new_nodes,give_connected=True)
+        self.create_prod(unvisited_v=unvisited)
 
     def _make_edge_to(self,from_pair, node_pair, label, unvisited):
         """
@@ -622,7 +636,7 @@ class spec_Spaths(nx.MultiDiGraph):
 
         return unvisited
 
-    def create_prod(self):
+    def create_prod(self, unvisited_v=None):
         """
         Initialize the product  between the DFA for the specification (SPEC) and
         the ROADMAP for the robot planning the get the SPEC-ROADMAP.
@@ -630,17 +644,28 @@ class spec_Spaths(nx.MultiDiGraph):
         :return: return the SPEC-ROADMAP
         """
 
-        # Add only nodes that can actually be reached
-        unvisited = []  # we use this list to keep track of nodes whose outgoing edges have not been included yet
-        for (i_q,v) in self.init:
-            # add all initial dfa states and initial graph stats (v=0)
-            self.add_node((i_q, v))
-            unvisited += [(i_q, v)]
+        if unvisited_v:
+            print('update product')
+            # Add only nodes that can actually be reached
+            unvisited = []  # we use this list to keep track of nodes whose outgoing edges have not been included yet
+            for (i_q,v) in itertools.product(self.fsa.g.nodes, unvisited_v):
+                # add all initial dfa states and initial graph stats (v=0)
+                if (i_q,v) in self.nodes:
+                    unvisited += [(i_q, v)]
 
-        # add a virtual final node (-1,-1) can be used for breath first searches
-            super(spec_Spaths, self).add_node((-1,-1))
-            self.active[(-1,-1)] = False
-            print('Added virtual final node = {v}'.format(v=(-1,-1)))
+        else:
+
+            # Add only nodes that can actually be reached
+            unvisited = []  # we use this list to keep track of nodes whose outgoing edges have not been included yet
+            for (i_q,v) in self.init:
+                # add all initial dfa states and initial graph stats (v=0)
+                self.add_node((i_q, v))
+                unvisited += [(i_q, v)]
+
+            # add a virtual final node (-1,-1) can be used for breath first searches
+                super(spec_Spaths, self).add_node((-1,-1))
+                self.active[(-1,-1)] = False
+                #print('Added virtual final node = {v}'.format(v=(-1,-1)))
 
         while len(unvisited) > 0:
             (i_q, i_v) = unvisited.pop(0)
@@ -888,25 +913,34 @@ class spec_Spaths(nx.MultiDiGraph):
 
         return max_alpha_b_e, best_e, opt
 
-    def plot_node(self, node, region, b=None, ax=None):
+    def plot_bel(self, n, i, fig_n, b=None):
         """
         Give a one D plot of the value function at a given node by varying the uncertainty of the given region.
         Not implemented !
 
-        :param node: node (q=node of DFA ,v= node of FIRM) in the
-        :type node: State
-        :param region: The region key for example 'R4'.
+        :param n: n (q=node of DFA ,v= node of FIRM) in the
+        :param i: The region key.
         :param b: list of probabilities associated to each of the regions.
-        If none take the initial probabilities.
-        :param ax: ahndle for axes on which the plot can be given,
+        If None (=Default) take the initial probabilities.
+        :param fig_n: handle for axes on which the plot can be given,
          if none automatically generate the plot. Otherwise add plot to the handle.
-        :return: Returns a plot
-        """
-        assert False
-        if b is None:
-            # no b is given.
-            self.env.b_reg_init = np.matrix(self.b_reg_init).T
-            print(self.b_reg_init)
+        :return: Returns a plot"""
+
+        (q, v) = n
+        vals = []
+        for b_i in np.linspace(0, 1, 20):
+            b_ind = [prob if not el == i else [b_i]
+                     for el, prob in enumerate(self.env.b_reg_init.tolist())]
+            b = self.env.get_product_belief(b_ind)
+            vals += [max(self.val[(q, v)].alpha_mat.T * b).tolist()]
+        plt.figure(fig_n)
+
+        plt.plot(np.linspace(0, 1, 20), sum(vals, []))
+        plt.ylabel('probability')
+        ax = plt.gca()
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        plt.show()
 
 
 def bfs(graph, start):
@@ -956,8 +990,8 @@ def plot_optimizers(prod, ax):
         (i_q, i_v) = n
         opt = np.unique(prod.val[(i_q, i_v)].best_edge)
         # split into obs actions and transitions actions
-        obs_actions  = filter(lambda i: i < 0, opt)   # decide to observe a neigborhood
-        tr_actions  = filter(lambda i: i >= 0, opt)   # decide to transition to a new node
+        obs_actions = filter(lambda i: i < 0, opt)   # decide to observe a neigborhood
+        tr_actions = filter(lambda i: i >= 0, opt)   # decide to transition to a new node
         # find (x,y)
         x = np.ravel(i_v.mean)[0]
         y = np.ravel(i_v.mean)[1]
@@ -971,7 +1005,7 @@ def plot_optimizers(prod, ax):
                 if (n_next not in unvisited) and (not n_next in visited):
                     unvisited.extend([(n_next)])
 
-    for (start,dest) in edges:
+    for (start, dest) in edges:
             plt.plot([nodes[start][0],nodes[dest][0]],[nodes[start][1],nodes[dest][1]],color='black')
 
             plt.arrow(nodes[start][0],nodes[start][1],
@@ -1025,7 +1059,7 @@ def plot_optimizers(prod, ax):
     #         rf.plot_region(ax, info[0], name, info[1], self.output_color[name], hatch=hatch, fill=fill)
     # # plt.show()
 
-def simulate(Spath, regs, n=100, fig=None, obs_action=False):
+def simulate(Spath,regs, time_n=100,fig=None, obs_action=True):
     """
     Give a simulation of the current policy starting from the initial belief points
 
@@ -1043,7 +1077,7 @@ def simulate(Spath, regs, n=100, fig=None, obs_action=False):
         fig = plt.figure()
 
     b = Spath.env.b_prod_init # initial belief points
-    if len(Spath.init)>1:
+    if len(Spath.init) > 1:
         warnings.warn("Warning only first initial state is simulated")
 
     (q,v) = Spath.init[0]
@@ -1053,8 +1087,10 @@ def simulate(Spath, regs, n=100, fig=None, obs_action=False):
     v_list =[v]
     act_list =[]
     vals = []
-
-    for t in range(n):
+    q_ = None
+    b_ = None
+    for t in range(time_n):
+        print(t)
         # Get best edge
         alpha_new, best_e, opt = Spath._back_up(q, v, b)
         vals += [opt]
@@ -1075,7 +1111,7 @@ def simulate(Spath, regs, n=100, fig=None, obs_action=False):
         traj_i = traj_e + traj_n
         traj = traj + traj_i
         # Get q', v', q' and loop
-        z = Spath.get_output_traj(traj_e + traj_n)
+        z = Spath.firm.get_output_traj(traj_e + traj_n)
         v_ = best_e
         act_list += [best_e]
 
@@ -1102,7 +1138,7 @@ def simulate(Spath, regs, n=100, fig=None, obs_action=False):
                     # We are assuming that we get zero false rate when we pass through the region
 
                     if regs[z][3] is 1:
-                        q_ = Spath.fsa.next_states_of_fsa(q,(Spath.env.regs[z][2],))
+                        q_ = Spath.fsa.next_states_of_fsa(q, (Spath.env.regs[z][2],))
                 if q_ is None:
                     q_ = q
                 if b_ is None:
