@@ -118,8 +118,38 @@ import matplotlib.pyplot as plt
 
 
 
-
+t_start = time.time()
 print('--- Start Back-ups ---')
+
+not_converged = True
+i = 0
+n = prod_.init[0]
+
+
+opts = dict()
+while not_converged:
+    print('iteration', i)
+    not_converged = prod_.full_back_up(opts)
+    opt = np.unique(prod_.val[n].best_edge)
+    if i>20:
+        not_converged = False
+    i += 1
+
+
+print(time.time()-t_start)
+
+from best.hVI_fsrm import plot_optimizers, simulate
+
+nodes, edges, visited = plot_optimizers(prod_,ax)
+
+prod_.prune(keep_list=visited)
+
+simulate(prod_, regs)
+
+plt.show()
+
+print('--- Re-Start Back-ups ---')
+t_start = time.time()
 
 not_converged = True
 i = 0
@@ -134,16 +164,5 @@ while not_converged:
         not_converged = False
     i += 1
 
-
-
-
-from best.hVI_fsrm import plot_optimizers, simulate
-
+print(time.time() - t_start)
 nodes, edges, visited = plot_optimizers(prod_,ax)
-
-prod_.prune(keep_list=visited)
-
-simulate(prod_, regs)
-
-
-
