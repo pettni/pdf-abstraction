@@ -145,7 +145,9 @@ def solve_min_cost(network, costs, target, M=np.Inf, prec=1e-5, verbose =False):
     V = V_new
     it += 1
 
-  V_new[V_new >= M] = np.Inf
+  if(np.max(V_new) == M):
+    print("warning: max M equal to infinity")
+    V_new[V_new >= M] = np.Inf
 
   print('finished after {:.2f}s and {} iterations'.format(time.time()-start, it))
 

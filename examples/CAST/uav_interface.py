@@ -34,12 +34,12 @@ def compute_ckhsum(msg):
 def rob_to_platform(rob_pose):
   x = rob_pose[0] - 0.07 * np.cos(rob_pose[2])
   y = rob_pose[1] - 0.07 * np.sin(rob_pose[2])
-  z = 0.96
+  z = 0.93
   return x,y,z
 
 def is_landed(uav_pose, rob_pose):
   x,y,z = rob_to_platform(rob_pose)
-  return uav_pose[2] < z + 0.02
+  return uav_pose[2] < z + 0.05
 
 class UAVCMD:
 

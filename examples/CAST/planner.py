@@ -17,29 +17,28 @@ from policies import *
 
 def plan_mission(prob):
 
-    cassie_abstr = Grid(prob['xmin'], prob['xmax'], prob['discretization'], name_prefix='c')
+    rob_abstr = Grid(prob['xmin'], prob['xmax'], prob['discretization'], name_prefix='c')
     env_list = [environment_belief_model(info[1], name) for (name, info) in prob['regs'].items()]
 
-    # Construct cassie-env network
-    cassie_env_network = POMDPNetwork([cassie_abstr.pomdp] + env_list)
+    # Construct rob-env network
+    rob_env_network = POMDPNetwork([rob_abstr.pomdp] + env_list)
     for item in prob['regs'].items():
-        cassie_env_network.add_connection(['c_x'], '{}_u'.format(item[0]), get_cassie_env_conn(item))
+        rob_env_network.add_connection(['c_x'], '{}_u'.format(item[0]), get_rob_env_conn(item))
 
-
-    # solve cassie LTL problem
+    # solve rob LTL problem
     predicates = get_predicates(prob['regs'])
-    cassie_ltlpol = solve_ltl_cosafe(cassie_env_network, prob['formula'], predicates,
-                                     horizon=prob['cas_T'], delta=prob['step_margin'], verbose=False)
+    rob_ltlpol = solve_ltl_cosafe(rob_env_network, prob['formula'], predicates,
+                                  horizon=prob['cas_T'], delta=prob['step_margin'], verbose=False)
 
-    return CassiePolicy(cassie_ltlpol, cassie_abstr)
+    return CassiePolicy(rob_ltlpol, rob_abstr)
 
-def plan_exploration(prob, cassie_policy):
+def plan_exploration(prob, rob_policy):
 
-    cassie_abstr = cassie_policy.abstraction
-    cassie_ltlpol = cassie_policy.ltlpol
+    rob_abstr = rob_policy.abstraction
+    rob_ltlpol = rob_policy.ltlpol
 
     informed_samples = [r.chebXc for r,_,_ in prob['regs'].values()] + [prob['uav_x0'], prob['uav_xT']]
-    uav_prm = PRM(prob['xmin'], prob['xmax'], num_nodes=12, min_dist=0.5, max_dist=2, 
+    uav_prm = PRM(prob['xmin'], prob['xmax'], num_nodes=40, min_dist=2, max_dist=5, 
                   informed_samples=informed_samples, name_prefix='u')
 
     env_list = [environment_belief_model(info[1], name) for (name, info) in prob['regs'].items()]
@@ -50,15 +49,16 @@ def plan_exploration(prob, cassie_policy):
         uav_env_network.add_connection(['u_x'], '{}_u'.format(item[0]), get_uav_env_conn(item))
 
     # solve uav exploration problem
-    idx = np.logical_or(cassie_ltlpol.val[0][cassie_abstr.x_to_s(prob['cas_x0']), ..., cassie_ltlpol.dfsa_init] > prob['accept_margin'],
-                        cassie_ltlpol.val[0][cassie_abstr.x_to_s(prob['cas_x0']), ..., cassie_ltlpol.dfsa_init] < prob['reject_margin'])
+    idx = np.logical_or(rob_ltlpol.val[0][rob_abstr.x_to_s(prob['cas_x0']), ..., rob_ltlpol.dfsa_init] > prob['accept_margin'],
+                        rob_ltlpol.val[0][rob_abstr.x_to_s(prob['cas_x0']), ..., rob_ltlpol.dfsa_init] < prob['reject_margin'])
 
     target = np.zeros(uav_env_network.N)
     target[uav_prm.x_to_s(prob['uav_xT'])][idx] = 1
 
     costs = uav_prm.costs.reshape(uav_prm.costs.shape + (1,)*(1+len(uav_env_network.N) - 2))
 
-    val_uav, pol_uav = solve_min_cost(uav_env_network, costs, target, M=100, verbose=False)
+
+    val_uav, pol_uav = solve_min_cost(uav_env_network, costs, target, M=500, verbose=False)
 
     return UAVPolicy(pol_uav, val_uav, uav_prm)
 
@@ -72,16 +72,16 @@ def plot_problem(prob):
         
     plt.show()
 
-def plot_value_cassie(cas_policy, prob):
+def plot_value_rob(rob_policy, prob):
     def my_value(x, mapstate):    
-        val = cas_policy.get_value(x, tuple(mapstate))
+        val = rob_policy.get_value(x, tuple(mapstate))
         return val
 
     def my_init_value(x, y):
         return my_value(np.array([x, y]), prob['env_x0'])
 
-    x_low = cas_policy.abstraction.x_low
-    x_up = cas_policy.abstraction.x_up
+    x_low = rob_policy.abstraction.x_low
+    x_up = rob_policy.abstraction.x_up
 
     xx, yy = np.meshgrid(np.arange(x_low[0]+0.01, x_up[0]-0.01, 0.1), 
                         np.arange(x_low[1]+0.01, x_up[1]-0.01, 0.1))
@@ -124,7 +124,7 @@ def plot_region(ax, poly, name, prob, color='red', alpha=0.5, hatch=False, fill=
   _, xc = pc.cheby_ball(poly)
   ax.text(xc[0], xc[1], '${}_{}$\n$p={:.2f}$'.format(name[0].upper(), name[1], prob))
 
-def get_cassie_env_conn(region):
+def get_rob_env_conn(region):
   name = region[0]
   poly = region[1][0]
   def conn(rx):
@@ -152,7 +152,6 @@ def environment_belief_model(p0, name):
     return POMDP([np.array([1])], input_names=[name+'_u'], state_name=name+'_b',
            input_trans = lambda n: 0, output_trans = lambda s: 1)
   
-
   Tnone = np.eye(3);
   Tmeas = np.array([[1.  , 0,  0],
                     [1-p0, 0, p0],
@@ -206,7 +205,7 @@ def main():
 
   uav_policy = plan_exploration(prob, cas_policy)
 
-  plot_value_cassie(cas_policy, prob)
+  plot_value_rob(cas_policy, prob)
   plt.show()
 
   plot_value_uav(uav_policy, prob)

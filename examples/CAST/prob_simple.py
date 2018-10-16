@@ -14,17 +14,17 @@ def get_prob():
 
   prob['formula'] = '( F sampleA ) | ( F sampleB )'
 
-  prob['xmin'] = [-1, -1]
-  prob['xmax'] = [1, 1]
-  prob['discretization'] = [4, 4]
+  prob['xmin'] = [0, 0]
+  prob['xmax'] = [3, 3]
+  prob['discretization'] = [6, 6]
 
-  prob['cas_x0'] = np.array([-0.75, -0.75])
-  prob['uav_x0'] = np.array([-0.75, -0.75])
-  prob['uav_xT'] = np.array([-0.75, -0.75])
+  prob['cas_x0'] = np.array([0.25, 0.25])
+  prob['uav_x0'] = np.array([0.25, 0.25])
+  prob['uav_xT'] = np.array([0.25, 0.25])
 
   regs = OrderedDict()
-  regs['a1'] = (pc.box2poly(np.array([[0.5, 1], [-0.5, 0]])), 0.5, 'blue')
-  regs['b1'] = (pc.box2poly(np.array([[-0.5, 0], [0.5, 1]])), 0.9, 'green')
+  regs['a1'] = (pc.box2poly(np.array([[2.5, 3], [1.5, 2]])), 0.5, 'blue')
+  regs['b1'] = (pc.box2poly(np.array([[1.5, 2], [2.5, 3]])), 0.9, 'green')
 
   prob['regs'] = regs
   prob['env_x0'] = [1, 1]

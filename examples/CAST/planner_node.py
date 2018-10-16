@@ -6,13 +6,17 @@ import time
 
 import rospy
 from geometry_msgs.msg import PoseStamped
+from std_msgs.msg import Float32
 
 from planner import *
 from policies import *
 from rob_interface import RobCMD
 from uav_interface import UAVCMD, is_landed
 
-from prob_simple import get_prob
+if False:
+  from prob_simple import get_prob
+else:
+  from prob_cast import get_prob
 
 SIM = True
 
@@ -20,24 +24,60 @@ UDP_IP = '127.0.0.1'
 UDP_PORT = 1560
 
 MATLAB_QUADROTOR_PATH = r'/mnt/c/Users/petter/coding/quadrotor/lib'
-UAV_ALTITUDE = 1.5  # m
-UAV_SPEED = 0.5     # m/s
 
 if SIM:
+  UAV_ALTITUDE = 1.5  # m
+  UAV_SPEED = 0.5     # m/s
   UAV_POSE_TOPIC = '/MATLAB_UAV'
   ROB_POSE_TOPIC = '/MATLAB_ROB'
 else:
+  UAV_ALTITUDE = 1.5  # m
+  UAV_SPEED = 0.1     # m/s
   UAV_POSE_TOPIC = '/vrpn_client_node/AMBERUAV/pose'
-  ROB_POSE_TOPIC = '/vrpn_client_node/AMBERSEG/pose'
+  ROB_POSE_TOPIC = '/vrpn_client_node/AMBERPOD/pose'
 
 prob = get_prob()
 
-def reveal_map(s_map, uav_pos):
-  ret = s_map
+# Fake function 1: reveal map
+def reveal_map_uav(mapstate, uav_pos):
+  ret = mapstate
   for i, (name, item) in enumerate(prob['regs'].items()):
     if is_adjacent(item[0], uav_pos[0:2], 0):
       ret[i] = prob['REALMAP'][i]
+
+  print("mapstate changed to", ret)
   return ret
+
+# Fake function 2: reveal map
+def reveal_map_rob(mapstate, rob_pos):
+  ret = mapstate
+  for i, (name, item) in enumerate(prob['regs'].items()):
+    if is_adjacent(item[0], rob_pos[0:2], 0.75):
+      ret[i] = prob['REALMAP'][i]
+
+  print("mapstate changed to", ret)
+  return ret
+
+# reveal APs
+def map_i_output(i, mapstate_i):
+    p = list(prob['regs'].items())[i][1][1]
+    if p == 1 or p == 0:
+        return p
+    return [0, p, 1][mapstate_i]
+
+def map_output(mapstate):
+    return tuple(map_i_output(i, mapstate[i]) for i in range(len(prob['regs'])))
+
+def robot_aps(rx, mapstate):
+  predicates = get_predicates(prob['regs'])
+  complete_output = (rx,) + map_output(mapstate)
+  output_names = ['c_x'] + [key + '_b' for key in prob['regs'].keys()] 
+  aps = set()
+  for ap, (outputs, fcn) in predicates.items():
+    args = [complete_output[output_names.index(output)] for output in outputs]
+    if True in fcn(*args):
+      aps |= {ap}
+  return aps
 
 class Planner(object):
 
@@ -53,17 +93,20 @@ class Planner(object):
     self.uav_pol = None
     self.rob_pol = None
 
-    self.s_map = prob['env_x0']         # state of map exploration (0 false, 1 unknown, 2 positive)
+    self.mapstate = prob['env_x0']         # state of map exploration (0 false, 1 unknown, 2 positive)
 
     self.change_state('plan_mission')   
     self.uavstate = 'landed'  
     self.mission_proba = 0.
 
+    self.pub_prob = rospy.Publisher('/probability', Float32, queue_size=10)
+    self.pub_dist = rospy.Publisher('/expected_distance', Float32, queue_size=10)
+
   def uav_callback(self, msg):
     self.uav_pos = np.array([msg.pose.position.x,
                              msg.pose.position.y, 
                              msg.pose.position.z])
-    self.s_map = reveal_map(self.s_map, self.uav_pos)                    # reveal hidden things..    
+    self.mapstate = reveal_map_uav(self.mapstate, self.uav_pos)   # reveal hidden things..    
 
   def rob_callback(self, msg):
 
@@ -73,6 +116,7 @@ class Planner(object):
                              + msg.pose.orientation.z * msg.pose.orientation.z); 
     yaw = np.arctan2(siny_cosp, cosy_cosp)
     self.rob_pos = np.array([msg.pose.position.x, msg.pose.position.y, yaw])  
+    self.mapstate = reveal_map_rob(self.mapstate, self.rob_pos)   # reveal hidden things..    
 
   def change_state(self, newstate):
     
@@ -91,7 +135,10 @@ class Planner(object):
       self.state = 'plan_exploration'
 
     if newstate == 'explore':
-      self.rob_cmd.goto(self.rob_pos[0], self.rob_pos[1])  # stop here
+      if SIM:
+        self.rob_cmd.goto(self.rob_pos[0], self.rob_pos[1])  # stop here
+      else:
+        self.rob_cmd.hold()
       self.state = 'explore'
 
     if newstate == 'done':
@@ -119,11 +166,12 @@ class Planner(object):
     
     elif self.state == "execute_mission":
       # during
-      aps = {}  # TODO: report these
-      target, val = self.rob_pol(self.rob_pos[0:2], self.s_map, aps)
-      print("current value", '{:.2f}'.format(val))
+      aps = robot_aps( (self.rob_pos[0], self.rob_pos[1]), self.mapstate )
+      if len(aps):
+        print("reported APs", aps)
+      target, val = self.rob_pol(self.rob_pos[0:2], self.mapstate, aps)
+      self.pub_prob.publish(val)
       if val > prob['accept_margin']:
-        print("sending rob goto", target)
         self.rob_cmd.goto(target[0], target[1])
 
       # exit
@@ -162,8 +210,12 @@ class Planner(object):
           self.uavstate = 'landed'
  
       elif self.uavstate == 'flying':
-        target, val = self.uav_pol(self.uav_pos[0:2], self.s_map)
-        print("sending uav target", target)
+        target, exp_dist = self.uav_pol(self.uav_pos[0:2], self.mapstate)
+        self.pub_dist.publish(exp_dist)
+
+        _, rob_val = self.rob_pol(self.rob_pos[0:2], self.mapstate, {})
+
+        self.pub_prob.publish(rob_val)
         self.uav_cmd.goto(target[0], target[1], UAV_ALTITUDE, UAV_SPEED)
 
       elif self.uavstate == 'landed':

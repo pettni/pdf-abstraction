@@ -72,7 +72,7 @@ class PRM(Abstraction):
       sample_counter += 1
       
       dist_list = [self.distance(self.G.nodes[n]['xc'], xc) for n in range(self.N)]
-      if len(dist_list) == 0 or np.min(dist_list) > self.min_dist:
+      if sample_counter < len(informed_samples) or len(dist_list) == 0 or np.min(dist_list) > self.min_dist:
         n0 = self.N
         self.G.add_node(n0, xc=xc)
         for n1 in self.G.nodes():
