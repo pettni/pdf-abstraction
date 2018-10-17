@@ -39,7 +39,7 @@ def rob_to_platform(rob_pose):
 
 def is_landed(uav_pose, rob_pose):
   x,y,z = rob_to_platform(rob_pose)
-  return uav_pose[2] < z + 0.05
+  return uav_pose[2] < 1.3
 
 class UAVCMD:
 
@@ -89,6 +89,9 @@ class UAVCMD:
 
   def land(self):
     self.send_command('Q')
+
+  def abort(self):
+    self.send_command('A')
 
   def takeoff(self, speed = None):
     if speed is not None:

@@ -35,5 +35,5 @@ def get_prob():
   prob['env_x0'] = [0 if  reg[1] in [0,1] else 1 for reg in regs.values()]
 
   # what to reveal
-  prob['REALMAP'] = [0, 2, 0, 0, 2, 0]
+  prob['REALMAP'] = [0, 0, 2, 0, 2, 0]
   return prob

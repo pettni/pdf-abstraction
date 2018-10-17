@@ -18,21 +18,23 @@ if False:
 else:
   from prob_cast import get_prob
 
-SIM = True
+SIM = False
 
-UDP_IP = '127.0.0.1'
+
 UDP_PORT = 1560
 
 MATLAB_QUADROTOR_PATH = r'/mnt/c/Users/petter/coding/quadrotor/lib'
 
 if SIM:
+  UDP_IP = '127.0.0.1'
   UAV_ALTITUDE = 1.5  # m
   UAV_SPEED = 0.5     # m/s
   UAV_POSE_TOPIC = '/MATLAB_UAV'
   ROB_POSE_TOPIC = '/MATLAB_ROB'
 else:
+  UDP_IP = '192.168.0.4'
   UAV_ALTITUDE = 1.5  # m
-  UAV_SPEED = 0.1     # m/s
+  UAV_SPEED = 0.3     # m/s
   UAV_POSE_TOPIC = '/vrpn_client_node/AMBERUAV/pose'
   ROB_POSE_TOPIC = '/vrpn_client_node/AMBERPOD/pose'
 
@@ -45,17 +47,17 @@ def reveal_map_uav(mapstate, uav_pos):
     if is_adjacent(item[0], uav_pos[0:2], 0):
       ret[i] = prob['REALMAP'][i]
 
-  print("mapstate changed to", ret)
+  # print("mapstate changed to", ret)
   return ret
 
 # Fake function 2: reveal map
 def reveal_map_rob(mapstate, rob_pos):
   ret = mapstate
   for i, (name, item) in enumerate(prob['regs'].items()):
-    if is_adjacent(item[0], rob_pos[0:2], 0.75):
+    if is_adjacent(item[0], rob_pos[0:2], 0.5):
       ret[i] = prob['REALMAP'][i]
 
-  print("mapstate changed to", ret)
+  # print("mapstate changed to", ret)
   return ret
 
 # reveal APs
@@ -172,6 +174,7 @@ class Planner(object):
       target, val = self.rob_pol(self.rob_pos[0:2], self.mapstate, aps)
       self.pub_prob.publish(val)
       if val > prob['accept_margin']:
+        print("segway going to", target)
         self.rob_cmd.goto(target[0], target[1])
 
       # exit
@@ -203,10 +206,10 @@ class Planner(object):
       # during
       if self.uavstate == 'flying' and self.uav_pol.finished():
         print("sending land")
-        self.uav_cmd.land_on_platform(self.rob_pos, UAV_SPEED)
+        self.uav_cmd.land_on_platform(self.rob_pos)
         
         if is_landed(self.uav_pos, self.rob_pos):
-          time.sleep(3)
+          time.sleep(5)
           self.uavstate = 'landed'
  
       elif self.uavstate == 'flying':
@@ -216,11 +219,14 @@ class Planner(object):
         _, rob_val = self.rob_pol(self.rob_pos[0:2], self.mapstate, {})
 
         self.pub_prob.publish(rob_val)
+        print("UAV going to", target)
         self.uav_cmd.goto(target[0], target[1], UAV_ALTITUDE, UAV_SPEED)
 
       elif self.uavstate == 'landed':
+        print("sending takeoff in 4s")
+        time.sleep(4)
         print("sending takeoff")
-        self.uav_cmd.takeoff(UAV_SPEED)
+        self.uav_cmd.takeoff()
         time.sleep(0.5)
         self.uavstate = 'flying'
 
@@ -248,7 +254,7 @@ def main():
   
   rospy.init_node('best_planner', anonymous=True)
   
-  rate = rospy.Rate(0.5)
+  rate = rospy.Rate(0.25)
 
   while not (rospy.is_shutdown() or planner.state == 'done'):
     planner.step()
