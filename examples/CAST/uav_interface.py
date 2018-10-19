@@ -37,10 +37,6 @@ def rob_to_platform(rob_pose):
   z = 0.93
   return x,y,z
 
-def is_landed(uav_pose, rob_pose):
-  x,y,z = rob_to_platform(rob_pose)
-  return uav_pose[2] < 1.3
-
 class UAVCMD:
 
   def __init__(self, IP, PORT):

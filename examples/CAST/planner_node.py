@@ -11,15 +11,14 @@ from std_msgs.msg import Float32
 from planner import *
 from policies import *
 from rob_interface import RobCMD
-from uav_interface import UAVCMD, is_landed
+from uav_interface import UAVCMD
 
 if False:
   from prob_simple import get_prob
 else:
   from prob_cast import get_prob
 
-SIM = False
-
+SIM = True
 
 UDP_PORT = 1560
 
@@ -28,15 +27,17 @@ MATLAB_QUADROTOR_PATH = r'/mnt/c/Users/petter/coding/quadrotor/lib'
 if SIM:
   UDP_IP = '127.0.0.1'
   UAV_ALTITUDE = 1.5  # m
-  UAV_SPEED = 0.5     # m/s
+  UAV_SPEED = 0.3     # m/s
   UAV_POSE_TOPIC = '/MATLAB_UAV'
   ROB_POSE_TOPIC = '/MATLAB_ROB'
+  LAND_CUTOFF = 0.94
 else:
   UDP_IP = '192.168.0.4'
   UAV_ALTITUDE = 1.5  # m
   UAV_SPEED = 0.3     # m/s
   UAV_POSE_TOPIC = '/vrpn_client_node/AMBERUAV/pose'
   ROB_POSE_TOPIC = '/vrpn_client_node/AMBERPOD/pose'
+  LAND_CUTOFF = 1.3
 
 prob = get_prob()
 
@@ -49,6 +50,9 @@ def reveal_map_uav(mapstate, uav_pos):
 
   # print("mapstate changed to", ret)
   return ret
+
+def is_landed(uav_pose, rob_pose):
+  return uav_pose[2] < LAND_CUTOFF
 
 # Fake function 2: reveal map
 def reveal_map_rob(mapstate, rob_pos):
@@ -173,6 +177,8 @@ class Planner(object):
         print("reported APs", aps)
       target, val = self.rob_pol(self.rob_pos[0:2], self.mapstate, aps)
       self.pub_prob.publish(val)
+      with open('proba.txt', 'a') as f:
+        f.write(str(rospy.get_rostime()) + " " + str(val) + '\n') 
       if val > prob['accept_margin']:
         print("segway going to", target)
         self.rob_cmd.goto(target[0], target[1])
@@ -215,8 +221,12 @@ class Planner(object):
       elif self.uavstate == 'flying':
         target, exp_dist = self.uav_pol(self.uav_pos[0:2], self.mapstate)
         self.pub_dist.publish(exp_dist)
+        with open('exp_dist.txt', 'a') as f:
+          f.write(str(rospy.get_rostime()) + " " + str(exp_dist) + '\n') 
 
         _, rob_val = self.rob_pol(self.rob_pos[0:2], self.mapstate, {})
+        with open('proba.txt', 'a') as f:
+          f.write(str(rospy.get_rostime()) + " " + str(rob_val) + '\n') 
 
         self.pub_prob.publish(rob_val)
         print("UAV going to", target)
