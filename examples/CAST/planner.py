@@ -62,16 +62,12 @@ def plan_exploration(prob, rob_policy):
 
     return UAVPolicy(pol_uav, val_uav, uav_prm)
 
-def plot_problem(prob):
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
+def plot_problem(prob, ax):
     ax.set_xlim(prob['xmin'][0], prob['xmax'][0])
     ax.set_ylim(prob['xmin'][1], prob['xmax'][1])
     for i, (name, info) in enumerate(prob['regs'].items()):
         plot_region(ax, info[0], name, info[1], info[2], alpha=0.5, hatch=False, fill=True if prob['REALMAP'][i] or info[1] == 1 else False)
         
-    plt.show()
-
 def plot_value_rob(rob_policy, prob):
     def my_value(x, mapstate):    
         val = rob_policy.get_value(x, tuple(mapstate))
