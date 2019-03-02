@@ -428,9 +428,9 @@ class TestStringMethods(unittest.TestCase):
                 not_converged = False
             i += 1
 
-        from best.hVI_fsrm import plot_optimizers, simulate
+        from best.hVI_fsrm import plot_optimizer, simulate
 
-        nodes, edges, visited = plot_optimizers(prod_, ax)
+        nodes, edges, visited = plot_optimizer(prod_, ax)
         orig_nodes = len(prod_.nodes)
 
         prod_.prune(keep_list=visited)

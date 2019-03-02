@@ -51,7 +51,7 @@ class FIRM(object):
             self.make_edges(4)
         self.n_particles = 1
 
-    ''' Sample nodes in belief space and also generate node_controllers '''
+    #''' Sample nodes in belief space and also generate node_controllers '''
     # n_nodes = number of nodes to sample in graph
     # append = False erases all previous nodes whereas True adds more nodes to existing graph
     def sample_nodes(self, n_nodes, means=[], append=False):
@@ -104,6 +104,7 @@ class FIRM(object):
                 Node_Controller(self.motion_model, self.obs_model,
                                 node, self.Wx, self.Wu,
                                 self.belief_space))
+
         # TODO:''' Generate one node in each region '''
         # j=0
         # for key in self.regs:

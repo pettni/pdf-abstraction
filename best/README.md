@@ -236,3 +236,5 @@ tests.test_det_roadmap.TestStringMethods#test_add_node
         nodes, edges, visited = plot_optimizers(prod_,ax,  showplot=False)
 
     the important nodes of the product are computed and put into "visited".
+    
+        prod_.prune(keep_list=visited)
