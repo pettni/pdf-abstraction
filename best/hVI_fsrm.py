@@ -172,13 +172,11 @@ class SPaths(object):
         # right now , nodes will be removed or pruned from the product structure only.
 
         # remove transitions/edges from and to nodes, that are no longer in the set of nodes.
-        for  from_node in self.edges.keys():
+        for from_node in self.edges.keys():
             if from_node in self.nodes:
                 self.edges[from_node] = [tonode for tonode in self.edges[from_node] if tonode in self.nodes]
             else:
                 self.edges.pop(from_node)
-
-
 
 
     def make_edges(self, dist, nodes=list(), give_connected=False):
@@ -224,9 +222,9 @@ class SPaths(object):
             self.edges.setdefault(node_j, []).append(node_i)
 
             self.edge_controllers[(node_i,node_j)] = Edge_Controller(self.motion_model, self.obs_model, node_i, node_j, self.Wx,
-                                self.Wu, self.state_space)
+                                self.Wu, self.state_space, dist=dist_nodes)
             self.edge_controllers[(node_j,node_i)] =  Edge_Controller(self.motion_model, self.obs_model, node_j, node_i, self.Wx,
-                                self.Wu, self.state_space)
+                                self.Wu, self.state_space, dist=dist_nodes)
 
             if len(self.edges[node_i]) > self.max_actions:
                 self.max_actions = len(self.edges[node_i])
@@ -476,7 +474,7 @@ class Edge_Controller(object):
     Time varying LQG controller
 
     """
-    def __init__(self, motion_model, obs_model, node_i, node_j, Wx, Wu, state_space):
+    def __init__(self, motion_model, obs_model, node_i, node_j, Wx, Wu, state_space, dist=1):
         """
         Initialize the edge control
 
@@ -516,6 +514,8 @@ class Edge_Controller(object):
             if t == 0:
                 break
 
+        self.prob = 0.99**dist
+
     def simulate_trajectory(self, b0):
         """ Simulates trajectory starting from node_i to node_j
         NOT IMPLEMENTED
@@ -532,6 +532,8 @@ class Edge_Controller(object):
             # Update Belief
             traj.append(self.state_space.new_state(bnew_pred))
         return traj
+
+
 
 
 class spec_Spaths(nx.MultiDiGraph):
@@ -871,7 +873,7 @@ class spec_Spaths(nx.MultiDiGraph):
                 best_edges += [best_e]
                 opts += [opt]
 
-            if isinstance(opts_old,dict):
+            if isinstance(opts_old, dict):
                 diff_opt = [abs(j - i) for i, j in zip(opts, opts_old.get((i_q, i_v),[-1]*len(opts)))]
                 self.sequence[(i_q, i_v)] = sum(diff_opt) > (self.epsilon*len(self.val[(i_q, i_v)].b_prod_points))
             else:
@@ -883,8 +885,9 @@ class spec_Spaths(nx.MultiDiGraph):
                     if n_out in self.sequence.keys():
                         self.sequence[n_out] = True
                 opts_old[(i_q, i_v)] = opts
-                alpha_mat = np.matrix(np.unique(np.array(np.concatenate(alph_list, axis=1)), axis=1))
-                self.val[(i_q, i_v)].alpha_mat = alpha_mat
+
+                self.val[(i_q, i_v)].alpha_mat = np.concatenate(alph_list, axis=1)
+                self.val[(i_q, i_v)].prune()
                 self.val[(i_q, i_v)].best_edge = np.unique(best_edges)
 
     def _back_up(self, i_q, i_v, b):
@@ -910,7 +913,7 @@ class spec_Spaths(nx.MultiDiGraph):
         for v_e in self.firm.edges[i_v]:
             # Get probability of reaching goal vertex corresponding to current edge
             # p_reach_goal_node = firm.reach_goal_node_prob[i_v][i_e]
-            p_reach_goal_node = 0.99  # TODO Get this from Petter's Barrier Certificate
+            p_reach_goal_node = self.firm.edge_controllers[(i_v,v_e)].prob# = 0.99  # TODO Get this from Petter's Barrier Certificate
             # next node if observing no label
             q_z_o = self.find_edge((i_q, i_v), 'null', v=v_e)
             n = (q_z_o, v_e)  # next node

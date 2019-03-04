@@ -1,6 +1,6 @@
 from collections import OrderedDict
 import matplotlib
-matplotlib.use('Qt5Agg')
+#matplotlib.use('Qt5Agg')
 
 
 from best.hVI_fsrm import SPaths
@@ -141,15 +141,14 @@ n = prod_.init[0]
 
 opts = dict()
 while not_converged:
-    print('iteration', i)
+    last = time.time()
     not_converged = prod_.full_back_up(opts)
     opt = np.unique(prod_.val[n].best_edge)
     if i > 20:
         not_converged = False
     i += 1
+    print('iteration', i, time.time()-last)
 
-
-print(time.time()-t_start)
 
 from best.hVI_fsrm import plot_optimizer
 from best.hVI_fsrm import simulate
@@ -166,9 +165,9 @@ try:
 except:
     pass
 
-for add_prunn in range(0,1):
+for add_prunn in range(0,3):
     print(" ---- Add new nodes ----- ")
-    prod_.add_firm_node(3, 3)  # add three nodes?
+    prod_.add_firm_node(6, 3)  # add three nodes?
 
     fig = plt.figure(figsize=(14, 14), dpi=80, facecolor='w', edgecolor='k')
     ax = fig.add_subplot(111, aspect='equal')
