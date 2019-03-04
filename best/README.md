@@ -238,3 +238,10 @@ tests.test_det_roadmap.TestStringMethods#test_add_node
     the important nodes of the product are computed and put into "visited".
     
         prod_.prune(keep_list=visited)
+        
+        
+# Expanding the belief point set
+As in "Point-based value iteration: an anytime algorithm for POMDPs" Pineau et al.,
+the belief point set is build up starting from the initial belief b_0
+and updated with the single step forward reachable beliefs. 
+

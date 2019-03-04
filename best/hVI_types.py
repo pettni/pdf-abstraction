@@ -29,8 +29,19 @@ class Gamma(object):
                 self.b_reg_points = b_reg_points
 
     def prune(self):
-        print "TODO: implement prune alpha"
-
+        # for each column in alpha_mat check whether
+        # there exists a column with  higher elements
+        # take a column
+        if self.alpha_mat.shape[1] < 1: # dont try to prune an empty matrix
+            return
+        mat = self.alpha_mat
+        new_mat = np.matrix([[]] * self.alpha_mat.shape[0])
+        for i in range(self.alpha_mat.shape[1]):
+            check_col = mat[:, 0]
+            mat = np.delete(mat, 0, axis=1)
+            if not np.any(np.all(check_col <= mat, axis=0)) and not np.any(np.all(check_col <= new_mat, axis=0)):
+                new_mat = np.column_stack((new_mat, check_col))
+        self.alpha_mat = new_mat
 
 # Belief MDP of environment
 class Env(object):
@@ -201,15 +212,17 @@ class Env(object):
         else:
             return 0.5
 
-    ''' Returns the belief vector in product belief space given belief of
-        each individual reg p(x_ei == 1) '''
+
     def get_product_belief(self, belief):
+        """ Returns the belief vector in product belief space given belief of
+                each individual reg p(x_ei == 1) """
         if type(belief) is list:
             belief = np.matrix(belief)
         if belief.shape[0] == 1:
             belief = belief.T
         if belief.shape[0] is not self.n_unknown_regs:
             raise ValueError('Size of belief should be equal to n_unknown_regs')
+
         b_prod = np.matrix(np.zeros([len(self.x_e), 1]))
         for i in range(len(self.x_e)):
             b_prod[i, 0] = 1
@@ -220,9 +233,10 @@ class Env(object):
                     b_prod[i, 0] = b_prod[i, 0] * (1-belief[j])
         return b_prod
 
-    ''' Returns the belief vector in product belief space given belief of
-        each individual reg p(x_ei == 1) '''
+
     def get_reg_belief(self, belief):
+        ''' Returns the belief vector in product belief space given belief of
+            each individual reg p(x_ei == 1) '''
         if type(belief) is list:
             belief = np.matrix(belief)
         if belief.shape[0] == 1:

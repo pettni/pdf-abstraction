@@ -72,7 +72,7 @@ class SPaths(object):
         self.Tz_list = None
         self.n_particles = 1
 
-    def make_nodes_edges(self, number, edges_dist, init=None):
+    def make_nodes_edges(self, number, edges_dist, init=None, means=list()):
         """
         Initiate the nodes and edges in the roadmap
 
@@ -81,12 +81,8 @@ class SPaths(object):
         :param init: initial node, i.e., starting position of the robot.
         :return:
         """
-        t = [time.clock()]
-        self.sample_nodes(number, init=init)
-        t += [time.clock()]
-
+        self.sample_nodes(number, init=init, means=means)
         self.make_edges(edges_dist)
-        t += [time.clock()]
 
     def sample_nodes(self, n_nodes, means=list(), append=False, init=None, min_dist=None):
         """
@@ -100,7 +96,7 @@ class SPaths(object):
                    can be set to 0.0 to disable pruning
         """
 
-        if not means and n_nodes < len(self.regs):
+        if len(means)>0 and n_nodes < len(self.regs):
             if append is False:
                 raise ValueError('Number of samples cannot be less than n_regs')
 
@@ -112,7 +108,7 @@ class SPaths(object):
             self.node_controllers = dict()
             self.edge_controllers = OrderedDict()
 
-        if means:  # => if you already have a precomputed node to add use that one first.
+        if len(means)>0:  # => if you already have a precomputed node to add use that one first.
             pass
         elif not append:  # first use init
             if isinstance(init, np.ndarray):
@@ -121,7 +117,7 @@ class SPaths(object):
                 if (self.regs[reg][2] is not 'obs') or (self.regs[reg][1] < 1):
                     nodes += [self.state_space.sample_new_state_in_reg(self.regs[reg][0])]
 
-        while means:
+        while len(means)>0:
             nodes += [self.state_space.new_state(means.pop(0))]
 
         added_nodes = []
@@ -587,6 +583,9 @@ class spec_Spaths(nx.MultiDiGraph):
 
             self.b_reg_set += [env.get_reg_belief(self.env.b_reg_init.tolist())]
             self.b_prod_set += [env.get_product_belief(self.env.b_reg_init.tolist())]  # add initial
+        elif b_dist == 'F':
+            # compute belief points via forward reachable set
+            assert False
         else:
             assert False   # not implemented TODO: extra feature
 
@@ -624,7 +623,7 @@ class spec_Spaths(nx.MultiDiGraph):
         """
         # add node to PRM/FIRM
         new_nodes = self.firm.sample_nodes(n_nodes, means=means, append=True)
-        print("added nodes ", new_nodes)
+        # print("added nodes ", new_nodes)
         # add edges in PRM/FIRM
         unvisited = self.firm.make_edges(dist_edge, nodes=new_nodes, give_connected=True)
         self.sequence = self.create_prod(unvisited_v=unvisited)
@@ -740,7 +739,7 @@ class spec_Spaths(nx.MultiDiGraph):
         super(spec_Spaths, self).add_node(n, attr_dict=attr_dict, check=check, reg=list_labels[-1])
         self.val[n] = Gamma(self.b_prod_set, self.b_reg_set)  # added i_q,i_v
         self.active[n] = True
-        print("added ", n)
+        # print("added ", n)
 
     def rem_node(self,n):
         """Delete a node
@@ -758,7 +757,7 @@ class spec_Spaths(nx.MultiDiGraph):
 
         # => this only removes a node it does not remove the assocuated edges
 
-        print('removed node', n)
+        # print('removed node', n)
 
     def prune(self, keep_list=None, rem_list=None):
         print('start')
@@ -816,9 +815,9 @@ class spec_Spaths(nx.MultiDiGraph):
             if input_let in dict_input and next_n[1] == v:
                 return next_n[0]
 
-        print(v)
+        # print(v)
 
-        print(n, input_let,self.out_edges({n}, data='input'))
+        # print(n, input_let,self.out_edges({n}, data='input'))
         raise ValueError
 
     def full_back_up(self, opts_old=None):

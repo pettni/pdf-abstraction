@@ -1,4 +1,8 @@
 from collections import OrderedDict
+import matplotlib
+matplotlib.use('Qt5Agg')
+
+
 from best.hVI_fsrm import SPaths
 from best.hVI_fsrm import spec_Spaths
 from best.hVI_models import State_Space, Det_SI_Model
