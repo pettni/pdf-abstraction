@@ -1,14 +1,12 @@
 """
 |Tests designed to check the individual components of the Rock sample case study.
 """
-import unittest
 from collections import OrderedDict
 from best.hVI_fsrm import SPaths
 from best.hVI_fsrm import spec_Spaths
-from best.hVI_models import State_Space, Det_SI_Model
-from best.hVI_types import Env, Gamma
-import best.rss18_functions as rf
-from best.hVI_config import sc, load, parr, obs_action, epsilon, rand_seed
+from hVI_models import State_Space, Det_SI_Model
+from best.hVI_types import Env
+import best.aux as rf
 import numpy as np
 from collections import OrderedDict
 import matplotlib.pyplot as plt
@@ -301,13 +299,12 @@ class TestStringMethods(unittest.TestCase):
         # it is important to keep this demo working!!
         # that is why i added it currently as a unit test
         # !/usr/bin/python
-        from collections import OrderedDict
         from best.hVI_fsrm import SPaths
         from best.hVI_fsrm import spec_Spaths
-        from best.hVI_models import State_Space, Det_SI_Model
+        from hVI_models import State_Space, Det_SI_Model
         from best.hVI_types import Env, Gamma
-        import best.rss18_functions as rf
-        from best.hVI_config import sc, load, parr, obs_action, epsilon, rand_seed
+        import best.aux as rf
+        from best.hVI_config import load, parr, obs_action, epsilon, rand_seed
         import numpy as np
         from collections import OrderedDict
         import matplotlib.pyplot as plt
