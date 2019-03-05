@@ -1,4 +1,4 @@
-# __all__ = ["aux", "mdp", "fsa", "ltl", "hVI_firm", "hVI_models", "hVI_main","hVI_sample_map","hVI_fsrm"]
+# __all__ = ["aux", "mdp", "fsa", "hVI_firm", "hVI_models", "hVI_main","hVI_sample_map","hVI_fsrm"]
 
 from itertools import combinations
 from operator import mul

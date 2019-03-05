@@ -95,7 +95,7 @@ formula_fsa['prop'] = props
 print('--- Construct product PRM Spec_Spaths---')
 
 
-prod_ = Spec_Spaths(prm, formula_fsa, env, n=1)
+prod_ = Spec_Spaths(prm, formula_fsa, env, n=0)
 
 
 print('--- Start Back-ups ---')

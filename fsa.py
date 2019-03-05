@@ -2,10 +2,10 @@ import networkx as nx
 import re
 import subprocess as subp
 import tempfile
-import numpy as np
+# import numpy as np
 import os
 
-import pkg_resources as pr
+# import pkg_resources as pr
 import sys
 
 if sys.platform[0:5] == 'linux':
@@ -312,3 +312,38 @@ class Fsa(object):
                       map(lambda e: e[1] if prop_bitmap in e[2]['input'] else None,
                           # Get all edges from q
                           self.g.out_edges(q, True)))
+
+
+def formula_to_mdp(formula):
+    '''convert a co-safe LTL formula to a DFSA represented as a
+    special case of an MPD
+    :param formula: string encoding desired LTL formula
+    TODO: Make this work for 'or' operator'''
+
+    fsa = Fsa()
+    fsa.from_formula(formula)
+    fsa.add_trap_state()
+
+    # mapping state -> state index
+    N = len(fsa.g)
+    dict_fromstate = dict([(sstate, s) for s, sstate in enumerate(sorted(fsa.g.nodes()))])
+
+    inputs = set.union(*[attr['input'] for _, _, attr in fsa.g.edges(data=True)])
+    M = len(inputs)
+    assert (inputs == set(range(M)))
+
+    T = [np.zeros((N, N)) for m in range(M)]
+
+    for (s1, s2, attr) in fsa.g.edges(data=True):
+        for u in attr['input']:
+            T[u][dict_fromstate[s1], dict_fromstate[s2]] = 1
+
+    mdp = MDP(T, input_name='ap', input_fcn=fsa.bitmap_of_props,
+              output_name='mu')
+
+    init_states = set(
+        map(lambda state: dict_fromstate[state], [state for (state, key) in fsa.init.items() if key == 1]))
+    final_states = set(map(lambda state: dict_fromstate[state], fsa.final))
+
+    return mdp, init_states, final_states, fsa.props
+

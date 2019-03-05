@@ -6,21 +6,19 @@ that can be used together with the HVI tools.
 from fsa import Fsa
 import networkx as nx
 import itertools
-from mdp import MDP
 from hVI_models import Det_SI_Model, State_Space, State
 import aux as rf
-import time
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.sparse as sp
 import itertools as it
 from collections import *
-from ltl import formula_to_mdp
+from fsa import formula_to_mdp
 from itertools import product
 import random
 from hVI_types import Env, Gamma
 import logging
-from copy import copy, deepcopy
+from copy import copy
 import warnings
 
 logger = logging.getLogger(__name__)
@@ -388,36 +386,6 @@ class SPaths(object):
                 rf.plot_region(ax, info[0], name, info[1], self.output_color[name], hatch=hatch, fill=fill)
         # plt.show()
 
-    def abstract(self):
-        """
-        Unknown function, not clear what this does at all....
-
-        Construct T by treating index of neigh as action number
-        Update this for Hybrid-PBVI MDP definition
-        TODO: (Sofie) => this is not used is it?
-        # [R] MDP = abstraction'
-        :return:
-        """
-
-        nodes_start_list = [[] for i in range(self.max_actions)]
-        nodes_end_list = [[] for i in range(self.max_actions)]
-        vals_list = [[] for i in range(self.max_actions)]
-        for i in range(self.nodes.shape[0]):
-            neigh = self.edges[i]
-            for j in range(len(neigh)):
-                nodes_start_list[j].append(i)
-                nodes_end_list[j].append(neigh[j])
-                vals_list[j].append(1)
-        self.T_list = []
-        for i in range(self.max_actions):
-            self.T_list.append(
-                sp.coo_matrix((vals_list[i],
-                              (nodes_start_list[i],
-                               nodes_end_list[i])),
-                              shape=(self.nodes.shape[0],
-                                     self.nodes.shape[0])))
-        output_fcn = lambda s: self.nodes[s]
-        return MDP(self.T_list, output_name='xc', output_fcn=output_fcn)
 
 
 class Node_Controller(object):
