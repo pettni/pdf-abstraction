@@ -1,14 +1,12 @@
-from mdp import MDP
-from hVI_models import Gaussian_Noise, SI_Model, Rn_Belief_Space, Rn_Belief_State
-import aux as rf
-
-import numpy as np
-from numpy import linalg as LA
-import matplotlib.pyplot as plt
-import scipy.sparse as sp
-from scipy.linalg import solve_discrete_are as dare
 import itertools as it
 from collections import OrderedDict
+
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.linalg import solve_discrete_are as dare
+
+import aux as rf
+from hVI_models import Gaussian_Noise, SI_Model, Rn_Belief_Space
 
 '''
 List of pending improvements:
@@ -16,6 +14,7 @@ List of pending improvements:
 - Improve collision checking/output generation strategy
 - Verify LQG implementation
 '''
+
 
 class FIRM(object):
     # belief_space, motion_model, obs_model: Refer to classes in models.py
@@ -26,6 +25,7 @@ class FIRM(object):
     # output_color = e.g. output_color = {-1:'black', 0:'blue', 1:'green', 2:'red'}
     # ax = handle for plotting stuff, can be generated as: fig = plt.figure(0); ax = fig.add_subplot(111, aspect='equal')
     def __init__(self, belief_space, motion_model, obs_model, Wx, Wu, regs, output_color, ax, sc):
+        self.max_actions = len(neigh)
         self.belief_space = belief_space
         self.motion_model = motion_model
         self.obs_model = obs_model
@@ -44,14 +44,14 @@ class FIRM(object):
         self.T_list = None
         self.Tz_list = None
         if sc == 'toy':
-            self.sample_nodes(3, [[-4,0.2],[0,-0.2],[4,0]])
+            self.sample_nodes(3, [[-4, 0.2], [0, -0.2], [4, 0]])
             self.make_edges(5)
         else:
             self.sample_nodes(15)
             self.make_edges(4)
         self.n_particles = 1
 
-    #''' Sample nodes in belief space and also generate node_controllers '''
+    # ''' Sample nodes in belief space and also generate node_controllers '''
     # n_nodes = number of nodes to sample in graph
     # append = False erases all previous nodes whereas True adds more nodes to existing graph
     def sample_nodes(self, n_nodes, means=[], append=False):
@@ -62,14 +62,14 @@ class FIRM(object):
             self.nodes = []  # clear previous nodes/edges
             self.edges = OrderedDict()
             self.node_controllers = []
-            self.edge_controllers =OrderedDict()
+            self.edge_controllers = OrderedDict()
         for i in range(n_nodes):
             # if i == 4:
             #     import pdb; pdb.set_trace()
             # Sample Mean
             if means:
                 if len(means) is not n_nodes:
-                   raise ValueError('means does not have n_nodes values')
+                    raise ValueError('means does not have n_nodes values')
                 node = self.belief_space.new_state(means[i])
             else:
                 if i < len(self.regs) and (self.regs[self.regs.keys()[i]][2] is not 'obs'):
@@ -94,9 +94,9 @@ class FIRM(object):
             Pprd = np.mat(dare(A.T, H.T, G * Q * G.T, M * R * M.T))
             assert np.all(np.isreal(Pprd)) and np.all(Pprd == Pprd.T)
             Pest = Pprd - (
-                Pprd * H.T) * (
-                H * Pprd * H.T + M * R * M.T).I * (
-                Pprd * H.T).T
+                    Pprd * H.T) * (
+                           H * Pprd * H.T + M * R * M.T).I * (
+                           Pprd * H.T).T
             assert np.all(np.isreal(Pest)) and np.all(Pest == Pest.T)
             node.cov = Pest
             self.nodes.append(node)
@@ -115,6 +115,7 @@ class FIRM(object):
         #   j=j+1
 
     ''' Construct edges for self.nodes within distance dist and generate edge controllers '''
+
     # dist = distance (on mean) threshold for neighbors in PRM
     def make_edges(self, dist):
         self.max_actions = 1  # '''used to construct T'''
@@ -128,13 +129,16 @@ class FIRM(object):
                 dist_nodes = self.belief_space.distance_mean(self.nodes[i], self.nodes[j])
                 if dist_nodes < dist:
                     neigh.append(j)
-                    edge_controllers.append(Edge_Controller(self.motion_model,self.obs_model,self.nodes[i],self.nodes[j],self.Wx,self.Wu,self.belief_space))
+                    edge_controllers.append(
+                        Edge_Controller(self.motion_model, self.obs_model, self.nodes[i], self.nodes[j], self.Wx,
+                                        self.Wu, self.belief_space))
             if len(neigh) > self.max_actions:
-                self.max_actions = len(neigh)
+                pass
             self.edges[i] = neigh
             self.edge_controllers[i] = edge_controllers
 
     ''' Compute the probability over output set for each edge in the FIRM graph '''
+
     def compute_output_prob(self):
         for (node, edge_controllers) in self.edge_controllers.iteritems():
             output_prob_edges = []
@@ -142,7 +146,8 @@ class FIRM(object):
                 p_out = OrderedDict([(key, 0) for key, value in self.regs.iteritems()])
                 for i in range(self.n_particles):
                     traj_e = edge_controller.simulate_trajectory(edge_controller.node_i)
-                    traj_n = self.node_controllers[self.nodes.index(edge_controller.node_j)].simulate_trajectory(traj_e[-1])
+                    traj_n = self.node_controllers[self.nodes.index(edge_controller.node_j)].simulate_trajectory(
+                        traj_e[-1])
                     output = self.get_outputs(traj_e + traj_n)
                     p_out[output] = p_out[output] + 1
                     if self.ax is not None:
@@ -154,6 +159,7 @@ class FIRM(object):
     ''' Returns a set of outputs generated by the trajectory.
     For now it returns only one output with the lowest position in the dictionary,
     even if multiple outputs are generated '''
+
     # traj = list of belief_state(s)
     # [R] output = key of regs
     def get_outputs(self, traj):
@@ -167,17 +173,19 @@ class FIRM(object):
         return output
 
     ''' Plot a trajectory in belief space'''
+
     # traj = list of belief_state(s)
     # color = color for argument of plot
     def plot_traj(self, traj, color):
-        for i in range(len(traj)-1):
-            x = [np.ravel(traj[i].mean)[0], np.ravel(traj[i+1].mean)[0]]
-            y = [np.ravel(traj[i].mean)[1], np.ravel(traj[i+1].mean)[1]]
+        for i in range(len(traj) - 1):
+            x = [np.ravel(traj[i].mean)[0], np.ravel(traj[i + 1].mean)[0]]
+            y = [np.ravel(traj[i].mean)[1], np.ravel(traj[i + 1].mean)[1]]
             if color == 'white':
                 color = 'black'
             self.ax.plot(x, y, color, ms=20)
 
     ''' Plot the FIRM graph '''
+
     # ax = handle to plot
     def plot(self, ax):
         for i in range(len(self.nodes)):
@@ -208,9 +216,11 @@ class FIRM(object):
             ell.set_facecolor('gray')
             ax.add_artist(ell)
             if i < 10:
-                plt.text(np.ravel(self.nodes[i].mean)[0]-0.04, np.ravel(self.nodes[i].mean)[1]-0.05, str(i), color='white')
+                plt.text(np.ravel(self.nodes[i].mean)[0] - 0.04, np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
+                         color='white')
             else:
-                plt.text(np.ravel(self.nodes[i].mean)[0]-0.09, np.ravel(self.nodes[i].mean)[1]-0.05, str(i), color='white')
+                plt.text(np.ravel(self.nodes[i].mean)[0] - 0.09, np.ravel(self.nodes[i].mean)[1] - 0.05, str(i),
+                         color='white')
         ax.set_xlim(self.belief_space.x_low[0], self.belief_space.x_up[0])
         ax.set_ylim(self.belief_space.x_low[1], self.belief_space.x_up[1])
         for (name, info) in self.regs.iteritems():
@@ -222,31 +232,33 @@ class FIRM(object):
 
     ''' Construct T by treating index of neigh as action number
     TODO: Update this for Hybrid-PBVI MDP definition '''
+
     # [R] MDP = abstraction
-    def abstract(self):
-        nodes_start_list = [[] for i in range(self.max_actions)]
-        nodes_end_list = [[] for i in range(self.max_actions)]
-        vals_list = [[] for i in range(self.max_actions)]
-        for i in range(self.nodes.shape[0]):
-            neigh = self.edges[i]
-            for j in range(len(neigh)):
-                nodes_start_list[j].append(i)
-                nodes_end_list[j].append(neigh[j])
-                vals_list[j].append(1)
-        self.T_list = []
-        for i in range(self.max_actions):
-            self.T_list.append(
-                sp.coo_matrix((vals_list[i],
-                              (nodes_start_list[i],
-                               nodes_end_list[i])),
-                              shape=(self.nodes.shape[0],
-                                     self.nodes.shape[0])))
-        output_fcn = lambda s: self.nodes[s]
-        return MDP(self.T_list, output_name='xc', output_fcn=output_fcn)
+    # def abstract(self):
+    #     nodes_start_list = [[] for i in range(self.max_actions)]
+    #     nodes_end_list = [[] for i in range(self.max_actions)]
+    #     vals_list = [[] for i in range(self.max_actions)]
+    #     for i in range(self.nodes.shape[0]):
+    #         neigh = self.edges[i]
+    #         for j in range(len(neigh)):
+    #             nodes_start_list[j].append(i)
+    #             nodes_end_list[j].append(neigh[j])
+    #             vals_list[j].append(1)
+    #     self.T_list = []
+    #     for i in range(self.max_actions):
+    #         self.T_list.append(
+    #             sp.coo_matrix((vals_list[i],
+    #                            (nodes_start_list[i],
+    #                             nodes_end_list[i])),
+    #                           shape=(self.nodes.shape[0],
+    #                                  self.nodes.shape[0])))
+    #     output_fcn = lambda s: self.nodes[s]
+    #     return MDP(self.T_list, output_name='xc', output_fcn=output_fcn)
 
 
 class Node_Controller(object):
-    ''' Consists of SLGR and SKF '''
+    """ Consists of SLGR and SKF """
+
     # belief_space, motion_model, obs_model: Refer to classes in models.py
     # Wx = quadratic cost matrix of state used in LQR
     # Wu = quadratic cost matrix of input used in LQR
@@ -269,6 +281,7 @@ class Node_Controller(object):
         self.Ls = (self.B.T * S * self.B + self.Wu).I * self.B.T * S * self.A
 
     ''' Simulates trajectory form node_i to node_j '''
+
     # b0 = initial belief_state
     def simulate_trajectory(self, b0):
         traj = [b0]
@@ -282,7 +295,7 @@ class Node_Controller(object):
             w = self.motion_model.generate_noise(b, u_k)
             bnew_pred = self.motion_model.evolve(b, u_k, w)
             bnew_pred.cov = self.A * b.cov * \
-                self.A.T + self.G * self.Q * self.G.T
+                            self.A.T + self.G * self.Q * self.G.T
             # Get measurement
             z = self.obs_model.get_obs(bnew_pred)
             # Update Belief
@@ -298,7 +311,8 @@ class Node_Controller(object):
 
 
 class Edge_Controller(object):
-    ''' Time varying LQG controller '''
+    """ Time varying LQG controller """
+
     # belief_space, motion_model, obs_model: Refer to classes in models.py
     # Wx = quadratic cost matrix of state used in LQR
     # Wu = quadratic cost matrix of input used in LQR
@@ -329,10 +343,11 @@ class Edge_Controller(object):
                 break
 
     ''' Simulates trajectory starting from node_i to node_j '''
+
     def simulate_trajectory(self, b0):
         # traj = [self.node_i]
         traj = [b0]
-        for t in range(self.N-1):
+        for t in range(self.N - 1):
             b = traj[-1]
             u = -self.L[t, :, :] * (b.mean - self.traj_d[t].mean) + self.u0[t]
             w = self.motion_model.generate_noise(b, u)
@@ -382,8 +397,8 @@ if __name__ == '__main__':
 
     fig = plt.figure(0)
     ax = fig.add_subplot(111, aspect='equal')
-    regs_output = {'blue':0, 'green':1, 'red':2}
-    output_color = {-1:'black', 0:'blue', 1:'green', 2:'red'}
+    regs_output = {'blue': 0, 'green': 1, 'red': 2}
+    output_color = {-1: 'black', 0: 'blue', 1: 'green', 2: 'red'}
     firm = FIRM(r2_bs, motion_model, obs_model, Wx, Wu, regs, regs_output, output_color, ax)
     firm.compute_output_prob()
     firm.plot(ax)

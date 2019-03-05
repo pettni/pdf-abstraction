@@ -17,5 +17,5 @@ __maintainer__ = "Sofie Haesaert"
 __email__ = "s.haesaert@tue.nl"
 __status__ = "Draft"
 
-if __name__ == '__main__':  #code to execute if called from command-line
-    pass  #do nothing - code deleted
+if __name__ == '__main__':  # code to execute if called from command-line
+    pass  # do nothing - code deleted

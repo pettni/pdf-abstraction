@@ -1,22 +1,19 @@
-import matplotlib
 #
+import random
 from collections import OrderedDict
-from hVI_fsrm import SPaths
-from hVI_fsrm import Spec_Spaths
-from hVI_models import State_Space, Det_SI_Model
-from hVI_types import Env, Gamma
-import aux as rf
-import numpy as np
-from collections import OrderedDict
-
 
 import matplotlib.pyplot as plt
-import random
-import time
-from fsa import Fsa
-from hVI_fsrm import plot_optimizer
-from hVI_fsrm import simulate
 import networkx
+import numpy as np
+
+import aux as rf
+from fsa import Fsa
+from hVI_fsrm import SPaths
+from hVI_fsrm import Spec_Spaths
+from hVI_fsrm import plot_optimizer
+from hVI_models import State_Space, Det_SI_Model
+from hVI_types import Env
+
 # %config InlineBackend.figure_format = 'retina'
 
 

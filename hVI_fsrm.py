@@ -3,23 +3,24 @@ FSRM = Feedback State RoadMap
 This file gives the class for the generation of a sampling based path planner
 that can be used together with the HVI tools.
 """
-from fsa import Fsa
-import networkx as nx
 import itertools
-from hVI_models import Det_SI_Model, State_Space, State
-import aux as rf
-import numpy as np
-import matplotlib.pyplot as plt
-import scipy.sparse as sp
 import itertools as it
-from collections import *
-from fsa import formula_to_mdp
-from itertools import product
-import random
-from hVI_types import Env, Gamma
 import logging
-from copy import copy
+import random
 import warnings
+from collections import *
+from copy import copy
+from itertools import product
+import math
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+
+import aux as rf
+from fsa import Fsa
+from fsa import formula_to_mdp
+from hVI_models import Det_SI_Model, State_Space, State
+from hVI_types import Gamma
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class SPaths(object):
         :param output_color: e.g., output_color =\n {-1:'black', 0:'blue', 1:'green', 2:'red'}
         :param ax: handle for plotting stuff, can be generated as: fig = plt.figure(0); ax = fig.add_subplot(111, aspect='equal')
         """
+        # self.max_actions = len(self.edges[node_i])
         self.state_space = state_space
         # verify that the motion model is deterministic
 
@@ -74,6 +76,7 @@ class SPaths(object):
         """
         Initiate the nodes and edges in the roadmap
 
+        :param means:
         :param number: number of nodes
         :param edges_dist: max distance of connected nodes
         :param init: initial node, i.e., starting position of the robot.
@@ -94,7 +97,7 @@ class SPaths(object):
                    can be set to 0.0 to disable pruning
         """
 
-        if len(means)>0 and n_nodes < len(self.regs):
+        if len(means) > 0 and n_nodes < len(self.regs):
             if append is False:
                 raise ValueError('Number of samples cannot be less than n_regs')
 
@@ -106,7 +109,7 @@ class SPaths(object):
             self.node_controllers = dict()
             self.edge_controllers = OrderedDict()
 
-        if len(means)>0:  # => if you already have a precomputed node to add use that one first.
+        if len(means) > 0:  # => if you already have a precomputed node to add use that one first.
             pass
         elif not append:  # first use init
             if isinstance(init, np.ndarray):
@@ -115,7 +118,7 @@ class SPaths(object):
                 if (self.regs[reg][2] is not 'obs') or (self.regs[reg][1] < 1):
                     nodes += [self.state_space.sample_new_state_in_reg(self.regs[reg][0])]
 
-        while len(means)>0:
+        while len(means) > 0:
             nodes += [self.state_space.new_state(means.pop(0))]
 
         added_nodes = []
@@ -176,7 +179,6 @@ class SPaths(object):
             else:
                 self.edges.pop(from_node)
 
-
     def make_edges(self, dist, nodes=list(), give_connected=False):
         """
         Construct edges for self.nodes within distance dist and generate edge controllers
@@ -219,13 +221,15 @@ class SPaths(object):
             self.edges.setdefault(node_i, []).append(node_j)
             self.edges.setdefault(node_j, []).append(node_i)
 
-            self.edge_controllers[(node_i,node_j)] = Edge_Controller(self.motion_model, self.obs_model, node_i, node_j, self.Wx,
-                                                                     self.Wu, self.state_space, dist=dist_nodes)
-            self.edge_controllers[(node_j,node_i)] =  Edge_Controller(self.motion_model, self.obs_model, node_j, node_i, self.Wx,
+            self.edge_controllers[(node_i, node_j)] = Edge_Controller(self.motion_model, self.obs_model, node_i, node_j,
+                                                                      self.Wx,
+                                                                      self.Wu, self.state_space, dist=dist_nodes)
+            self.edge_controllers[(node_j, node_i)] = Edge_Controller(self.motion_model, self.obs_model, node_j, node_i,
+                                                                      self.Wx,
                                                                       self.Wu, self.state_space, dist=dist_nodes)
 
             if len(self.edges[node_i]) > self.max_actions:
-                self.max_actions = len(self.edges[node_i])
+                pass
             if give_connected:
                 unvisited += [node_j]
         if give_connected:
@@ -366,8 +370,6 @@ class SPaths(object):
                 y = [np.ravel(node_i.mean)[1], np.ravel(node_j.mean)[1]]
                 ax.plot(x, y, 'b')
 
-
-
         scale = 3
         for i in range(len(self.nodes)):
             # including the code in the following lines in the previous for loop doesnt work
@@ -387,11 +389,11 @@ class SPaths(object):
         # plt.show()
 
 
-
 class Node_Controller(object):
     """
     Basic node controller for the deterministic model
     """
+
     def __init__(self, motion_model, obs_model, node, Wx, Wu, state_space):
         """
         Initialize node controller
@@ -406,7 +408,7 @@ class Node_Controller(object):
         :type state_space: State_Space
         """
         self.motion_model = motion_model
-        self.obs_model = obs_model   # = None
+        self.obs_model = obs_model  # = None
         self.A = self.motion_model.getA(node)
         self.B = self.motion_model.getB(node)
         self.node = node
@@ -416,7 +418,7 @@ class Node_Controller(object):
         # set control gain
         # S = np.mat(dare(self.A, self.B, self.Wx, self.Wu))
         self.motion_model.getLS(Wx, Wu)
-        self.Ls = self.motion_model.Ls   # (self.B.T * S * self.B + self.Wu).I * self.B.T * S * self.A
+        self.Ls = self.motion_model.Ls  # (self.B.T * S * self.B + self.Wu).I * self.B.T * S * self.A
 
     def simulate_trajectory(self, b0):
         """
@@ -442,6 +444,7 @@ class Edge_Controller(object):
     Time varying LQG controller
 
     """
+
     def __init__(self, motion_model, obs_model, node_i, node_j, Wx, Wu, state_space, dist=1):
         """
         Initialize the edge control
@@ -456,7 +459,7 @@ class Edge_Controller(object):
         :param state_space:
         """
         self.motion_model = motion_model
-        self.obs_model = obs_model   # = None
+        self.obs_model = obs_model  # = None
         self.node_i = node_i
         self.node_j = node_j
         # self.Wx = Wx
@@ -482,7 +485,7 @@ class Edge_Controller(object):
             if t == 0:
                 break
 
-        self.prob = 0.99**dist
+        self.prob = 0.99 ** dist
 
     def simulate_trajectory(self, b0):
         """ Simulates trajectory starting from node_i to node_j
@@ -492,7 +495,7 @@ class Edge_Controller(object):
         """
         # traj = [self.node_i]
         traj = [b0]
-        for t in range(self.N-1):
+        for t in range(self.N - 1):
             b = traj[-1]
 
             u = -self.L[t, :, :] * (b.mean - self.traj_d[t]) + self.u0[t]
@@ -506,7 +509,8 @@ class Spec_Spaths(nx.MultiDiGraph):
     """
     Cross product between PRM (SPath) and DFA, that is used to compute the value iterations over.
     """
-    def __init__(self,SPaths_object, formula, env, b_dist='U', n=50):
+
+    def __init__(self, SPaths_object, formula, env, b_dist='U', n=50):
         """
         Initialize cross product of specification (DFA) with PRM graph
         :param SPaths_object:
@@ -517,7 +521,7 @@ class Spec_Spaths(nx.MultiDiGraph):
         :param n: max number of belief points in a node.
         """
         if isinstance(formula, basestring):
-            _dfa, self.dfsa_init, self.dfsa_final, self.proplist = formula_to_mdp(formula)
+            self.dfsa_init, self.dfsa_final, self.proplist = formula_to_mdp(formula)
             self.fsa = Fsa()
             self.fsa.from_formula(formula)
             self.fsa.add_trap_state()
@@ -536,7 +540,8 @@ class Spec_Spaths(nx.MultiDiGraph):
         # initialize the belief points
         if b_dist == 'U':
             # initialize probability points
-            probs = [0, 0.2, 0.5, 0.8, 1]    # for the individual dimensions
+
+            probs = [0, 0.2, 0.5, 0.8, 1]  # for the individual dimensions
             #  probs is a predefined set of belief points
             # TODO: make this an argument of the function
             # that can be used as a default
@@ -556,33 +561,54 @@ class Spec_Spaths(nx.MultiDiGraph):
             # compute belief points via forward reachable set,
             # i.e., parent child info
             assert False
+
+        elif b_dist == 'R':
+            per_dim = math.ceil(n**(1.0/env.n_unknown_regs))
+            # initialize probability points
+            probs = np.linspace(0,1,per_dim)  # for the individual dimensions
+            #  probs is a predefined set of belief points
+            # that can be used as a default
+            self.probs_list = [probs for i in range(env.n_unknown_regs)]
+            #  over all dimensions
+            b_set = [i for i in product(*self.probs_list)]
+
+            b_set = random.sample(b_set, n)
+            self.b_reg_set = [env.get_reg_belief(list(i)) for i in b_set]
+            self.b_prod_set = [env.get_product_belief(list(i)) for i in b_set]
+            # True state of the regs used to simulate trajectories after policy is generated
+            # x_e_true
+
+            self.b_reg_set += [env.get_reg_belief(self.env.b_reg_init.tolist())]
+            self.b_prod_set += [env.get_product_belief(self.env.b_reg_init.tolist())]  # add initial
+
+
         else:
-            assert False   # not implemented TODO: extra feature
+            assert False  # not implemented TODO: extra feature
 
         # accuracy requirement for convergence
-        self.epsilon = 10**-5
+        self.epsilon = 10 ** -5
 
         self.val = dict()
         self.active = dict()
 
         # values will point to values of _*_label_def below
         firm_init = self.firm.nodes[0]
-        self.init = [(state,firm_init) for (state, key) in self.fsa.init.items() if key == 1]
+        self.init = [(state, firm_init) for (state, key) in self.fsa.init.items() if key == 1]
 
         types = [
             {'name': 'input',
-             'values': {'null'}|set(self.fsa.props.keys()),
+             'values': {'null'} | set(self.fsa.props.keys()),
              'setter': True,
              'default': 'null'}]
         reg_names = [{'name': 'reg',
-                     'values': {'null'}|set(self.env.regs.keys()),
+                      'values': {'null'} | set(self.env.regs.keys()),
                       'setter': True,
                       'default': 'null'}]
 
         super(Spec_Spaths, self).__init__(state_label_types=reg_names, edge_label_types=types)
         self.sequence = self.create_prod()
 
-    def add_firm_node(self,n_nodes, dist_edge, means=list()):
+    def add_firm_node(self, n_nodes, dist_edge, means=list()):
         """
         Add a node to the specification roadmap directly.
             - Node will be added as a ROADMAP node and in this specification roadmap
@@ -598,7 +624,7 @@ class Spec_Spaths(nx.MultiDiGraph):
         unvisited = self.firm.make_edges(dist_edge, nodes=new_nodes, give_connected=True)
         self.sequence = self.create_prod(unvisited_v=unvisited)
 
-    def _make_edge_to(self,from_pair, node_pair, label, unvisited):
+    def _make_edge_to(self, from_pair, node_pair, label, unvisited):
         """
         Make edge in th SPEC-ROADMAP. Thisedge is created to enable faster backups.
         :param from_pair: source node in SPEC-ROADMAP
@@ -634,23 +660,23 @@ class Spec_Spaths(nx.MultiDiGraph):
             print('update product')
             # Add only nodes that can actually be reached
             unvisited = []  # we use this list to keep track of nodes whose outgoing edges have not been included yet
-            for (i_q,v) in itertools.product(self.fsa.g.nodes, unvisited_v):
+            for (i_q, v) in itertools.product(self.fsa.g.nodes, unvisited_v):
                 # add all initial dfa states and initial graph stats (v=0)
-                if (i_q,v) in self.nodes:
+                if (i_q, v) in self.nodes:
                     unvisited += [(i_q, v)]
 
         else:
 
             # Add only nodes that can actually be reached
             unvisited = []  # we use this list to keep track of nodes whose outgoing edges have not been included yet
-            for (i_q,v) in self.init:
+            for (i_q, v) in self.init:
                 # add all initial dfa states and initial graph stats (v=0)
                 self.add_node((i_q, v))
                 unvisited += [(i_q, v)]
 
-            # add a virtual final node (-1,-1) can be used for breath first searches
+                # add a virtual final node (-1,-1) can be used for breath first searches
                 super(Spec_Spaths, self).add_node((-1, -1))
-                self.active[(-1,-1)] = False
+                self.active[(-1, -1)] = False
 
         while len(unvisited) > 0:
             (i_q, i_v) = unvisited.pop(0)
@@ -671,7 +697,7 @@ class Spec_Spaths(nx.MultiDiGraph):
 
                 for (orig_q_, q_next, label_dict) in self.fsa.g.out_edges(i_q, data=True):
                     if 0 in label_dict['input']:
-                        unvisited = self._make_edge_to((i_q,i_v),(q_next, v_next), 'null', unvisited)
+                        unvisited = self._make_edge_to((i_q, i_v), (q_next, v_next), 'null', unvisited)
                         if bit_prop == 0:
                             continue  # then we are done
                     if bit_prop in label_dict['input']:
@@ -681,13 +707,13 @@ class Spec_Spaths(nx.MultiDiGraph):
                                                        self.env.get_prop(list_labels[0]), unvisited)
 
         nodes = bfs(self, (-1, -1))
-        u_nodes = OrderedDict()   # this dictionary will give the sequence of nodes to iterate over
+        u_nodes = OrderedDict()  # this dictionary will give the sequence of nodes to iterate over
         for u in nodes:
             u_nodes[u] = True
 
         u_nodes[(-1, -1)] = False
         for u in u_nodes:
-            if not self.active[u] :
+            if not self.active[u]:
                 u_nodes[u] = False
         return u_nodes
 
@@ -711,7 +737,7 @@ class Spec_Spaths(nx.MultiDiGraph):
         self.active[n] = True
         # print("added ", n)
 
-    def rem_node(self,n):
+    def rem_node(self, n):
         """Delete a node
 
         :param n: node to be deleted
@@ -720,10 +746,8 @@ class Spec_Spaths(nx.MultiDiGraph):
         super(Spec_Spaths, self).remove_node(n)
         self.firm.nodes.remove(n[1])
 
-
         self.active.__delitem__(n)
         self.val.__delitem__(n)
-
 
         # => this only removes a node it does not remove the assocuated edges
 
@@ -736,7 +760,7 @@ class Spec_Spaths(nx.MultiDiGraph):
             old_nodes = copy(self.nodes)
             print(len(old_nodes))
             for node in old_nodes:
-                if node in keep_list or node == (-1,-1):
+                if node in keep_list or node == (-1, -1):
                     pass
                 else:
                     if node in self.nodes:
@@ -753,16 +777,15 @@ class Spec_Spaths(nx.MultiDiGraph):
         self.firm.prune_nodes()
 
         nodes = bfs(self, (-1, -1))
-        u_nodes = OrderedDict()   # this dictionary will give the sequence of nodes to iterate over
+        u_nodes = OrderedDict()  # this dictionary will give the sequence of nodes to iterate over
         for u in nodes:
             u_nodes[u] = True
 
         u_nodes[(-1, -1)] = False
         for u in u_nodes:
-            if not self.active[u] :
+            if not self.active[u]:
                 u_nodes[u] = False
-        self.sequence =u_nodes
-
+        self.sequence = u_nodes
 
     def find_edge(self, n, input_let, v=None):
         """ Find an edge based on the input letters
@@ -775,19 +798,18 @@ class Spec_Spaths(nx.MultiDiGraph):
         """
         if v is None:
             for (n_, next_n, dict_input) in self.out_edges({n}, data='input'):
-                #print(dict_input,input_let,'ll')
+                # print(dict_input,input_let,'ll')
                 if dict_input == input_let:
                     return next_n
 
-
-        for (n_, next_n, dict_input) in self.out_edges({n}, data='input') :
+        for (n_, next_n, dict_input) in self.out_edges({n}, data='input'):
 
             if input_let in dict_input and next_n[1] == v:
                 return next_n[0]
 
         print(v)
 
-        print(n, input_let,self.out_edges({n}, data='input'))
+        print(n, input_let, self.out_edges({n}, data='input'))
         raise ValueError
 
     def full_back_up(self, opts_old=None):
@@ -799,7 +821,7 @@ class Spec_Spaths(nx.MultiDiGraph):
         """
         for n in self.sequence:
             # do back up
-            self.back_up(n[0],n[1],opts_old=opts_old)
+            self.back_up(n[0], n[1], opts_old=opts_old)
 
         return any(self.sequence.values())
 
@@ -815,18 +837,16 @@ class Spec_Spaths(nx.MultiDiGraph):
          This is used to eliminate nodes that have converged from the sequence of to be backed-up nodes
         """
 
-        if self.active.setdefault((i_q, i_v),True) == False or self.sequence.setdefault((i_q, i_v),True) == False:
+        if self.active.setdefault((i_q, i_v), True) == False or self.sequence.setdefault((i_q, i_v), True) == False:
             if self.sequence[(i_q, i_v)]:
                 self.sequence[(i_q, i_v)] = False
             return
-
-
 
         # check first whether a backup is really needed
         # if all neighbors in the self graph have become inactive and
         # if it is false in the sequence then also this node can be set to false
 
-        if isinstance(b,np.ndarray): # if no b is given then do it for all of them
+        if isinstance(b, np.ndarray):  # if no b is given then do it for all of them
             return self._back_up(i_q, i_v, b)
         else:
             alph_list = []
@@ -835,19 +855,18 @@ class Spec_Spaths(nx.MultiDiGraph):
             # Get belief point from value function
 
             for b in self.val[(i_q, i_v)].b_prod_points:
-
-                alpha_new, best_e, opt = self._back_up(i_q,i_v, b)
+                alpha_new, best_e, opt = self._back_up(i_q, i_v, b)
                 alph_list += [alpha_new]
                 best_edges += [best_e]
                 opts += [opt]
 
             if isinstance(opts_old, dict):
-                diff_opt = [abs(j - i) for i, j in zip(opts, opts_old.get((i_q, i_v),[-1]*len(opts)))]
-                self.sequence[(i_q, i_v)] = sum(diff_opt) > (self.epsilon*len(self.val[(i_q, i_v)].b_prod_points))
+                diff_opt = [abs(j - i) for i, j in zip(opts, opts_old.get((i_q, i_v), [-1] * len(opts)))]
+                self.sequence[(i_q, i_v)] = sum(diff_opt) > (self.epsilon * len(self.val[(i_q, i_v)].b_prod_points))
             else:
                 opts_old = dict()
 
-            if self.sequence[(i_q, i_v)]:   # you did change something, all neighbors could be affected
+            if self.sequence[(i_q, i_v)]:  # you did change something, all neighbors could be affected
 
                 for n_out in self.successors((i_q, i_v)):
                     if n_out in self.sequence.keys():
@@ -873,21 +892,21 @@ class Spec_Spaths(nx.MultiDiGraph):
         # index_alpha_init = np.argmax(self.val[(i_q, i_v)].alpha_mat.T * b)
         # Save best alpha vector
         opt = 0
-        max_alpha_b_e = np.full_like(b, 0) #self.val[(i_q, i_v)].alpha_mat[:, index_alpha_init]
+        max_alpha_b_e = np.full_like(b, 0)  # self.val[(i_q, i_v)].alpha_mat[:, index_alpha_init]
         # Save edge corresponding to best alpha vector
-        best_e = None #self.val[(i_q, i_v)].best_edge[index_alpha_init]
-        nf = (i_q, i_v) # source node
+        best_e = None  # self.val[(i_q, i_v)].best_edge[index_alpha_init]
+        nf = (i_q, i_v)  # source node
         # Foreach edge action
         for v_e in self.firm.edges[i_v]:
             # Get probability of reaching goal vertex corresponding to current edge
             # p_reach_goal_node = firm.reach_goal_node_prob[i_v][i_e]
-            p_reach_goal_node = self.firm.edge_controllers[(i_v,v_e)].prob# = 0.99  # TODO Get this from Petter's Barrier Certificate
+            p_reach_goal_node = self.firm.edge_controllers[
+                (i_v, v_e)].prob  # = 0.99  # TODO Get this from Petter's Barrier Certificate
             # next node if observing no label
             q_z_o = self.find_edge((i_q, i_v), 'null', v=v_e)
             n = (q_z_o, v_e)  # next node
             # Get goal vertex corresponding to edge
             z = self.node[n]['reg']
-
 
             # TODO: Remove this hardcoding
             # If output is null or region is known
@@ -906,12 +925,12 @@ class Spec_Spaths(nx.MultiDiGraph):
                     # if we end up in obstacle/sample region and also observe obstacle/sample
                     if i_o == 1:
                         # Transition to new q
-                        q_z_o = self.find_edge(nf,self.env._regs[z][2],v=v_e)
-                        #q_z_o = np.argmax(self.dfsa.T(self.proplist[self.env._regs[z][2]])[i_q, :])
+                        q_z_o = self.find_edge(nf, self.env._regs[z][2], v=v_e)
+                        # q_z_o = np.argmax(self.dfsa.T(self.proplist[self.env._regs[z][2]])[i_q, :])
                     else:
                         # new q = current q
-                        q_z_o = self.find_edge(nf,'null',v=v_e)
-                    gamma_e = np.diag(np.ravel(O[i_o, :])) * np.matrix(self.val[(q_z_o,v_e)].alpha_mat)
+                        q_z_o = self.find_edge(nf, 'null', v=v_e)
+                    gamma_e = np.diag(np.ravel(O[i_o, :])) * np.matrix(self.val[(q_z_o, v_e)].alpha_mat)
                     index = np.argmax(gamma_e.T * b)
                     alpha_new = alpha_new + p_reach_goal_node * gamma_e[:, index]
             # Update max_alpha and best_edge if this has a greater value
@@ -925,7 +944,7 @@ class Spec_Spaths(nx.MultiDiGraph):
             # print max_alpha_b_e.T * np.matrix(b)
             # import pdb; pdb.set_trace()
 
-        p_reach_goal_node =0.99 # TODO: remove this hard coding
+        p_reach_goal_node = 0.99  # TODO: remove this hard coding
         # For each obs action (iterate through every region that we can observe)
         for key, info in self.env.regs.iteritems():
             # Get observation matrix as defined in the paper
@@ -939,14 +958,13 @@ class Spec_Spaths(nx.MultiDiGraph):
                 # Find index of best alpha in the new Gamma set
                 index = np.argmax(gamma_o_v.T * b)
                 # Add the best alpha to the summation
-                sum_o = sum_o + p_reach_goal_node* gamma_o_v[:, index]
+                sum_o = sum_o + p_reach_goal_node * gamma_o_v[:, index]
             # Check if new alpha has a greater value
             if (opt + epsilon) < (sum_o.T * np.matrix(b)).item(0):
                 # Update the max_alpha and best_edge
                 max_alpha_b_e = sum_o
                 best_e = -1 * (self.env.regs.keys().index(key) + 1)  # region 0 will map to edge -1
                 opt = (sum_o.T * np.matrix(b)).item(0)
-
 
         return max_alpha_b_e, best_e, opt
 
@@ -964,25 +982,25 @@ class Spec_Spaths(nx.MultiDiGraph):
         :return: Returns a plot"""
 
         (q, v) = n
-        vals = []
+        vals = np.matrix([[]] * self.val[(q, v)].alpha_mat.shape[1])
+
         for b_i in np.linspace(0, 1, 20):
             b_ind = [prob if not el == i else [b_i]
                      for el, prob in enumerate(self.env.b_reg_init.tolist())]
             b = self.env.get_product_belief(b_ind)
-            vals += [max(self.val[(q, v)].alpha_mat.T * b).tolist()]
-
-
+            vals = np.concatenate((vals, self.val[(q, v)].alpha_mat.T * b), axis=1)
 
         fig = plt.figure(fig_n)
+        for j in range(self.val[(q, v)].alpha_mat.shape[1]):
+            plt.plot(np.linspace(0, 1, 20), vals[j,:].T)
 
-        plt.plot(np.linspace(0, 1, 20), sum(vals, []))
         plt.ylabel('probability')
         plt.xlabel('b_' + self.env.regs.keys()[i])
 
         ax = plt.gca()
         ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        fig.show()
+        ax.set_ylim(-0.1, 1.1)
+        #fig.show()
 
 
 def bfs(graph, start):
@@ -1001,7 +1019,7 @@ def bfs(graph, start):
         vertex = queue.pop(0)
         if vertex not in visited:
             visited += [vertex]
-            add_to = list((set(graph.predecessors(vertex)) - set(visited))- set(queue))
+            add_to = list((set(graph.predecessors(vertex)) - set(visited)) - set(queue))
             queue += add_to
 
     return visited
@@ -1012,6 +1030,7 @@ def plot_optimizer(prod, ax, showplot=True):
     Give a plot of the optimizers of the current graph.
     Based on the firm graph, but nodes now include also info on the state of the DFA
 
+    :param showplot:
     :param prod: product of DFA and FIRM
     :type prod: Spec_Spaths
     :param ax: axes object
@@ -1020,8 +1039,8 @@ def plot_optimizer(prod, ax, showplot=True):
     # build the nodes from the once that are actually reachable:
     # start from the initial node
     nodes = dict()  # empty dict with nodes as keys and values: (x,y),
-    obs = dict()    # empty dict with nodes as keys, values: set of obs actions
-    edges = set()   # empty set with elements (x1,y1,x2,y2) with node from   (x1,y1)  and node to (x2,y2)
+    obs = dict()  # empty dict with nodes as keys, values: set of obs actions
+    edges = set()  # empty set with elements (x1,y1,x2,y2) with node from   (x1,y1)  and node to (x2,y2)
     # list of nodes for which edges needs to be accounted for, initialized with
     # a list of initial node tuples (i_q, i_v)
     unvisited = copy(prod.init)
@@ -1032,37 +1051,37 @@ def plot_optimizer(prod, ax, showplot=True):
         (i_q, i_v) = n
         opt = np.unique(prod.val[(i_q, i_v)].best_edge)
         # split into obs actions and transitions actions
-        obs_actions = filter(lambda i: i < 0, opt)   # decide to observe a neigborhood
-        tr_actions = filter(lambda i: i >= 0, opt)   # decide to transition to a new node
+        obs_actions = filter(lambda i: i < 0, opt)  # decide to observe a neigborhood
+        tr_actions = filter(lambda i: i >= 0, opt)  # decide to transition to a new node
         # find (x,y)
         x = np.ravel(i_v.mean)[0]
         y = np.ravel(i_v.mean)[1]
-        nodes[i_v] = (x,y)
-        obs[i_v] = obs.get(i_v, set())|set(obs_actions)
+        nodes[i_v] = (x, y)
+        obs[i_v] = obs.get(i_v, set()) | set(obs_actions)
         edges |= {(i_v, i_next) for i_next in tr_actions}
         # to find the nodes (composed of i_q,i_v) that have not yet been added and
         # that are accessible from this node based ont he transition actions, check transitions in prod
         for n_next in prod[n]:
             if n_next[1] in tr_actions:
                 if (n_next not in unvisited) and (not n_next in visited):
-                    unvisited.extend([(n_next)])
+                    unvisited.extend([n_next])
     if showplot:
         for node in nodes:
-            ax.plot(nodes[node][0],nodes[node][1],'b')
+            ax.plot(nodes[node][0], nodes[node][1], 'b')
 
         for (start, dest) in edges:
-                plt.plot([nodes[start][0],nodes[dest][0]],[nodes[start][1],nodes[dest][1]],color='black')
+            plt.plot([nodes[start][0], nodes[dest][0]], [nodes[start][1], nodes[dest][1]], color='black')
 
-                plt.arrow(nodes[start][0],nodes[start][1],
-                          .7*(nodes[dest][0]-nodes[start][0]),
-                          .7*(nodes[dest][1]-nodes[start][1]),
-                          head_width=0.2, head_length=.2,
-                          fc='k', ec='k')
+            plt.arrow(nodes[start][0], nodes[start][1],
+                      .7 * (nodes[dest][0] - nodes[start][0]),
+                      .7 * (nodes[dest][1] - nodes[start][1]),
+                      head_width=0.2, head_length=.2,
+                      fc='k', ec='k')
 
     return nodes, edges, visited
 
 
-def simulate(spath, regs,  time_n=100,
+def simulate(spath, regs, time_n=100,
              fig=None,
              obs_action=True):
     """
@@ -1074,7 +1093,6 @@ def simulate(spath, regs,  time_n=100,
     :param fig: figure handle (optional)
     :param spath: the specification road map
     :type spath: Spec_Spaths
-    :param n: the time horizon of the optimization,  default =100
     :return: trajectory, v_list, vals, act_list
     """
     if fig:
@@ -1082,17 +1100,16 @@ def simulate(spath, regs,  time_n=100,
     else:
         fig = plt.figure()
 
-    b = spath.env.b_prod_init # initial belief points
+    b = spath.env.b_prod_init  # initial belief points
     if len(spath.init) > 1:
         warnings.warn("Warning only first initial state is simulated")
 
     (q, v) = spath.init[0]
 
-
     # initialize
     traj = []
-    v_list =[v]
-    act_list =[]
+    v_list = [v]
+    act_list = []
     vals = []
     q_ = None
     b_ = None
@@ -1106,8 +1123,8 @@ def simulate(spath, regs,  time_n=100,
             reg_key = spath.env.regs.keys()[-1 * (best_e + 1)]
             (b_, o, i_o) = spath.env.get_b_o_reg(b, spath.env.regs[reg_key][3], reg_key, v.mean)
             b = b_
-            act_list += ["Observing = " +reg_key ]
-            print "Observing " +reg_key + " at vertex" + str(v) + " q = " + str(q)
+            act_list += ["Observing = " + reg_key]
+            print "Observing " + reg_key + " at vertex" + str(v) + " q = " + str(q)
             continue
 
         # Simulate trajectory under edges
@@ -1128,7 +1145,9 @@ def simulate(spath, regs,  time_n=100,
             if regs[z][2] is 'null':
                 b_ = b
                 q_ = q
-            elif regs[z][2] is 'obs' or regs[z][2] is 'sample1' or regs[z][2] is 'sample2':
+            elif isinstance(regs[z][2], str): # is not 'null' or regs[z][2] is 'sample1' or regs[z][2] is 'sample2':
+                # line below is old code
+                #elif regs[z][2] is 'obs' or regs[z][2] is 'sample1' or regs[z][2] is 'sample2':
                 q_ = None
                 b_ = None
                 # if region is known
@@ -1152,8 +1171,8 @@ def simulate(spath, regs,  time_n=100,
                     b_ = b
         print("going from vertex " + str(v) + " to vertex " + str(v_) + " q = " + str(q_))
 
-        b = b_ # new value becomes old value
-        q = q_ # new value becomes old value
+        b = b_  # new value becomes old value
+        q = q_  # new value becomes old value
         v = v_  # new value becomes old value
         v_list += [v]
         if q in list(spath.dfsa_final) or q == list(spath.dfsa_final):
@@ -1162,6 +1181,3 @@ def simulate(spath, regs,  time_n=100,
             break
 
     return traj, v_list, vals, act_list
-
-
-

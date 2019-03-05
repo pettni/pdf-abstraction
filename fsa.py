@@ -2,7 +2,7 @@ import networkx as nx
 import re
 import subprocess as subp
 import tempfile
-# import numpy as np
+import numpy as np
 import os
 
 # import pkg_resources as pr
@@ -33,6 +33,7 @@ class Fsa(object):
         self.g = nx.DiGraph()
         self.init = dict()
         self.final = set()
+        self.props = dict()
 
     @staticmethod
     def infix_formula_to_prefix(formula):
@@ -338,12 +339,11 @@ def formula_to_mdp(formula):
         for u in attr['input']:
             T[u][dict_fromstate[s1], dict_fromstate[s2]] = 1
 
-    mdp = MDP(T, input_name='ap', input_fcn=fsa.bitmap_of_props,
-              output_name='mu')
+
 
     init_states = set(
         map(lambda state: dict_fromstate[state], [state for (state, key) in fsa.init.items() if key == 1]))
     final_states = set(map(lambda state: dict_fromstate[state], fsa.final))
 
-    return mdp, init_states, final_states, fsa.props
+    return init_states, final_states, fsa.props
 

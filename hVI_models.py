@@ -1,9 +1,11 @@
+import math
+import random
+from itertools import product
+
 import numpy as np
 from numpy import linalg as LA
-import math
 from scipy.linalg import solve_discrete_are as dare
-from itertools import product, chain
-import random
+
 
 # Define Belief Space/State
 class Belief_Space(object):
@@ -24,29 +26,30 @@ class State_Space(object):
     state space of the system that allows for the drawing of samples needed
     for the sampling-based roadmaps
     """
+
     def __init__(self, x_low, x_up):
         self.x_low = x_low
         self.x_up = x_up
         self.grid = None
 
     def sample_new_state_from_grid(self):
-        ''' Returns a random state  '''
+        """ Returns a random state  """
         if not self.grid:
-            gridxy = [[self.x_low[i] + (self.x_up[i] - self.x_low[i])*(l+1)/8 for l in range(8)] for i in range(len(self.x_low))]
+            gridxy = [[self.x_low[i] + (self.x_up[i] - self.x_low[i]) * (l + 1) / 8 for l in range(8)] for i in
+                      range(len(self.x_low))]
             self.grid = list(product(*gridxy))
             print(self.grid)
 
             random.shuffle(self.grid)
         mean = self.grid.pop()
         print(mean)
-        return  State(mean)
-
+        return State(mean)
 
     def sample_new_state(self):
-        ''' Returns a random state  '''
+        """ Returns a random state  """
         mean = [self.x_low[i] + (self.x_up[i] - self.x_low[i]) * np.random.rand()
                 for i in range(len(self.x_low))]
-        return  State(mean)
+        return State(mean)
 
     def sample_new_state_in_reg(self, reg_polytope):
         x_low = reg_polytope.bounding_box[0].ravel()
@@ -57,29 +60,27 @@ class State_Space(object):
 
     def distance(self, state1, state2):
 
-        return self.distance_mean( state1, state1)
+        return self.distance_mean(state1, state1)
 
     def distance_mean(self, state1, state2):
-        if isinstance(state1,State):
+        if isinstance(state1, State):
             mean1 = state1.mean
         else:
             mean1 = np.mat(state1)
             if mean1.shape[0] == 1:
                 mean1 = mean1.T
 
-        if isinstance(state2,State):
+        if isinstance(state2, State):
             mean2 = state2.mean
         else:
             mean2 = np.mat(state2)
             if mean2.shape[0] == 1:
                 mean2 = mean2.T
 
-
-
         return LA.norm(mean1 - mean2)
 
     def new_state(self, mean):
-        if isinstance(mean,State):
+        if isinstance(mean, State):
             return mean
         else:
             return State(mean)
@@ -92,9 +93,9 @@ class Rn_Belief_Space(Belief_Space):
         self.x_up = x_up
 
     def sample_new_state(self):
-        ''' Returns a belief state with random mean and zero covariance '''
+        """ Returns a belief state with random mean and zero covariance """
         mean = np.array([[self.x_low[i] + (self.x_up[i] - self.x_low[i]) * np.random.rand()]
-                for i in range(len(self.x_low))])
+                         for i in range(len(self.x_low))])
         return Rn_Belief_State(mean)
 
     def sample_new_state_in_reg(self, reg_polytope):
@@ -136,6 +137,7 @@ class Rn_Belief_State(Belief_State):
 
 class State(Belief_State):
     """The state space of a deterministic model"""
+
     def __init__(self, mean, cov=None):
         super(State, self).__init__(mean, cov)
         self.mean = np.mat(mean)
@@ -155,8 +157,7 @@ class State(Belief_State):
 
 # Define Motion Models
 class Motion_Model(object):
-
-    ''' x_k+1 = f(x_k, u_k, v_k)  '''
+    """ x_k+1 = f(x_k, u_k, v_k)  """
 
     def getA(self, belief_state):
         raise NotImplementedError
@@ -204,14 +205,13 @@ class Det_SI_Model(Motion_Model):
         print(" The used model contains an integrator for each dimension:\n")
         print(str(self.A))
 
-
     def getA(self, belief_state):
         return self.A
 
     def getB(self, belief_state):
         return self.B
 
-    def getLS(self,Wx,Wu):
+    def getLS(self, Wx, Wu):
         if self.Ls is None:
             print(self.A)
             print(self.B)
@@ -233,31 +233,26 @@ class Det_SI_Model(Motion_Model):
 
                 return self.Ls
 
-
-
-
     def generate_desiredtraj_and_ffinput(self, node_i, node_j):
         # NOTE: ignoring covariance
-        N = int(math.floor(LA.norm(node_j.mean - node_i.mean)/(self.max_speed * self.dt)))
+        N = int(math.floor(LA.norm(node_j.mean - node_i.mean) / (self.max_speed * self.dt)))
         traj_d = [node_i.mean]
         u_ff = []
-        for k in range(1,N+1):
-            traj_d_k = node_i.mean + k*(node_j.mean - node_i.mean)/N
+        for k in range(1, N + 1):
+            traj_d_k = node_i.mean + k * (node_j.mean - node_i.mean) / N
             traj_d.append(traj_d_k)
-            speed_k = LA.norm(traj_d[-2] - traj_d[-1])/self.dt
-            u_ff_k = speed_k * (node_j.mean - node_i.mean)/LA.norm(node_j.mean - node_i.mean)
+            speed_k = LA.norm(traj_d[-2] - traj_d[-1]) / self.dt
+            u_ff_k = speed_k * (node_j.mean - node_i.mean) / LA.norm(node_j.mean - node_i.mean)
             u_ff.append(u_ff_k)
-        return (traj_d, u_ff)
+        return traj_d, u_ff
 
     def evolve(self, b, u):
-        bnew = self.state_space.new_state(self.A * b.mean + self.B * u )
+        bnew = self.state_space.new_state(self.A * b.mean + self.B * u)
         return bnew
 
 
-
-
 class SI_Model(Motion_Model):
-    ''' Single Integrator Model '''
+    """ Single Integrator Model """
 
     def __init__(self, dt):
         self.dt = dt
@@ -270,7 +265,6 @@ class SI_Model(Motion_Model):
 
         print(" The used model contains an integrator for each dimension:\n")
         print(str(self.A))
-
 
     def getA(self, belief_state):
         return self.A
@@ -285,28 +279,29 @@ class SI_Model(Motion_Model):
         return self.Q
 
     def generate_noise(self, belief_state, control):
-        return np.matrix(np.random.multivariate_normal(mean=[0,0], cov=self.Q)).T
+        return np.matrix(np.random.multivariate_normal(mean=[0, 0], cov=self.Q)).T
 
     def generate_desiredtraj_and_ffinput(self, node_i, node_j):
         # NOTE: ignoring covariance
-        N = int(math.floor(LA.norm(node_j.mean - node_i.mean)/(self.max_speed * self.dt)))
+        N = int(math.floor(LA.norm(node_j.mean - node_i.mean) / (self.max_speed * self.dt)))
         traj_d = [node_i]
         u_ff = []
-        for k in range(1,N+1):
-            traj_d_k = node_i.mean + k*(node_j.mean - node_i.mean)/N
-            traj_d.append(self.belief_space.new_state(traj_d_k, np.zeros([2,2])))
-            speed_k = LA.norm(traj_d[-2].mean - traj_d[-1].mean)/self.dt
-            u_ff_k = speed_k * (node_j.mean - node_i.mean)/LA.norm(node_j.mean - node_i.mean)
+        for k in range(1, N + 1):
+            traj_d_k = node_i.mean + k * (node_j.mean - node_i.mean) / N
+            traj_d.append(self.belief_space.new_state(traj_d_k, np.zeros([2, 2])))
+            speed_k = LA.norm(traj_d[-2].mean - traj_d[-1].mean) / self.dt
+            u_ff_k = speed_k * (node_j.mean - node_i.mean) / LA.norm(node_j.mean - node_i.mean)
             u_ff.append(u_ff_k)
-        return (traj_d, u_ff)
+        return traj_d, u_ff
 
     def evolve(self, b, u, w):
         bnew = self.belief_space.new_state(self.A * b.mean + self.B * u + w, b.cov)
         return bnew
 
+
 # Define Observation Models
 class Observation_Model(object):
-    ''' z = h(x) + N(0,R)'''
+    """ z = h(x) + N(0,R)"""
 
     def getH(self, belief_state):
         raise NotImplementedError
@@ -323,11 +318,12 @@ class Observation_Model(object):
     def get_obs(self):
         raise NotImplementedError
 
+
 class Gaussian_Noise(Observation_Model):
-    ''' Gaussian Noise in dim dimensions'''
+    """ Gaussian Noise in dim dimensions"""
 
     def __init__(self, dim):
-        self.dim  = dim
+        self.dim = dim
         self.H = np.eye(dim)
         self.M = np.eye(dim)
         self.R = 0.1 * np.eye(dim)
@@ -345,8 +341,8 @@ class Gaussian_Noise(Observation_Model):
         return belief_state.mean
 
     def get_obs(self, belief_state):
-        return belief_state.mean + np.matrix(np.random.multivariate_normal(mean=[0 for _ in range(self.dim)], cov=self.R)).T
-
+        return belief_state.mean + np.matrix(
+            np.random.multivariate_normal(mean=[0 for _ in range(self.dim)], cov=self.R)).T
 
 # motion_model = SI_Model(0.5)
 # # Test ffinput of SI_Model
