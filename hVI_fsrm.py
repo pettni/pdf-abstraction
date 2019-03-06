@@ -72,7 +72,7 @@ class SPaths(object):
         self.Tz_list = None
         self.n_particles = 1
 
-    def make_nodes_edges(self, number, edges_dist, init=None, means=list()):
+    def make_nodes_edges(self, number, edges_dist, init=None, means=list(),**kwargs):
         """
         Initiate the nodes and edges in the roadmap
 
@@ -82,10 +82,10 @@ class SPaths(object):
         :param init: initial node, i.e., starting position of the robot.
         :return:
         """
-        self.sample_nodes(number, init=init, means=means)
+        self.sample_nodes(number, init=init, means=means,**kwargs)
         self.make_edges(edges_dist)
 
-    def sample_nodes(self, n_nodes, means=list(), append=False, init=None, min_dist=None):
+    def sample_nodes(self, n_nodes, means=list(), append=False, init=None, **kwargs):
         """
         Sample nodes in belief space and also generate node_controllers
 
@@ -93,9 +93,14 @@ class SPaths(object):
          :param means = list of means for placing nodes in the roadmap
          :param append = False erases all previous nodes whereas True adds more nodes to existing graph
          :param init = initial node for the road map
-         :param min_dist = Samples within min_dist range will be rejected unless they produce non-NULL outputs
+         :keyword min_dist = Samples within min_dist range will be rejected unless they produce non-NULL outputs
                    can be set to 0.0 to disable pruning
+         :keyword sample : grid => sample over grid
         """
+        if kwargs.get('sample',' ') == 'grid':
+            grid = True
+        else:
+            grid = False
 
         if len(means) > 0 and n_nodes < len(self.regs):
             if append is False:
@@ -129,7 +134,12 @@ class SPaths(object):
                 # Implemented rejection sampling to avoid nodes in obs => why would you do that?
                 # you want to avoid samples in regions that we know to be obstacles,
                 # but if they could be obstacles and it is not sure, then it makes more sense to keep samples in them
-                node = self.state_space.sample_new_state()
+                if grid:
+                    node = self.state_space.sample_new_state_from_grid(delta=0.9)
+
+                else:
+
+                    node = self.state_space.sample_new_state()
                 if any(map(lambda value: value[2] is 'obs' and value[0].contains(node.mean), self.regs.values())):
                     continue  # now you dont implement this sample
 
@@ -151,7 +161,7 @@ class SPaths(object):
                 # if resample == True :
                 #     continue
 
-            assert not min_dist
+            assert 'min_dist' not in kwargs
             # not implemented
             # TODO: implement something like this, Rohans code seems to have dissapeared here.
 

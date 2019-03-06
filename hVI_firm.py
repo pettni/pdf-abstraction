@@ -25,7 +25,7 @@ class FIRM(object):
     # output_color = e.g. output_color = {-1:'black', 0:'blue', 1:'green', 2:'red'}
     # ax = handle for plotting stuff, can be generated as: fig = plt.figure(0); ax = fig.add_subplot(111, aspect='equal')
     def __init__(self, belief_space, motion_model, obs_model, Wx, Wu, regs, output_color, ax, sc):
-        self.max_actions = len(neigh)
+        self.max_actions = 1
         self.belief_space = belief_space
         self.motion_model = motion_model
         self.obs_model = obs_model
@@ -133,6 +133,7 @@ class FIRM(object):
                         Edge_Controller(self.motion_model, self.obs_model, self.nodes[i], self.nodes[j], self.Wx,
                                         self.Wu, self.belief_space))
             if len(neigh) > self.max_actions:
+                self.max_actions = len(neigh)
                 pass
             self.edges[i] = neigh
             self.edge_controllers[i] = edge_controllers

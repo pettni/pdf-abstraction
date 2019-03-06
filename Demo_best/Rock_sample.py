@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import aux as rf
+import hVI_algrthm
 from global_declarations import *
 from hVI_fsrm import SPaths
 from hVI_fsrm import Spec_Spaths
@@ -77,9 +78,13 @@ print("---- Constructing ROADMAP ----")
 fig = plt.figure(figsize=(14, 14), dpi=80, facecolor='w', edgecolor='k')
 ax = fig.add_subplot(111, aspect='equal')
 prm = SPaths(r2_bs, motion_model, Wx, Wu, regs, output_color, ax)
-prm.make_nodes_edges(40, 3, init=np.array([[-4.5], [0]]))
+kwarg = {"sample": "grid"}
+prm.make_nodes_edges(50, 3, init=np.array([[-4.5], [0]]),**kwarg)
+print(list(enumerate(prm.nodes)))
+
 prm.plot(ax)
 plt.show()
+print('len', len(prm.nodes))
 
 print('-- Generate the DFA and the Product model----')
 from fsa import Fsa
@@ -115,7 +120,9 @@ formula_fsa['init'] = dict({0: 1})
 formula_fsa['final'] = {1}
 formula_fsa['prop'] = props
 
-prod_ = Spec_Spaths(prm, formula_fsa, env, n=125)
+
+
+prod_ = Spec_Spaths(prm, formula_fsa, env, n=70)
 
 t_start = time.time()
 print('--- Start Back-ups ---')
@@ -149,6 +156,8 @@ except:
     pass
 
 for add_prunn in range(0, 3):
+    hVI_algrthm.BP_local(prod_, 100)
+
     print(" ---- Add new nodes ----- ")
     prod_.add_firm_node(6, 3)  # add three nodes?
 
@@ -169,7 +178,7 @@ for add_prunn in range(0, 3):
         print('iteration', i)
         not_converged = prod_.full_back_up(opts)
         opt = np.unique(prod_.val[n].best_edge)
-        if i > 5:
+        if i > 20:
             not_converged = False
         i += 1
 

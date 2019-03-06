@@ -1,7 +1,7 @@
 #
 import random
 from collections import OrderedDict
-
+import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -88,7 +88,7 @@ formula_fsa['prop'] = props
 
 print('--- Construct product PRM Spec_Spaths---')
 
-prod_ = Spec_Spaths(prm, form, env, n=70,b_dist='R')
+prod_ = Spec_Spaths(prm, form, env, n=1,b_dist='U')
 
 print('--- Start Back-ups ---')
 
@@ -97,9 +97,12 @@ n = prod_.init[0]
 
 opts = dict()
 fig_nodes = len(list(key for key in prod_.active if prod_.active[key]==True))
-for i in range(1):
+for i in range(10):
 
     print('iteration', i)
+    import hVI_algrthm
+
+    hVI_algrthm.BP_local(prod_, 70)
     not_converged = prod_.full_back_up(opts)
     opt = np.unique(prod_.val[n].best_edge)
     j = 0
@@ -130,6 +133,20 @@ nodes, edges, visited = plot_optimizer(prod_, ax)
 # prod_.prune(keep_list=visited)
 
 fig = plt.figure()
-plt.scatter([i[0] for i in prod_.b_reg_set], [i[1] for i in prod_.b_reg_set])
+
+# recompute prod_.b_reg_set
+b_reg_set = []
+for b in prod_.b_prod_set:
+
+    bi = np.reshape(b,(2,2))
+    io = np.sum(bi,axis=0)
+    i1 = np.sum(bi,axis=1)
+    print(io[0, 1])
+    b_reg_set += [np.matrix([[io[0,1]],[i1[1,0]]])]
+
+
+print('breg',b_reg_set)
+
+plt.scatter([i[0] for i in b_reg_set], [i[1] for i in b_reg_set])
 plt.show()
 

@@ -32,13 +32,16 @@ class State_Space(object):
         self.x_up = x_up
         self.grid = None
 
-    def sample_new_state_from_grid(self):
-        """ Returns a random state  """
+    def sample_new_state_from_grid(self,delta):
+        """ Returns a random state
+         :param delta: grid size """
+        count = math.ceil((self.x_up[0] - self.x_low[0])/delta)
+
         if not self.grid:
-            gridxy = [[self.x_low[i] + (self.x_up[i] - self.x_low[i]) * (l + 1) / 8 for l in range(8)] for i in
+            print("build grid")
+            gridxy = [[self.x_low[i] + (self.x_up[i] - self.x_low[i]) * (l + 1) / count for l in range(int(count))] for i in
                       range(len(self.x_low))]
             self.grid = list(product(*gridxy))
-            print(self.grid)
 
             random.shuffle(self.grid)
         mean = self.grid.pop()

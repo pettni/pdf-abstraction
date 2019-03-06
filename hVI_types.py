@@ -199,7 +199,7 @@ class Env(object):
             reg = value for RSS dictionary regs
             v_mean = mean value of a FIRM node """
         bb = pc.bounding_box(reg[0])
-        center = [(bb[0][0] + bb[1][0]) / 2, (bb[0][1] + bb[1][1]) / 2]
+        center = np.array([(bb[0][0] + bb[1][0]) / 2, (bb[0][1] + bb[1][1]) / 2])
         dist = LA.norm(center - v_mean)
         return self.get_false_rate_dist(dist)
 
@@ -212,7 +212,8 @@ class Env(object):
         if dist < thresh1:
             return 0.2
         elif dist < thresh2:
-            return (0.0 * (thresh2 - (dist - thresh1)) + 0.5 * (dist - thresh1)) / (thresh2 - thresh1)
+            return (0.0 * (thresh2 - (dist - thresh1))
+                    + 0.5 * (dist - thresh1)) / (thresh2 - thresh1)
         else:
             return 0.5
 
