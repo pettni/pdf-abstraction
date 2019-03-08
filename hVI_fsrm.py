@@ -15,6 +15,7 @@ import math
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
+from scipy.spatial import distance
 
 import aux as rf
 from fsa import Fsa
@@ -30,7 +31,7 @@ class SPaths(object):
     Roadmap class
     """
 
-    def __init__(self, state_space, motion_model, Wx, Wu, regs, output_color, ax):
+    def __init__(self, state_space, motion_model, Wx, Wu, regs, output_color, ax, nearest_n=0):
         """
         Construct Roadmap object with
 
@@ -45,7 +46,10 @@ class SPaths(object):
         :param regs: same as RSS definition
         :param output_color: e.g., output_color =\n {-1:'black', 0:'blue', 1:'green', 2:'red'}
         :param ax: handle for plotting stuff, can be generated as: fig = plt.figure(0); ax = fig.add_subplot(111, aspect='equal')
+        :param nearest_n: default = 0, n>0 implies that nodes will be connected to the n nearest neigbors
         """
+
+        self.nearest_n = nearest_n
         # self.max_actions = len(self.edges[node_i])
         self.state_space = state_space
         # verify that the motion model is deterministic
@@ -82,8 +86,10 @@ class SPaths(object):
         :param init: initial node, i.e., starting position of the robot.
         :return:
         """
-        self.sample_nodes(number, init=init, means=means,**kwargs)
+        self.sample_nodes(number, init=init, means=means, **kwargs)
+
         self.make_edges(edges_dist)
+
 
     def sample_nodes(self, n_nodes, means=list(), append=False, init=None, **kwargs):
         """
@@ -189,7 +195,7 @@ class SPaths(object):
             else:
                 self.edges.pop(from_node)
 
-    def make_edges(self, dist, nodes=list(), give_connected=False):
+    def make_edges(self,dist,  nodes=list(), give_connected=False ):
         """
         Construct edges for self.nodes within distance dist and generate edge controllers
 
@@ -202,48 +208,104 @@ class SPaths(object):
         unvisited = []  # these are nodes whose outgoing edges need to be checked again in the specification roadmap.
         # Therefore they are unvisited for the product creation.
 
-        self.max_actions = 1
-        if nodes:
-            prod_nodes = itertools.product(nodes, self.nodes)
+        self.max_actions = 5
+
+        if self.nearest_n<=0:
+            if nodes:
+                prod_nodes = itertools.product(nodes, self.nodes)
+
+            else:
+                if give_connected:
+                    raise ValueError  # can only be true when nodes is not empty
+                prod_nodes = itertools.combinations(self.nodes, 2)
+            # to_nodes = self.nodes
+
+            for node_i, node_j in prod_nodes:
+                if node_i is node_j:
+                    continue
+                if len(self.edges.get(node_i,list())) >= self.max_actions and len(self.edges.get(node_j,list())) >= self.max_actions:
+                    continue
+
+                dist_nodes = self.state_space.distance_mean(node_i, node_j)
+                if dist_nodes > dist:
+                    continue
+
+                if not self._connect(node_i, node_j, dist_nodes):
+                    continue
+
+                if give_connected:
+                    unvisited += [node_j]
+
+
+
+
+        elif self.nearest_n>0:
+
+            all_nodes = np.concatenate([node.mean for node in self.nodes], axis=1)
+            l_nodes = len(self.nodes)
+            if nodes:
+                new_nodes = np.concatenate([node.mean for node in nodes], axis=1)
+
+            else:
+                new_nodes = all_nodes
+                nodes = self.nodes
+                if give_connected:
+                    raise ValueError  # can only be true when nodes is not empty
+                prod_nodes = itertools.combinations(self.nodes, 2)
+
+            # to_nodes = self.nodes
+
+            dist_mat = distance.cdist(new_nodes.T, all_nodes.T)
+
+
+            for i, node in enumerate(nodes):
+                closest = sorted(range(l_nodes), key=lambda k: dist_mat[i,k])
+                # sort based on distance to i-th node
+                neigh = 0
+                while len(closest) > 0 and neigh < self.nearest_n:
+                    j = closest.pop(0)
+
+                    if not self._connect(node, self.nodes[j], dist_mat[i,j]):
+                        continue
+
+                    if give_connected:
+                        unvisited += [self.nodes[j]]
+                    neigh += 1
+
+
 
         else:
-            if give_connected:
-                raise ValueError  # can only be true when nodes is not empty
-            prod_nodes = itertools.combinations(self.nodes, 2)
-        # to_nodes = self.nodes
+            raise NotImplementedError
 
-        for node_i, node_j in prod_nodes:
-            if node_i is node_j:
-                continue
-            dist_nodes = self.state_space.distance_mean(node_i, node_j)
-            if dist_nodes > dist:
-                continue
-                # check whether the Kripke condition is satisfied
-            output = set(self.get_outputs(node_i, node_j))
-            output_ends = set(self.get_outputs(node_i))
-            output_ends |= set(self.get_outputs(node_j))
-
-            if not (output.issubset(output_ends)):
-                continue  # kripke not satisfied
-
-            # by now all conditions are satisfied
-            # add edges in two directions
-            self.edges.setdefault(node_i, []).append(node_j)
-            self.edges.setdefault(node_j, []).append(node_i)
-
-            self.edge_controllers[(node_i, node_j)] = Edge_Controller(self.motion_model, self.obs_model, node_i, node_j,
-                                                                      self.Wx,
-                                                                      self.Wu, self.state_space, dist=dist_nodes)
-            self.edge_controllers[(node_j, node_i)] = Edge_Controller(self.motion_model, self.obs_model, node_j, node_i,
-                                                                      self.Wx,
-                                                                      self.Wu, self.state_space, dist=dist_nodes)
-
-            if len(self.edges[node_i]) > self.max_actions:
-                pass
-            if give_connected:
-                unvisited += [node_j]
         if give_connected:
             return unvisited
+
+    def _connect(self, node_i, node_j,dist_nodes):
+        if node_i == node_j:
+            return False
+        # check whether the Kripke condition is satisfied
+        output = set(self.get_outputs(node_i, node_j))
+        output_ends = set(self.get_outputs(node_i))
+        output_ends |= set(self.get_outputs(node_j))
+
+        if not (output.issubset(output_ends)):
+            return False  # kripke not satisfied
+
+        # by now all conditions are satisfied
+        # add edges in two directions
+        self.edges.setdefault(node_i, []).append(node_j)
+        self.edges.setdefault(node_j, []).append(node_i)
+
+        self.edge_controllers[(node_i, node_j)] = Edge_Controller(self.motion_model, self.obs_model,
+                                                                  node_i, node_j,
+                                                                  self.Wx,
+                                                                  self.Wu, self.state_space, dist=dist_nodes)
+        self.edge_controllers[(node_j, node_i)] = Edge_Controller(self.motion_model, self.obs_model,
+                                                                  node_j, node_i,
+                                                                  self.Wx,
+                                                                  self.Wu, self.state_space, dist=dist_nodes)
+        return True
+
 
     def intersect(self, box, src, dest):
         """
@@ -381,6 +443,10 @@ class SPaths(object):
                 ax.plot(x, y, 'b')
 
         scale = 3
+        for i in range(len(self.nodes)):
+            # including the code in the following lines in the previous for loop doesnt work
+            plt.scatter(np.ravel(self.nodes[i].mean)[0], np.ravel(self.nodes[i].mean)[1])
+
         for i in range(len(self.nodes)):
             # including the code in the following lines in the previous for loop doesnt work
             if i < 10:
@@ -633,6 +699,8 @@ class Spec_Spaths(nx.MultiDiGraph):
         # add edges in PRM/FIRM
         unvisited = self.firm.make_edges(dist_edge, nodes=new_nodes, give_connected=True)
         self.sequence = self.create_prod(unvisited_v=unvisited)
+        return new_nodes
+
 
     def _make_edge_to(self, from_pair, node_pair, label, unvisited):
         """
@@ -768,7 +836,6 @@ class Spec_Spaths(nx.MultiDiGraph):
         rem = []
         if keep_list:
             old_nodes = copy(self.nodes)
-            print(len(old_nodes))
             for node in old_nodes:
                 if node in keep_list or node == (-1, -1):
                     pass
@@ -847,7 +914,8 @@ class Spec_Spaths(nx.MultiDiGraph):
          This is used to eliminate nodes that have converged from the sequence of to be backed-up nodes
         """
 
-        if self.active.setdefault((i_q, i_v), True) == False or self.sequence.setdefault((i_q, i_v), True) == False:
+        if self.active.setdefault((i_q, i_v), True) == False \
+                or self.sequence.setdefault((i_q, i_v), True) == False:
             if self.sequence[(i_q, i_v)]:
                 self.sequence[(i_q, i_v)] = False
             return
@@ -954,7 +1022,7 @@ class Spec_Spaths(nx.MultiDiGraph):
             # print max_alpha_b_e.T * np.matrix(b)
             # import pdb; pdb.set_trace()
 
-        p_reach_goal_node = 0.99  # TODO: remove this hard coding
+        p_reach_goal_node = 0.99  # TODO: remove  hard coding of transition prob for observations
         # For each obs action (iterate through every region that we can observe)
         for key, info in self.env.regs.iteritems():
             # Get observation matrix as defined in the paper
@@ -1035,7 +1103,7 @@ def bfs(graph, start):
     return visited
 
 
-def plot_optimizer(prod, ax, showplot=True):
+def optimizers(prod, ax, showplot=True, minimal=False):
     """
     Give a plot of the optimizers of the current graph.
     Based on the firm graph, but nodes now include also info on the state of the DFA
@@ -1080,13 +1148,17 @@ def plot_optimizer(prod, ax, showplot=True):
             ax.plot(nodes[node][0], nodes[node][1], 'b')
 
         for (start, dest) in edges:
-            plt.plot([nodes[start][0], nodes[dest][0]], [nodes[start][1], nodes[dest][1]], color='black')
+            plt.plot([nodes[start][0], nodes[dest][0]],
+                     [nodes[start][1], nodes[dest][1]], color='black')
 
             plt.arrow(nodes[start][0], nodes[start][1],
                       .7 * (nodes[dest][0] - nodes[start][0]),
                       .7 * (nodes[dest][1] - nodes[start][1]),
                       head_width=0.2, head_length=.2,
                       fc='k', ec='k')
+
+    if minimal:
+        raise NotImplementedError
 
     return nodes, edges, visited
 

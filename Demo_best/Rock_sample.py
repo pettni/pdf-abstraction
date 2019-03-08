@@ -1,7 +1,7 @@
 import random
 import time
 from collections import OrderedDict
-
+from aux import plot_nodes
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -13,7 +13,7 @@ from hVI_fsrm import Spec_Spaths
 from hVI_models import State_Space, Det_SI_Model
 from hVI_types import Env
 import networkx
-from hVI_fsrm import plot_optimizer
+from hVI_fsrm import optimizers
 from hVI_fsrm import simulate
 
 
@@ -77,12 +77,15 @@ motion_model = Det_SI_Model(0.1)
 print("---- Constructing ROADMAP ----")
 fig = plt.figure(figsize=(14, 14), dpi=80, facecolor='w', edgecolor='k')
 ax = fig.add_subplot(111, aspect='equal')
-prm = SPaths(r2_bs, motion_model, Wx, Wu, regs, output_color, ax)
+prm = SPaths(r2_bs, motion_model, Wx, Wu, regs, output_color, ax, nearest_n=4)
 kwarg = {"sample": "grid"}
 prm.make_nodes_edges(50, 3, init=np.array([[-4.5], [0]]),**kwarg)
 print(list(enumerate(prm.nodes)))
 
 prm.plot(ax)
+from matplotlib2tikz import save as tikz_save
+
+tikz_save("PRM1_rock.tex")
 plt.show()
 print('len', len(prm.nodes))
 
@@ -146,7 +149,7 @@ while not_converged:
 fig = plt.figure(figsize=(14, 14), dpi=80, facecolor='w', edgecolor='k')
 ax = fig.add_subplot(111, aspect='equal')
 prm.plot(ax)
-nodes, edges, visited = plot_optimizer(prod_, ax)
+nodes, edges, visited = optimizers(prod_, ax)
 prod_.prune(keep_list=visited)
 
 simulate(prod_, regs)
@@ -155,15 +158,20 @@ try:
 except:
     pass
 
-for add_prunn in range(0, 3):
+for add_prunn in range(0, 5):
     hVI_algrthm.BP_local(prod_, 100)
 
     print(" ---- Add new nodes ----- ")
-    prod_.add_firm_node(6, 3)  # add three nodes?
-
     fig = plt.figure(figsize=(14, 14), dpi=80, facecolor='w', edgecolor='k')
     ax = fig.add_subplot(111, aspect='equal')
     prm.plot(ax)
+
+    new_nodes = prod_.add_firm_node(20, 3)  # add three nodes?
+
+    plot_nodes(new_nodes)
+
+    tikz_save("PRM_1" + str(add_prunn) + "_rock.tex")
+
     fig.show()
 
     print('--- Re-Start Back-ups ---')
@@ -177,18 +185,19 @@ for add_prunn in range(0, 3):
     while not_converged:
         print('iteration', i)
         not_converged = prod_.full_back_up(opts)
-        opt = np.unique(prod_.val[n].best_edge)
+        #opt_e = np.unique(prod_.val[n].best_edge)
         if i > 20:
             not_converged = False
         i += 1
 
     fig = plt.figure(figsize=(14, 14), dpi=80, facecolor='w', edgecolor='k')
     ax1 = fig.add_subplot(111, aspect='equal')
-    prm.plot(ax1)
-    nodes, edges, visited = plot_optimizer(prod_, ax1)
+    nodes, edges, visited = optimizers(prod_, ax1)
 
     prod_.prune(keep_list=visited)
+    prm.plot(ax1)
 
     simulate(prod_, regs)
+    tikz_save("PRM_" + str(add_prunn) + "_rock.tex")
 
     fig.show()

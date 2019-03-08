@@ -9,7 +9,7 @@ import aux as rf
 from fsa import Fsa
 from hVI_fsrm import SPaths
 from hVI_fsrm import Spec_Spaths
-from hVI_fsrm import plot_optimizer
+from hVI_fsrm import optimizers
 from hVI_models import State_Space, Det_SI_Model
 from hVI_types import Env
 
@@ -67,7 +67,11 @@ prm.make_nodes_edges(7, 3, means=[np.array([[-4.5], [0]]), np.array([[-2], [0]])
                                   np.array([[4.5], [0.5]]), np.array([[4.5], [-2.5]])])
 
 prm.plot(ax)
+from matplotlib2tikz import save as tikz_save
+
+tikz_save("PRM1.tex")
 plt.show()
+
 
 print('-- Generate the DFA and the Product model----')
 
@@ -120,6 +124,7 @@ for n1 in prod_.active:
     print(n1)
     plt.title(str(n1))
 
+tikz_save("PRM2.tex")
 
 plt.show()
 
@@ -129,7 +134,7 @@ plt.show()
 fig = plt.figure()
 ax = fig.add_subplot(111, aspect='equal')
 prm.plot(ax)
-nodes, edges, visited = plot_optimizer(prod_, ax)
+nodes, edges, visited = optimizers(prod_, ax)
 # prod_.prune(keep_list=visited)
 
 fig = plt.figure()
@@ -148,5 +153,6 @@ for b in prod_.b_prod_set:
 print('breg',b_reg_set)
 
 plt.scatter([i[0] for i in b_reg_set], [i[1] for i in b_reg_set])
+tikz_save("belief.tex")
 plt.show()
 

@@ -52,7 +52,7 @@ def BP_local(prod_, max_nodes): # extend belief points locally
                 #print(distance.cdist(b_new.T, b_update.T))
                 dis = np.amin(distance.cdist(b_new.T, b_update.T), axis=0)
 
-                if sum(dis)>prod_.epsilon:
+                if sum(dis) >prod_.epsilon:
                     b_new = np.concatenate([b_new, b_update[:,np.argmax(dis)]],axis=1)
                     #print(b_new)
 

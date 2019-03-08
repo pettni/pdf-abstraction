@@ -45,7 +45,6 @@ class State_Space(object):
 
             random.shuffle(self.grid)
         mean = self.grid.pop()
-        print(mean)
         return State(mean)
 
     def sample_new_state(self):
