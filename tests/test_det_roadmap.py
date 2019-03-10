@@ -3,20 +3,16 @@
 """
 import unittest
 from collections import OrderedDict
-from best.hVI_fsrm import SPaths
-from best.hVI_fsrm import spec_Spaths
-from best.hVI_models import State_Space, Det_SI_Model
-from best.hVI_types import Env, Gamma
-import best.rss18_functions as rf
-from best.hVI_config import sc, load, parr, obs_action, epsilon, rand_seed
-import numpy as np
-from collections import OrderedDict
-import matplotlib.pyplot as plt
-import random
-import time
-import unittest
 
-from best.fsa import Fsa
+import matplotlib.pyplot as plt
+import numpy as np
+
+import aux as rf
+from fsa import Fsa
+from hVI_fsrm import SPaths
+from hVI_fsrm import Spec_Spaths
+from hVI_models import State_Space, Det_SI_Model
+from hVI_types import Env
 
 
 class TestStringMethods(unittest.TestCase):
@@ -58,16 +54,14 @@ class TestStringMethods(unittest.TestCase):
 
         # Construct belief-MDP for env
         env = Env(regs)
-        self.assertIsInstance(env,Env)
+        self.assertIsInstance(env, Env)
         return
-
 
     def test_motion_mod(self):
         print("-----------------\n Test Deterministic motion model\n -----------------\n")
 
         motion_model = Det_SI_Model(0.1)
         self.assertIsInstance(motion_model.A, np.ndarray)
-
 
     def test_roadmap(self):
 
@@ -99,7 +93,6 @@ class TestStringMethods(unittest.TestCase):
         prm.make_nodes_edges(40, 3, init=np.array([[-4.5], [0]]))
         prm.plot(ax)
 
-
     def test_DFA(self):
         print("-----------------\n Test DFA\n -----------------\n")
 
@@ -111,18 +104,17 @@ class TestStringMethods(unittest.TestCase):
         fsa.g.add_node('trap')
         fsa.g.add_node(1)
 
-        fsa.g.add_edge(0,1, weight=0, input={props['sample1'],props['sample2'],props['sample2']+props['sample1']})
-        fsa.g.add_edge(0,0, weight=0, input={0})
-        fsa.g.add_edge(0,'trap', weight=0, input={props['obs']})
+        fsa.g.add_edge(0, 1, weight=0, input={props['sample1'], props['sample2'], props['sample2'] + props['sample1']})
+        fsa.g.add_edge(0, 0, weight=0, input={0})
+        fsa.g.add_edge(0, 'trap', weight=0, input={props['obs']})
 
         fsa.props = props
         fsa.final = {1}
-        fsa.init = dict({0:1})
-
+        fsa.init = dict({0: 1})
 
         formula_fsa = dict()
         formula_fsa['fsa'] = fsa
-        formula_fsa['init'] = dict({0:1})
+        formula_fsa['init'] = dict({0: 1})
         formula_fsa['final'] = {1}
         formula_fsa['prop'] = props
 
@@ -162,7 +154,6 @@ class TestStringMethods(unittest.TestCase):
         # Construct belief-MDP for env
         env = Env(regs)
 
-
         Wx = np.eye(2)
         Wu = np.eye(2)
         r2_bs = State_Space([-5, -5], [5, 5])
@@ -188,11 +179,9 @@ class TestStringMethods(unittest.TestCase):
         prm = SPaths(r2_bs, motion_model, Wx, Wu, regs, output_color, ax)
         prm.make_nodes_edges(40, 3, init=np.array([[-4.5], [0]]))
         prm.plot(ax)
-        prod_ = spec_Spaths(prm, formula_fsa,env,n=5)
+        prod_ = Spec_Spaths(prm, formula_fsa, env, n=5)
 
-        self.assertIsInstance(prod_,spec_Spaths)
-
-
+        self.assertIsInstance(prod_, Spec_Spaths)
 
     def test_add_node(self):
 
@@ -281,40 +270,37 @@ class TestStringMethods(unittest.TestCase):
         prm = SPaths(r2_bs, motion_model, Wx, Wu, regs, output_color, ax)
         prm.make_nodes_edges(40, 3, init=np.array([[-4.5], [0]]))
         prm.plot(ax)
-        prod_ = spec_Spaths(prm, formula_fsa, env, n=5)
+        prod_ = Spec_Spaths(prm, formula_fsa, env, n=5)
 
-        self.assertIsInstance(prod_, spec_Spaths)
+        self.assertIsInstance(prod_, Spec_Spaths)
         orig_nodes_firm = len(prod_.firm.nodes)
         orig_nodes = len(prod_.nodes)
         prod_.add_firm_node(3, 2)  # add three nodes?
         next_nodes_firm = len(prod_.firm.nodes)
-        print(orig_nodes_firm,next_nodes_firm)
-        self.assertLess(orig_nodes_firm,next_nodes_firm)
+        print(orig_nodes_firm, next_nodes_firm)
+        self.assertLess(orig_nodes_firm, next_nodes_firm)
 
         next_nodes = len(prod_.nodes)
-        print(orig_nodes,next_nodes)
+        print(orig_nodes, next_nodes)
         self.assertLess(orig_nodes, next_nodes)
-
 
     def test_rocksample_demo(self):
         print('-----Run the full Rocksample demo-----')
         # it is important to keep this demo working!!
         # that is why i added it currently as a unit test
         # !/usr/bin/python
-        from collections import OrderedDict
-        from best.hVI_fsrm import SPaths
-        from best.hVI_fsrm import spec_Spaths
-        from best.hVI_models import State_Space, Det_SI_Model
-        from best.hVI_types import Env, Gamma
-        import best.rss18_functions as rf
-        from best.hVI_config import sc, load, parr, obs_action, epsilon, rand_seed
+        from hVI_fsrm import SPaths
+        from hVI_fsrm import Spec_Spaths
+        from hVI_models import State_Space, Det_SI_Model
+        from hVI_types import Env
+        import aux as rf
+        from global_declarations import rand_seed
         import numpy as np
         from collections import OrderedDict
         import matplotlib.pyplot as plt
         import random
-        import time
 
-        print "Setting Up Scenario"
+        print("Setting Up Scenario")
 
         # Define Regions
         # Regs have the same format as RSS code. Regs that are added first have a higher priority
@@ -379,7 +365,7 @@ class TestStringMethods(unittest.TestCase):
         prm.plot(ax)
 
         print('-- Generate the DFA and the Product model----')
-        from best.fsa import Fsa
+        from fsa import Fsa
         props = ['obs', 'sample1', 'sample2']
         props = dict(zip(props, map(lambda x: 2 ** x, range(0, len(props)))))
         print(props)
@@ -409,9 +395,7 @@ class TestStringMethods(unittest.TestCase):
         formula_fsa['prop'] = props
 
         env.get_prop('r3')
-        prod_ = spec_Spaths(prm, formula_fsa, env, n=125)
-
-        import matplotlib.pyplot as plt
+        prod_ = Spec_Spaths(prm, formula_fsa, env, n=125)
 
         print('--- Start Back-ups ---')
 
@@ -423,28 +407,23 @@ class TestStringMethods(unittest.TestCase):
         while not_converged:
             print('iteration', i)
             not_converged = prod_.full_back_up(opts)
-            opt = np.unique(prod_.val[n].best_edge)
             if i > 20:
                 not_converged = False
             i += 1
 
-        from best.hVI_fsrm import plot_optimizer, simulate
+        from hVI_fsrm import optimizers, simulate
 
-        nodes, edges, visited = plot_optimizer(prod_, ax)
+        nodes, edges, visited = optimizers(prod_, ax)
         orig_nodes = len(prod_.nodes)
 
         prod_.prune(keep_list=visited)
 
         simulate(prod_, regs)
 
-
-
-        self.assertIsInstance(prod_, spec_Spaths)
+        self.assertIsInstance(prod_, Spec_Spaths)
 
         next_nodes = len(prod_.nodes)
-        self.assertLess(next_nodes,orig_nodes)
-
-
+        self.assertLess(next_nodes, orig_nodes)
 
         return
 
