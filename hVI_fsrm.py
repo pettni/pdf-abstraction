@@ -141,7 +141,7 @@ class SPaths(object):
                 # you want to avoid samples in regions that we know to be obstacles,
                 # but if they could be obstacles and it is not sure, then it makes more sense to keep samples in them
                 if grid:
-                    node = self.state_space.sample_new_state_from_grid(delta=0.9)
+                    node = self.state_space.sample_new_state_from_grid(delta=0.4)
 
                 else:
 
@@ -181,12 +181,16 @@ class SPaths(object):
             n_nodes += -1
         return added_nodes
 
-    def prune_nodes(self):
+    def prune_nodes(self, keeplist):
         # todo: pruning over new class structure
         # due to the current structure of the nodes and edges actually pruning FIRM is computationally intensive.
         #  Therefore we have not implemented it. To enable a good implementation,
         #  the SPaths object should inherent nodes and edges and its handles from the networkx packages.
         # right now , nodes will be removed or pruned from the product structure only.
+
+        rem_nodes = [n for n in self.nodes if n not in keeplist]
+        for  n in rem_nodes:
+            self.nodes.remove(n)
 
         # remove transitions/edges from and to nodes, that are no longer in the set of nodes.
         for from_node in self.edges.keys():
@@ -256,7 +260,6 @@ class SPaths(object):
             # to_nodes = self.nodes
 
             dist_mat = distance.cdist(new_nodes.T, all_nodes.T)
-
 
             for i, node in enumerate(nodes):
                 closest = sorted(range(l_nodes), key=lambda k: dist_mat[i,k])
@@ -443,9 +446,8 @@ class SPaths(object):
                 ax.plot(x, y, 'b')
 
         scale = 3
-        for i in range(len(self.nodes)):
-            # including the code in the following lines in the previous for loop doesnt work
-            plt.scatter(np.ravel(self.nodes[i].mean)[0], np.ravel(self.nodes[i].mean)[1])
+        rf.plot_nodes(self.nodes)
+
 
         for i in range(len(self.nodes)):
             # including the code in the following lines in the previous for loop doesnt work
@@ -684,7 +686,7 @@ class Spec_Spaths(nx.MultiDiGraph):
         super(Spec_Spaths, self).__init__(state_label_types=reg_names, edge_label_types=types)
         self.sequence = self.create_prod()
 
-    def add_firm_node(self, n_nodes, dist_edge, means=list()):
+    def add_firm_node(self, n_nodes, dist_edge, means=list(), **kwargs):
         """
         Add a node to the specification roadmap directly.
             - Node will be added as a ROADMAP node and in this specification roadmap
@@ -694,7 +696,7 @@ class Spec_Spaths(nx.MultiDiGraph):
         :return:  Updated ROADMAP and SPEC-ROADMAP
         """
         # add node to PRM/FIRM
-        new_nodes = self.firm.sample_nodes(n_nodes, means=means, append=True)
+        new_nodes = self.firm.sample_nodes(n_nodes, means=means, append=True,**kwargs)
         # print("added nodes ", new_nodes)
         # add edges in PRM/FIRM
         unvisited = self.firm.make_edges(dist_edge, nodes=new_nodes, give_connected=True)
@@ -822,14 +824,10 @@ class Spec_Spaths(nx.MultiDiGraph):
         """
         # (n=node)=> remove node from prod graph
         super(Spec_Spaths, self).remove_node(n)
-        self.firm.nodes.remove(n[1])
 
         self.active.__delitem__(n)
         self.val.__delitem__(n)
 
-        # => this only removes a node it does not remove the assocuated edges
-
-        # print('removed node', n)
 
     def prune(self, keep_list=None, rem_list=None):
         print('start')
@@ -851,9 +849,11 @@ class Spec_Spaths(nx.MultiDiGraph):
         for node in rem:
             self.rem_node(node)
 
-        self.firm.prune_nodes()
-
         nodes = bfs(self, (-1, -1))
+        prm_nodes = set(n[1] for n in nodes)
+        self.firm.prune_nodes(list(prm_nodes))
+
+
         u_nodes = OrderedDict()  # this dictionary will give the sequence of nodes to iterate over
         for u in nodes:
             u_nodes[u] = True

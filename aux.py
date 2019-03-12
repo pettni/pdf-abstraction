@@ -18,5 +18,10 @@ def plot_region(ax, poly, name, prob,
 
 def plot_nodes(nodes):
     assert isinstance(nodes, list)
+    x = []
+    y = []
     for node in nodes:
-        plt.scatter(np.ravel(node.mean)[0], np.ravel(node.mean)[1])
+        x += np.ravel(node.mean)[0]
+        y += np.ravel(node.mean)[1]
+
+    plt.scatter(np.array(x), np.array(y), c="g")

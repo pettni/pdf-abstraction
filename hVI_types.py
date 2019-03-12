@@ -208,7 +208,7 @@ class Env(object):
             dist = distance between the rover and the region """
 
         thresh1 = 1
-        thresh2 = 5
+        thresh2 = 4
         if dist < thresh1:
             return 0.2
         elif dist < thresh2:

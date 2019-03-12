@@ -79,7 +79,7 @@ fig = plt.figure(figsize=(14, 14), dpi=80, facecolor='w', edgecolor='k')
 ax = fig.add_subplot(111, aspect='equal')
 prm = SPaths(r2_bs, motion_model, Wx, Wu, regs, output_color, ax, nearest_n=4)
 kwarg = {"sample": "grid"}
-prm.make_nodes_edges(50, 3, init=np.array([[-4.5], [0]]),**kwarg)
+prm.make_nodes_edges(50, 3, init=np.array([[-4.5], [0]]), **kwarg)
 print(list(enumerate(prm.nodes)))
 
 prm.plot(ax)
@@ -166,9 +166,10 @@ for add_prunn in range(0, 5):
     ax = fig.add_subplot(111, aspect='equal')
     prm.plot(ax)
 
-    new_nodes = prod_.add_firm_node(20, 3)  # add three nodes?
+    new_nodes = prod_.add_firm_node(20, 3, **kwarg)  # add three nodes?
 
     plot_nodes(new_nodes)
+
 
     tikz_save("PRM_1" + str(add_prunn) + "_rock.tex")
 
@@ -196,8 +197,7 @@ for add_prunn in range(0, 5):
 
     prod_.prune(keep_list=visited)
     prm.plot(ax1)
-
-    simulate(prod_, regs)
     tikz_save("PRM_" + str(add_prunn) + "_rock.tex")
+
 
     fig.show()
