@@ -12,6 +12,7 @@ from hVI_fsrm import Spec_Spaths
 from hVI_fsrm import optimizers
 from hVI_models import State_Space, Det_SI_Model
 from hVI_types import Env
+from hVI_fsrm import simulate
 
 # %config InlineBackend.figure_format = 'retina'
 
@@ -156,3 +157,4 @@ plt.scatter([i[0] for i in b_reg_set], [i[1] for i in b_reg_set])
 tikz_save("belief.tex")
 plt.show()
 
+simulate(prod_, regs)
