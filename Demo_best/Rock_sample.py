@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import aux as rf
+from aux import simulate
 import hVI_algrthm
 from global_declarations import *
 from hVI_fsrm import SPaths
@@ -14,7 +15,6 @@ from hVI_models import State_Space, Det_SI_Model
 from hVI_types import Env
 import networkx
 from hVI_fsrm import optimizers
-from hVI_fsrm import simulate
 
 
 print("Setting Up Scenario")
@@ -79,7 +79,7 @@ fig = plt.figure(figsize=(14, 14), dpi=80, facecolor='w', edgecolor='k')
 ax = fig.add_subplot(111, aspect='equal')
 prm = SPaths(r2_bs, motion_model, Wx, Wu, regs, output_color, ax, nearest_n=4)
 kwarg = {"sample": "grid"}
-prm.make_nodes_edges(50, 3, init=np.array([[-4.5], [0]]),**kwarg)
+prm.make_nodes_edges(50, 3, init=np.array([[-4.5], [0]]), **kwarg)
 print(list(enumerate(prm.nodes)))
 
 prm.plot(ax)
@@ -158,7 +158,7 @@ try:
 except:
     pass
 
-for add_prunn in range(0, 5):
+for add_prunn in range(0, 4):
     hVI_algrthm.BP_local(prod_, 100)
 
     print(" ---- Add new nodes ----- ")
@@ -166,9 +166,10 @@ for add_prunn in range(0, 5):
     ax = fig.add_subplot(111, aspect='equal')
     prm.plot(ax)
 
-    new_nodes = prod_.add_firm_node(20, 3)  # add three nodes?
+    new_nodes = prod_.add_firm_node(20, 3, **kwarg)  # add three nodes?
 
     plot_nodes(new_nodes)
+
 
     tikz_save("PRM_1" + str(add_prunn) + "_rock.tex")
 
@@ -186,7 +187,7 @@ for add_prunn in range(0, 5):
         print('iteration', i)
         not_converged = prod_.full_back_up(opts)
         #opt_e = np.unique(prod_.val[n].best_edge)
-        if i > 20:
+        if i > 10:
             not_converged = False
         i += 1
 
@@ -196,8 +197,14 @@ for add_prunn in range(0, 5):
 
     prod_.prune(keep_list=visited)
     prm.plot(ax1)
-
-    simulate(prod_, regs)
     tikz_save("PRM_" + str(add_prunn) + "_rock.tex")
 
+
     fig.show()
+v_list, v_2,d_2, act_list,obs_list = simulate(prod_, regs)
+
+import dill                            #pip install dill --user
+filename = 'globalsave.pkl'
+dill.dump_session(filename)
+# and to load the session again:
+# dill.load_session(filename)

@@ -141,7 +141,7 @@ class SPaths(object):
                 # you want to avoid samples in regions that we know to be obstacles,
                 # but if they could be obstacles and it is not sure, then it makes more sense to keep samples in them
                 if grid:
-                    node = self.state_space.sample_new_state_from_grid(delta=0.9)
+                    node = self.state_space.sample_new_state_from_grid(delta=0.4)
 
                 else:
 
@@ -181,12 +181,16 @@ class SPaths(object):
             n_nodes += -1
         return added_nodes
 
-    def prune_nodes(self):
+    def prune_nodes(self, keeplist):
         # todo: pruning over new class structure
         # due to the current structure of the nodes and edges actually pruning FIRM is computationally intensive.
         #  Therefore we have not implemented it. To enable a good implementation,
         #  the SPaths object should inherent nodes and edges and its handles from the networkx packages.
         # right now , nodes will be removed or pruned from the product structure only.
+
+        rem_nodes = [n for n in self.nodes if n not in keeplist]
+        for  n in rem_nodes:
+            self.nodes.remove(n)
 
         # remove transitions/edges from and to nodes, that are no longer in the set of nodes.
         for from_node in self.edges.keys():
@@ -256,7 +260,6 @@ class SPaths(object):
             # to_nodes = self.nodes
 
             dist_mat = distance.cdist(new_nodes.T, all_nodes.T)
-
 
             for i, node in enumerate(nodes):
                 closest = sorted(range(l_nodes), key=lambda k: dist_mat[i,k])
@@ -443,9 +446,8 @@ class SPaths(object):
                 ax.plot(x, y, 'b')
 
         scale = 3
-        for i in range(len(self.nodes)):
-            # including the code in the following lines in the previous for loop doesnt work
-            plt.scatter(np.ravel(self.nodes[i].mean)[0], np.ravel(self.nodes[i].mean)[1])
+        rf.plot_nodes(self.nodes)
+
 
         for i in range(len(self.nodes)):
             # including the code in the following lines in the previous for loop doesnt work
@@ -684,7 +686,7 @@ class Spec_Spaths(nx.MultiDiGraph):
         super(Spec_Spaths, self).__init__(state_label_types=reg_names, edge_label_types=types)
         self.sequence = self.create_prod()
 
-    def add_firm_node(self, n_nodes, dist_edge, means=list()):
+    def add_firm_node(self, n_nodes, dist_edge, means=list(), **kwargs):
         """
         Add a node to the specification roadmap directly.
             - Node will be added as a ROADMAP node and in this specification roadmap
@@ -694,7 +696,7 @@ class Spec_Spaths(nx.MultiDiGraph):
         :return:  Updated ROADMAP and SPEC-ROADMAP
         """
         # add node to PRM/FIRM
-        new_nodes = self.firm.sample_nodes(n_nodes, means=means, append=True)
+        new_nodes = self.firm.sample_nodes(n_nodes, means=means, append=True,**kwargs)
         # print("added nodes ", new_nodes)
         # add edges in PRM/FIRM
         unvisited = self.firm.make_edges(dist_edge, nodes=new_nodes, give_connected=True)
@@ -822,14 +824,10 @@ class Spec_Spaths(nx.MultiDiGraph):
         """
         # (n=node)=> remove node from prod graph
         super(Spec_Spaths, self).remove_node(n)
-        self.firm.nodes.remove(n[1])
 
         self.active.__delitem__(n)
         self.val.__delitem__(n)
 
-        # => this only removes a node it does not remove the assocuated edges
-
-        # print('removed node', n)
 
     def prune(self, keep_list=None, rem_list=None):
         print('start')
@@ -851,9 +849,11 @@ class Spec_Spaths(nx.MultiDiGraph):
         for node in rem:
             self.rem_node(node)
 
-        self.firm.prune_nodes()
-
         nodes = bfs(self, (-1, -1))
+        prm_nodes = set(n[1] for n in nodes)
+        self.firm.prune_nodes(list(prm_nodes))
+
+
         u_nodes = OrderedDict()  # this dictionary will give the sequence of nodes to iterate over
         for u in nodes:
             u_nodes[u] = True
@@ -898,11 +898,18 @@ class Spec_Spaths(nx.MultiDiGraph):
         """
         for n in self.sequence:
             # do back up
-            self.back_up(n[0], n[1], opts_old=opts_old)
+            self.back_up(n[0], n[1], opts_old=opts_old, type="Obs")
+
+        for n in self.sequence:
+            self.back_up(n[0], n[1], opts_old=opts_old,type="Vert")
+
 
         return any(self.sequence.values())
 
-    def back_up(self, i_q, i_v, b=None, opts_old=None):
+
+
+
+    def back_up(self, i_q, i_v, b=None, opts_old=None, type = "Obs"):
         """
         This give the backup over all possible actions at
         a given point b if b is given or for all b points associated to (q,v). updates internally the value function based on the expected next value functions
@@ -911,6 +918,7 @@ class Spec_Spaths(nx.MultiDiGraph):
         :param i_v: node in firm
         :param b: belief point can either be a vector or None
         :param opts_old: aux variable with previous computed values of the nodes.
+        :param type: Obs vs Vert
          This is used to eliminate nodes that have converged from the sequence of to be backed-up nodes
         """
 
@@ -925,7 +933,10 @@ class Spec_Spaths(nx.MultiDiGraph):
         # if it is false in the sequence then also this node can be set to false
 
         if isinstance(b, np.ndarray):  # if no b is given then do it for all of them
-            return self._back_up(i_q, i_v, b)
+            if type == "Obs":
+                return self._back_up_obs(i_q, i_v, b)
+            elif type == "Vert":
+                return self._back_up_vert(i_q, i_v, b)
         else:
             alph_list = []
             best_edges = []
@@ -933,7 +944,14 @@ class Spec_Spaths(nx.MultiDiGraph):
             # Get belief point from value function
 
             for b in self.val[(i_q, i_v)].b_prod_points:
-                alpha_new, best_e, opt = self._back_up(i_q, i_v, b)
+                if type == "Obs":
+                    alpha_new, best_e, opt = self._back_up_obs(i_q, i_v, b)
+                    if alpha_new is None:
+                        break
+                elif type == "Vert":
+                    alpha_new, best_e, opt = self._back_up_vert(i_q, i_v, b)
+                else:
+                    raise ValueError
                 alph_list += [alpha_new]
                 best_edges += [best_e]
                 opts += [opt]
@@ -955,7 +973,7 @@ class Spec_Spaths(nx.MultiDiGraph):
                 self.val[(i_q, i_v)].prune()
                 self.val[(i_q, i_v)].best_edge = np.unique(best_edges)
 
-    def _back_up(self, i_q, i_v, b):
+    def _back_up_obs(self, i_q, i_v, b):
         """
         Back up operation for a given node.
 
@@ -973,19 +991,69 @@ class Spec_Spaths(nx.MultiDiGraph):
         max_alpha_b_e = np.full_like(b, 0)  # self.val[(i_q, i_v)].alpha_mat[:, index_alpha_init]
         # Save edge corresponding to best alpha vector
         best_e = None  # self.val[(i_q, i_v)].best_edge[index_alpha_init]
+        z = self.node[(i_q, i_v)]['reg']
+
+        if z is not 'null':
+            opt = np.max(np.matrix(self.val[(i_q, i_v)].alpha_mat).T * b)
+            return None, None, opt
+        else:
+            # For each obs action (iterate through every region that we can observe)
+            for key, info in self.env.regs.iteritems():
+                # Get observation matrix as defined in the paper
+                O = self.env.get_O_reg_prob(key, i_v.mean)
+                # Initialize sum over observations to zero
+                sum_o = np.zeros([2 ** self.env.n_unknown_regs, 1])
+                # Iterate over possible observations/Labels (True, False)
+                for i_o in range(2):
+                    # Get new Gamma set
+                    gamma_o_v = np.diag(np.ravel(O[i_o, :])) * np.matrix(self.val[(i_q, i_v)].alpha_mat)
+                    # Find index of best alpha in the new Gamma set
+                    index = np.argmax(gamma_o_v.T * b)
+                    # Add the best alpha to the summation
+                    sum_o = sum_o + gamma_o_v[:, index]
+                # Check if new alpha has a greater value
+                if (opt + epsilon) < (sum_o.T * np.matrix(b)).item(0):
+                    # Update the max_alpha and best_edge
+                    max_alpha_b_e = sum_o
+                    best_e = -1 * (self.env.regs.keys().index(key) + 1)  # region 0 will map to edge -1
+                    opt = (sum_o.T * np.matrix(b)).item(0)
+
+        return max_alpha_b_e, best_e, opt
+
+    def _back_up_vert(self, i_q, i_v, b):
+        """
+        Back up operation for a given node.
+
+        :param i_q: Discrete node in DFA associated to the node
+        :param i_v: Discrete node in roadmap associated to the node
+        :param b: list of belief points
+        :return: best value function (max_alpha_b_e, best_e, opt)
+        """
+        if isinstance(i_q,list):
+            i_q = i_q[0]
+
+        epsilon = self.epsilon
+        # Set max alpha and best edge to current max/best (need this to avoid invariant policies)
+        # Find index of best alpha from gamma set
+        # index_alpha_init = np.argmax(self.val[(i_q, i_v)].alpha_mat.T * b)
+        # Save best alpha vector
+        opt = 0
+        max_alpha_b_e = np.full_like(b, 0)  # self.val[(i_q, i_v)].alpha_mat[:, index_alpha_init]
+        # Save edge corresponding to best alpha vector
+        best_e = None  # self.val[(i_q, i_v)].best_edge[index_alpha_init]
         nf = (i_q, i_v)  # source node
         # Foreach edge action
         for v_e in self.firm.edges[i_v]:
             # Get probability of reaching goal vertex corresponding to current edge
             # p_reach_goal_node = firm.reach_goal_node_prob[i_v][i_e]
             p_reach_goal_node = self.firm.edge_controllers[
-                (i_v, v_e)].prob  # = 0.99  # TODO Get this from Petter's Barrier Certificate
+                (i_v, v_e)].prob   # TODO Get this from Petter's Barrier Certificate
             # next node if observing no label
             q_z_o = self.find_edge((i_q, i_v), 'null', v=v_e)
             n = (q_z_o, v_e)  # next node
             # Get goal vertex corresponding to edge
             z = self.node[n]['reg']
-
+            #print(z)
             # TODO: Remove this hardcoding
             # If output is null or region is known
             if z is 'null':
@@ -1022,29 +1090,8 @@ class Spec_Spaths(nx.MultiDiGraph):
             # print max_alpha_b_e.T * np.matrix(b)
             # import pdb; pdb.set_trace()
 
-        p_reach_goal_node = 0.99  # TODO: remove  hard coding of transition prob for observations
-        # For each obs action (iterate through every region that we can observe)
-        for key, info in self.env.regs.iteritems():
-            # Get observation matrix as defined in the paper
-            O = self.env.get_O_reg_prob(key, i_v.mean)
-            # Initialize sum over observations to zero
-            sum_o = np.zeros([2 ** self.env.n_unknown_regs, 1])
-            # Iterate over possible observations/Labels (True, False)
-            for i_o in range(2):
-                # Get new Gamma set
-                gamma_o_v = np.diag(np.ravel(O[i_o, :])) * np.matrix(self.val[(i_q, i_v)].alpha_mat)
-                # Find index of best alpha in the new Gamma set
-                index = np.argmax(gamma_o_v.T * b)
-                # Add the best alpha to the summation
-                sum_o = sum_o + p_reach_goal_node * gamma_o_v[:, index]
-            # Check if new alpha has a greater value
-            if (opt + epsilon) < (sum_o.T * np.matrix(b)).item(0):
-                # Update the max_alpha and best_edge
-                max_alpha_b_e = sum_o
-                best_e = -1 * (self.env.regs.keys().index(key) + 1)  # region 0 will map to edge -1
-                opt = (sum_o.T * np.matrix(b)).item(0)
-
         return max_alpha_b_e, best_e, opt
+
 
     def plot_bel(self, n, i, fig_n=1, b=None):
         """
@@ -1162,104 +1209,3 @@ def optimizers(prod, ax, showplot=True, minimal=False):
 
     return nodes, edges, visited
 
-
-def simulate(spath, regs, time_n=100,
-             fig=None,
-             obs_action=True):
-    """
-    Give a simulation of the current policy starting from the initial belief points
-
-    :param time_n: total simulation time
-    :type regs: Regions dictionary
-    :param obs_action: obs_action true or false
-    :param fig: figure handle (optional)
-    :param spath: the specification road map
-    :type spath: Spec_Spaths
-    :return: trajectory, v_list, vals, act_list
-    """
-    if fig:
-        pass
-    else:
-        fig = plt.figure()
-
-    b = spath.env.b_prod_init  # initial belief points
-    if len(spath.init) > 1:
-        warnings.warn("Warning only first initial state is simulated")
-
-    (q, v) = spath.init[0]
-
-    # initialize
-    traj = []
-    v_list = [v]
-    act_list = []
-    vals = []
-    q_ = None
-    b_ = None
-    for t in range(time_n):
-        print(t)
-        # Get best edge
-        alpha_new, best_e, opt = spath._back_up(q, v, b)
-        vals += [opt]
-
-        if obs_action is True and best_e < 0:
-            reg_key = spath.env.regs.keys()[-1 * (best_e + 1)]
-            (b_, o, i_o) = spath.env.get_b_o_reg(b, spath.env.regs[reg_key][3], reg_key, v.mean)
-            b = b_
-            act_list += ["Observing = " + reg_key]
-            print "Observing " + reg_key + " at vertex" + str(v) + " q = " + str(q)
-            continue
-
-        # Simulate trajectory under edges
-        edge_controller = spath.firm.edge_controllers[(v, best_e)]
-        traj_e = edge_controller.simulate_trajectory(edge_controller.node_i)
-        traj_n = spath.firm.node_controllers[edge_controller.node_j].simulate_trajectory(traj_e[-1])
-        # traj_i = [(b, i, q) for i in traj_e + traj_n]
-        traj_i = traj_e + traj_n
-        traj = traj + traj_i
-        # Get q', v', q' and loop
-        z = spath.firm.get_output_traj(traj_e + traj_n)
-        v_ = best_e
-        act_list += [best_e]
-
-        if obs_action is False:
-            print("TODO: Implement backup without obs_action")
-        else:
-            if regs[z][2] is 'null':
-                b_ = b
-                q_ = q
-            elif isinstance(regs[z][2], str): # is not 'null' or regs[z][2] is 'sample1' or regs[z][2] is 'sample2':
-                # line below is old code
-                #elif regs[z][2] is 'obs' or regs[z][2] is 'sample1' or regs[z][2] is 'sample2':
-                q_ = None
-                b_ = None
-                # if region is known
-                if regs[z][1] == 1 or regs[z][1] == 0:
-                    # if label is true
-                    if regs[z][1] == 1:
-                        q_ = spath.fsa.next_states_of_fsa(q, regs[z][2])
-                        b_ = b
-                # else update belief by simulating an observation
-                else:
-
-                    (b_, o, i_o) = spath.env.get_b_o_reg(b, spath.env.regs[z][3], z)
-                    # if true label is true then do transition in DFA
-                    # We are assuming that we get zero false rate when we pass through the region
-
-                    if regs[z][3] is 1:
-                        q_ = spath.fsa.next_states_of_fsa(q, (spath.env.regs[z][2],))
-                if q_ is None:
-                    q_ = q
-                if b_ is None:
-                    b_ = b
-        print("going from vertex " + str(v) + " to vertex " + str(v_) + " q = " + str(q_))
-
-        b = b_  # new value becomes old value
-        q = q_  # new value becomes old value
-        v = v_  # new value becomes old value
-        v_list += [v]
-        if q in list(spath.dfsa_final) or q == list(spath.dfsa_final):
-            print('break')
-
-            break
-
-    return traj, v_list, vals, act_list
