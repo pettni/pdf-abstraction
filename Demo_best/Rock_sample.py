@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import aux as rf
+from aux import simulate
 import hVI_algrthm
 from global_declarations import *
 from hVI_fsrm import SPaths
@@ -14,7 +15,6 @@ from hVI_models import State_Space, Det_SI_Model
 from hVI_types import Env
 import networkx
 from hVI_fsrm import optimizers
-from hVI_fsrm import simulate
 
 
 print("Setting Up Scenario")
@@ -158,7 +158,7 @@ try:
 except:
     pass
 
-for add_prunn in range(0, 5):
+for add_prunn in range(0, 4):
     hVI_algrthm.BP_local(prod_, 100)
 
     print(" ---- Add new nodes ----- ")
@@ -187,7 +187,7 @@ for add_prunn in range(0, 5):
         print('iteration', i)
         not_converged = prod_.full_back_up(opts)
         #opt_e = np.unique(prod_.val[n].best_edge)
-        if i > 20:
+        if i > 10:
             not_converged = False
         i += 1
 
@@ -201,3 +201,10 @@ for add_prunn in range(0, 5):
 
 
     fig.show()
+v_list, v_2,d_2, act_list,obs_list = simulate(prod_, regs)
+
+import dill                            #pip install dill --user
+filename = 'globalsave.pkl'
+dill.dump_session(filename)
+# and to load the session again:
+# dill.load_session(filename)

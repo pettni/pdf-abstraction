@@ -249,6 +249,8 @@ class Env(object):
         return belief
 
 
+
+
 if __name__ == '__main__':
     ''' Define Regions and create Env '''
     regs = OrderedDict()

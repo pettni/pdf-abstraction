@@ -12,7 +12,6 @@ from hVI_fsrm import Spec_Spaths
 from hVI_fsrm import optimizers
 from hVI_models import State_Space, Det_SI_Model
 from hVI_types import Env
-from hVI_fsrm import simulate
 
 # %config InlineBackend.figure_format = 'retina'
 
@@ -33,10 +32,10 @@ print("Started wall case")
 regs = OrderedDict()
 
 a1 = rf.vertex_to_poly(np.array([[4, 0], [5, 0], [5, 1], [4, 1]]))
-regs['a1'] = (a1, 0.9, 'sample1', 0)
+regs['a1'] = (a1, 0.3, 'sample1', 0)
 
 a2 = rf.vertex_to_poly(np.array([[4, -3], [5, -3], [5, -2], [4, -2]]))
-regs['a2'] = (a2, 0.3, 'sample3', 1)
+regs['a2'] = (a2, 0.6, 'sample3', 1)
 
 
 output_color = {'a1': 'green', 'a2': 'blue', 'null': 'white'}
@@ -157,4 +156,6 @@ plt.scatter([i[0] for i in b_reg_set], [i[1] for i in b_reg_set])
 tikz_save("belief.tex")
 plt.show()
 
-simulate(prod_, regs)
+import aux
+v_list, v_2,d_2, act_list,obs_list = aux.simulate(prod_,regs)
+plt.show()

@@ -946,7 +946,7 @@ class Spec_Spaths(nx.MultiDiGraph):
             for b in self.val[(i_q, i_v)].b_prod_points:
                 if type == "Obs":
                     alpha_new, best_e, opt = self._back_up_obs(i_q, i_v, b)
-                    if opt is None:
+                    if alpha_new is None:
                         break
                 elif type == "Vert":
                     alpha_new, best_e, opt = self._back_up_vert(i_q, i_v, b)
@@ -994,7 +994,8 @@ class Spec_Spaths(nx.MultiDiGraph):
         z = self.node[(i_q, i_v)]['reg']
 
         if z is not 'null':
-            return None, None, None
+            opt = np.max(np.matrix(self.val[(i_q, i_v)].alpha_mat).T * b)
+            return None, None, opt
         else:
             # For each obs action (iterate through every region that we can observe)
             for key, info in self.env.regs.iteritems():
@@ -1046,13 +1047,13 @@ class Spec_Spaths(nx.MultiDiGraph):
             # Get probability of reaching goal vertex corresponding to current edge
             # p_reach_goal_node = firm.reach_goal_node_prob[i_v][i_e]
             p_reach_goal_node = self.firm.edge_controllers[
-                (i_v, v_e)].prob  # = 0.99  # TODO Get this from Petter's Barrier Certificate
+                (i_v, v_e)].prob   # TODO Get this from Petter's Barrier Certificate
             # next node if observing no label
             q_z_o = self.find_edge((i_q, i_v), 'null', v=v_e)
             n = (q_z_o, v_e)  # next node
             # Get goal vertex corresponding to edge
             z = self.node[n]['reg']
-
+            #print(z)
             # TODO: Remove this hardcoding
             # If output is null or region is known
             if z is 'null':
@@ -1208,122 +1209,3 @@ def optimizers(prod, ax, showplot=True, minimal=False):
 
     return nodes, edges, visited
 
-
-def simulate(spath, regs, time_n=100,
-             fig=None,
-             obs_action=True):
-    """
-    Give a simulation of the current policy starting from the initial belief points
-
-    :param time_n: total simulation time
-    :type regs: Regions dictionary
-    :param obs_action: obs_action true or false
-    :param fig: figure handle (optional)
-    :param spath: the specification road map
-    :type spath: Spec_Spaths
-    :return: trajectory, v_list, vals, act_list
-    """
-    if fig:
-        pass
-    else:
-        fig = plt.figure()
-
-    b = spath.env.b_prod_init  # initial belief points
-    if len(spath.init) > 1:
-        warnings.warn("Warning only first initial state is simulated")
-
-    (q, v) = spath.init[0]
-
-    # initialize
-    traj = []
-    v_list = [v]
-    act_list = []
-    vals = []
-    q_ = None
-    b_ = None
-    for t in range(time_n):
-
-        print(t)
-        # Get best edge
-        print("(q, v, b)",(q, v, b))
-        alpha_new, best_e, opt = spath._back_up_vert(q, v, b) # chose next node
-        print("best_e",best_e)
-
-        alpha_new, best_obs, opt_obs = spath._back_up_obs(q, best_e, b) # chose next observation
-        if opt_obs is None:
-            opt_obs = opt
-            print(q, best_e)
-            print(spath.node[(q, best_e)])
-            print(spath.env.regs[spath.node[(q, best_e)]['reg']])
-            best_obs =  -1 * (spath.env.regs[spath.node[(q, best_e)]['reg']][3] + 1)
-
-        vals += [opt]
-
-
-        # Simulate trajectory under edges
-        edge_controller = spath.firm.edge_controllers[(v, best_e)]
-        traj_e = edge_controller.simulate_trajectory(edge_controller.node_i)
-        traj_n = spath.firm.node_controllers[edge_controller.node_j].simulate_trajectory(traj_e[-1])
-        # traj_i = [(b, i, q) for i in traj_e + traj_n]
-        traj_i = traj_e + traj_n
-        traj = traj + traj_i
-        # Get q', v', q' and loop
-        z = spath.firm.get_output_traj(traj_e + traj_n)
-        v_ = best_e
-        act_list += [(best_e,best_obs)]
-
-        if obs_action is False:
-            print("TODO: Implement backup without obs_action")
-        else:
-            if regs[z][2] is 'null':
-                b_ = b
-                q_ = q
-            elif isinstance(regs[z][2], str): # is not 'null' or regs[z][2] is 'sample1' or regs[z][2] is 'sample2':
-                # line below is old code
-                #elif regs[z][2] is 'obs' or regs[z][2] is 'sample1' or regs[z][2] is 'sample2':
-                q_ = None
-                b_ = None
-                # if region is known
-                if regs[z][1] == 1 or regs[z][1] == 0:
-                    # if label is true
-                    if regs[z][1] == 1:
-                        q_ = spath.fsa.next_states_of_fsa(q, regs[z][2])
-                        b_ = b
-                # else update belief by simulating an observation
-                else:
-
-                    (b_, o, i_o) = spath.env.get_b_o_reg(b, spath.env.regs[z][3], z)
-                    # if true label is true then do transition in DFA
-                    # We are assuming that we get zero false rate when we pass through the region
-
-                    if regs[z][3] is 1:
-                        q_ = spath.fsa.next_states_of_fsa(q, (spath.env.regs[z][2],))
-                if q_ is None:
-                    q_ = q
-                if b_ is None:
-                    b_ = b
-        print("going from vertex " + str(v) + " to vertex " + str(v_) + " q = " + str(q_))
-
-        b = b_  # new value becomes old value
-        q = q_  # new value becomes old value
-        v = v_  # new value becomes old value
-        v_list += [v]
-
-        if obs_action is True and best_obs < 0:
-            reg_key = spath.env.regs.keys()[-1 * (best_obs + 1)]
-            (b_, o, i_o) = spath.env.get_b_o_reg(b, spath.env.regs[reg_key][3], reg_key, v.mean)
-            b = b_
-            #act_list += ["Observing = " + reg_key]
-            print "Observing " + reg_key + " at vertex" + str(v) + " q = " + str(q)
-
-        if isinstance(q,list):
-            q = q[0]
-        if not spath.active.get((q,v), False):
-
-            print("opt_list", vals)
-            print("act_list", act_list)
-
-            break
-
-
-    return traj, v_list, vals, act_list
