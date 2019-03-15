@@ -2,8 +2,6 @@
 
 ## Code Structure
 
-- __hVI_main.py__
-Contains the implementation of the backups (equivalent to the ipython notebook)
 
 - __hVI_fsrm.py__
 Implementation of roadmap

@@ -69,7 +69,7 @@ prm.make_nodes_edges(7, 3, means=[np.array([[-4.5], [0]]), np.array([[-2], [0]])
 prm.plot(ax)
 from matplotlib2tikz import save as tikz_save
 
-tikz_save("PRM1.tex")
+# tikz_save("PRM1.tex")
 plt.show()
 
 
@@ -124,7 +124,7 @@ for n1 in prod_.active:
     print(n1)
     plt.title(str(n1))
 
-tikz_save("PRM2.tex")
+# tikz_save("PRM2.tex")
 
 plt.show()
 
@@ -153,9 +153,10 @@ for b in prod_.b_prod_set:
 print('breg',b_reg_set)
 
 plt.scatter([i[0] for i in b_reg_set], [i[1] for i in b_reg_set])
-tikz_save("belief.tex")
+# tikz_save("belief.tex")
 plt.show()
 
 import aux
-v_list, v_2,d_2, act_list,obs_list = aux.simulate(prod_,regs)
+fig=plt.figure()
+v_list, v_2,d_2, act_list,obs_list, b_list,dist_list= aux.simulate(prod_,regs, fig=fig)
 plt.show()
