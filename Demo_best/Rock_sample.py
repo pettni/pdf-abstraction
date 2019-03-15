@@ -15,6 +15,7 @@ from hVI_models import State_Space, Det_SI_Model
 from hVI_types import Env
 import networkx
 from hVI_fsrm import optimizers
+from matplotlib2tikz import save as tikz_save
 
 
 print("Setting Up Scenario")
@@ -83,9 +84,8 @@ prm.make_nodes_edges(50, 3, init=np.array([[-4.5], [0]]), **kwarg)
 print(list(enumerate(prm.nodes)))
 
 prm.plot(ax)
-from matplotlib2tikz import save as tikz_save
 
-tikz_save("PRM1_rock.tex")
+# tikz_save("PRM1_rock.tex")
 plt.show()
 print('len', len(prm.nodes))
 
@@ -171,7 +171,7 @@ for add_prunn in range(0, 4):
     plot_nodes(new_nodes)
 
 
-    tikz_save("PRM_1" + str(add_prunn) + "_rock.tex")
+    # tikz_save("PRM_1" + str(add_prunn) + "_rock.tex")
 
     fig.show()
 
@@ -197,11 +197,17 @@ for add_prunn in range(0, 4):
 
     prod_.prune(keep_list=visited)
     prm.plot(ax1)
-    tikz_save("PRM_" + str(add_prunn) + "_rock.tex")
+    # tikz_save("PRM_" + str(add_prunn) + "_rock.tex")
 
 
     fig.show()
-v_list, v_2,d_2, act_list,obs_list = simulate(prod_, regs)
+import aux
+fig = plt.figure()
+plt.subplot(211)
+v_list, v_2,d_2, act_list,obs_list, b_list,dist_list = aux.simulate(prod_, regs,fig=fig)
+plt.subplot(212)
+aux.plt_belief(b_list,env,dist=None)
+plt.show()
 
 import dill                            #pip install dill --user
 filename = 'globalsave.pkl'

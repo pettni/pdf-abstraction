@@ -174,15 +174,17 @@ def simulate(spath, regs, time_n=100,
     d_2.pop(0)
     v_2.pop()
 
-    plt.plot(d_2,v_2, marker='*')
+    plt.plot(d_2,v_2)
     for i,d in enumerate(np.cumsum(dist_list)):
         if i <=0:
             continue
-        plt.text(d+0.2, vals[i] + 0.06, type[i-1], fontsize=10)
         if obs_list[i-1][1] == 1:
-            plt.scatter(d, vals[i] + 0.06, marker='^',color='b')
+            plt.text(d + 0.2, vals[i] + 0.06, 't'+type[i - 1][1], fontsize=10)
+            plt.scatter(d, vals[i], marker='^',color='b')
         else:
-            plt.scatter(d, vals[i] + 0.06, marker='v',color='b')
+            plt.scatter(d, vals[i], marker='v',color='b')
+            plt.text(d + 0.2, vals[i] + 0.06, 'f'+type[i - 1][1], fontsize=10)
+
 
     plt.title('Satisfaction probability')
     plt.xlabel('distance travelled')
@@ -224,13 +226,17 @@ def plt_belief(b_list,env,dist=None):
         if dist is not None:
             plt.plot(np.array(dist),np.array(b), label=re, marker='*')
         else:
-            plt.plot(b, label=re, marker='*')
+            if re=='r10':
+                re='r3' # this fixed enumeration/style issue for CDC
+            plt.plot(b, label=re.capitalize(), marker='*')
+
 
 
     plt.title('Belief state per region')
     plt.xlabel('distance travelled')
-    plt.ylabel('probability')
-    plt.ylim(0, 1.2)
-    plt.legend()
+    plt.ylabel('belief')
+    plt.ylim(0, 1.4)
+    plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05),
+              ncol=5)
 
     return out, env.regs.keys()
